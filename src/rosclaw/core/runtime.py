@@ -101,7 +101,10 @@ class Runtime(LifecycleMixin):
         if self.config.enable_memory:
             try:
                 from rosclaw.memory.interface import MemoryInterface
-                self._memory = MemoryInterface(self.config.robot_id)
+                self._memory = MemoryInterface(
+                    self.config.robot_id,
+                    event_bus=self.event_bus,
+                )
                 self._modules.append(self._memory)
                 print("[Runtime] Experience Grounding (Memory) initialized")
             except ImportError as e:
@@ -114,6 +117,7 @@ class Runtime(LifecycleMixin):
                 self._practice = PracticeRecorder(
                     robot_id=self.config.robot_id,
                     joint_dof=self.config.joint_dof,
+                    event_bus=self.event_bus,
                 )
                 self._modules.append(self._practice)
                 print("[Runtime] Timeline Grounding (Practice) initialized")
@@ -124,7 +128,7 @@ class Runtime(LifecycleMixin):
         if self.config.enable_swarm:
             try:
                 from rosclaw.swarm.manager import SwarmRuntimeManager
-                self._swarm = SwarmRuntimeManager()
+                self._swarm = SwarmRuntimeManager(event_bus=self.event_bus)
                 self._modules.append(self._swarm)
                 print("[Runtime] Collaboration Grounding (Swarm) initialized")
             except ImportError as e:
@@ -135,7 +139,7 @@ class Runtime(LifecycleMixin):
             try:
                 from rosclaw.skill_manager.registry import SkillRegistry
                 from rosclaw.skill_manager.executor import SkillExecutor
-                registry = SkillRegistry()
+                registry = SkillRegistry(event_bus=self.event_bus)
                 self._skill_manager = SkillExecutor(self.event_bus, registry)
                 self._modules.append(registry)
                 self._modules.append(self._skill_manager)

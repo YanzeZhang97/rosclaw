@@ -1,12 +1,7 @@
-"""
-Swarm Runtime Manager - Collaboration Grounding
+"""Swarm Runtime Manager - Collaboration Grounding
 
 Manages multi-robot coordination through the EventBus.
-Provides task planning, agent registry, and swarm-level
-orchestration.
-
-Note: Full DDS Reflex Handshake implementation will be
-integrated from the rosclaw-swarm project.
+All communication goes through EventBus — no direct module calls.
 """
 
 from typing import Any, Optional
@@ -20,19 +15,64 @@ class SwarmRuntimeManager(LifecycleMixin):
     Manages coordination between multiple robot agents.
 
     Provides:
-    - Agent registry and discovery
+    - Agent registry and discovery via EventBus
     - Task allocation and planning
     - Swarm-level event coordination
     """
 
-    def __init__(self):
+    def __init__(self, event_bus: Optional[EventBus] = None):
         super().__init__()
+        self.event_bus = event_bus
         self._agents: dict[str, dict] = {}
         self._tasks: dict[str, dict] = {}
 
     def _do_initialize(self) -> None:
         """Initialize swarm manager."""
+        if self.event_bus is not None:
+            self.event_bus.subscribe("swarm.register", self._on_register_request)
+            self.event_bus.subscribe("swarm.allocate", self._on_allocate_request)
+            self.event_bus.subscribe("swarm.status", self._on_status_request)
         print("[Swarm] Swarm manager initialized")
+
+    def _do_stop(self) -> None:
+        if self.event_bus is not None:
+            self.event_bus.unsubscribe("swarm.register", self._on_register_request)
+            self.event_bus.unsubscribe("swarm.allocate", self._on_allocate_request)
+            self.event_bus.unsubscribe("swarm.status", self._on_status_request)
+
+    def _on_register_request(self, event: Event) -> None:
+        """Handle agent registration via EventBus."""
+        payload = event.payload if isinstance(event.payload, dict) else {}
+        agent_id = payload.get("agent_id")
+        capabilities = payload.get("capabilities", [])
+        if agent_id:
+            self.register_agent(agent_id, capabilities)
+
+    def _on_allocate_request(self, event: Event) -> None:
+        """Handle task allocation via EventBus."""
+        payload = event.payload if isinstance(event.payload, dict) else {}
+        task = payload.get("task", {})
+        agent_id = self.allocate_task(task)
+        if self.event_bus is not None:
+            self.event_bus.publish(Event(
+                topic="swarm.allocate_result",
+                payload={"task": task, "agent_id": agent_id},
+                source="swarm",
+                priority=EventPriority.HIGH,
+            ))
+
+    def _on_status_request(self, event: Event) -> None:
+        """Handle status query via EventBus."""
+        payload = event.payload if isinstance(event.payload, dict) else {}
+        agent_id = payload.get("agent_id")
+        status = self.get_agent_status(agent_id) if agent_id else {"agents": list(self._agents.keys())}
+        if self.event_bus is not None:
+            self.event_bus.publish(Event(
+                topic="swarm.status_result",
+                payload={"agent_id": agent_id, "status": status},
+                source="swarm",
+                priority=EventPriority.NORMAL,
+            ))
 
     def register_agent(self, agent_id: str, capabilities: list[str]) -> None:
         """Register a robot agent with the swarm."""
@@ -42,6 +82,13 @@ class SwarmRuntimeManager(LifecycleMixin):
             "status": "idle",
         }
         print(f"[Swarm] Agent registered: {agent_id} ({capabilities})")
+        if self.event_bus is not None:
+            self.event_bus.publish(Event(
+                topic="swarm.agent_registered",
+                payload={"agent_id": agent_id, "capabilities": capabilities},
+                source="swarm",
+                priority=EventPriority.NORMAL,
+            ))
 
     def allocate_task(self, task: dict) -> Optional[str]:
         """Allocate a task to an available agent."""

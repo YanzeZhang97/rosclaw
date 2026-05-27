@@ -4,6 +4,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
+from rosclaw.core.event_bus import EventBus, Event, EventPriority
 from rosclaw.core.lifecycle import LifecycleMixin
 
 
@@ -43,18 +44,49 @@ class SkillRegistry(LifecycleMixin):
     """
     Central registry for all robot skills.
 
-    Skills can be:
-    - Programmed: Hand-written control logic
-    - Learned: Generated from demonstrations via AI
-    - Hybrid: Programmed skeleton with learned parameters
+    Subscribes to praxis.completed via EventBus to auto-update
+    skill statistics from execution results.
     """
 
-    def __init__(self):
+    def __init__(self, event_bus: Optional[EventBus] = None):
         super().__init__()
+        self.event_bus = event_bus
         self._skills: dict[str, SkillEntry] = {}
 
     def _do_initialize(self) -> None:
         print("[SkillRegistry] Initialized")
+        if self.event_bus is not None:
+            self.event_bus.subscribe("praxis.completed", self._on_praxis_completed)
+            self.event_bus.subscribe("praxis.failed", self._on_praxis_failed)
+            self.event_bus.subscribe("skill.execution.complete", self._on_skill_complete)
+
+    def _do_stop(self) -> None:
+        if self.event_bus is not None:
+            self.event_bus.unsubscribe("praxis.completed", self._on_praxis_completed)
+            self.event_bus.unsubscribe("praxis.failed", self._on_praxis_failed)
+            self.event_bus.unsubscribe("skill.execution.complete", self._on_skill_complete)
+
+    def _on_praxis_completed(self, event: Event) -> None:
+        """Auto-update skill stats from successful praxis."""
+        payload = event.payload if isinstance(event.payload, dict) else {}
+        skill_name = payload.get("skill_name")
+        if skill_name:
+            self.update_stats(skill_name, success=True)
+
+    def _on_praxis_failed(self, event: Event) -> None:
+        """Auto-update skill stats from failed praxis."""
+        payload = event.payload if isinstance(event.payload, dict) else {}
+        skill_name = payload.get("skill_name")
+        if skill_name:
+            self.update_stats(skill_name, success=False)
+
+    def _on_skill_complete(self, event: Event) -> None:
+        """Update stats from skill execution completion events."""
+        payload = event.payload if isinstance(event.payload, dict) else {}
+        skill_name = payload.get("skill_name")
+        result = payload.get("result", {})
+        if skill_name:
+            self.update_stats(skill_name, success=(result.get("status") == "success"))
 
     def register(self, entry: SkillEntry) -> None:
         """Register a skill."""
@@ -62,6 +94,13 @@ class SkillRegistry(LifecycleMixin):
             print(f"[SkillRegistry] Overwriting skill: {entry.name}")
         self._skills[entry.name] = entry
         print(f"[SkillRegistry] Registered skill: {entry.name} ({entry.skill_type})")
+        if self.event_bus is not None:
+            self.event_bus.publish(Event(
+                topic="skill.registered",
+                payload={"skill_name": entry.name, "skill_type": entry.skill_type},
+                source="skill_registry",
+                priority=EventPriority.NORMAL,
+            ))
 
     def unregister(self, name: str) -> bool:
         """Remove a skill from registry."""

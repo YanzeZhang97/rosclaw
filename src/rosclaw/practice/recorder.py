@@ -1,13 +1,13 @@
-"""
-Practice Recorder - Timeline Grounding
+"""Practice Recorder - Timeline Grounding
 
 Records robot execution traces using the DataFlywheel.
-Provides black-box recording for later analysis, replay, and learning.
+All communication goes through EventBus — no direct module calls.
 """
 
 from pathlib import Path
 from typing import Any, Optional
 
+from rosclaw.core.event_bus import EventBus, Event, EventPriority
 from rosclaw.core.lifecycle import LifecycleMixin
 from rosclaw.data.flywheel import DataFlywheel, EventType
 
@@ -18,12 +18,16 @@ class PracticeRecorder(LifecycleMixin):
 
     Uses the DataFlywheel for high-frequency capture
     and event-triggered persistence.
+
+    Subscribes to agent.command via EventBus to auto-record
+    all robot actions.
     """
 
-    def __init__(self, robot_id: str, joint_dof: int = 6):
+    def __init__(self, robot_id: str, joint_dof: int = 6, event_bus: Optional[EventBus] = None):
         super().__init__()
         self.robot_id = robot_id
         self.joint_dof = joint_dof
+        self.event_bus = event_bus
         self._flywheel: Optional[DataFlywheel] = None
         self._recording = False
 
@@ -33,7 +37,46 @@ class PracticeRecorder(LifecycleMixin):
             robot_id=self.robot_id,
             joint_dof=self.joint_dof,
         )
+        if self.event_bus is not None:
+            self.event_bus.subscribe("agent.command", self._on_agent_command)
+            self.event_bus.subscribe("skill.execution.start", self._on_skill_start)
+            self.event_bus.subscribe("skill.execution.complete", self._on_skill_complete)
         print(f"[Practice] Recorder initialized for {self.robot_id}")
+
+    def _do_stop(self) -> None:
+        if self.event_bus is not None:
+            self.event_bus.unsubscribe("agent.command", self._on_agent_command)
+            self.event_bus.unsubscribe("skill.execution.start", self._on_skill_start)
+            self.event_bus.unsubscribe("skill.execution.complete", self._on_skill_complete)
+
+    def _on_agent_command(self, event: Event) -> None:
+        """Auto-start recording when agent commands are issued."""
+        if not self._recording:
+            return
+        payload = event.payload if isinstance(event.payload, dict) else {}
+        action = payload.get("action", "unknown")
+        self.mark_event(EventType.MILESTONE, {"action": action, "source": event.source})
+
+    def _on_skill_start(self, event: Event) -> None:
+        """Mark skill execution start."""
+        if self._recording and self._flywheel is not None:
+            payload = event.payload if isinstance(event.payload, dict) else {}
+            self._flywheel.trigger_event(
+                EventType.MILESTONE,
+                {"skill_name": payload.get("skill_name"), "phase": "start"},
+            )
+
+    def _on_skill_complete(self, event: Event) -> None:
+        """Mark skill execution completion."""
+        if self._recording and self._flywheel is not None:
+            payload = event.payload if isinstance(event.payload, dict) else {}
+            result = payload.get("result", {})
+            status = result.get("status", "unknown")
+            event_type = EventType.SUCCESS if status == "success" else EventType.FAILURE
+            self._flywheel.trigger_event(
+                event_type,
+                {"skill_name": payload.get("skill_name"), "phase": "complete", "result": result},
+            )
 
     def start_recording(self) -> None:
         """Start a recording session."""
