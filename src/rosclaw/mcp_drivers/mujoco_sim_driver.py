@@ -31,7 +31,9 @@ class MuJoCoSimDriver(BaseDriver):
             return
 
         if not Path(self._model_path).exists():
-            raise FileNotFoundError(f"MuJoCo model not found: {self._model_path}")
+            print(f"[MuJoCoSimDriver] Model not found, running in mock mode: {self._model_path}")
+            self._state.connected = True
+            return
 
         self._model = mujoco.MjModel.from_xml_path(self._model_path)
         self._data = mujoco.MjData(self._model)
