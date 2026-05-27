@@ -10,10 +10,12 @@ The MCP Hub:
 2. Maintains AgentContext with grounding information
 3. Validates all commands through the Digital Twin Firewall
 4. Publishes events to the EventBus for module coordination
+5. Uses command-response pattern (NOT fire-and-forget)
 """
 
 import asyncio
 import json
+import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -63,7 +65,7 @@ class MCPHub(LifecycleMixin):
 
     Exposes robot control capabilities to LLMs through the
     Model Context Protocol. All tool calls are validated
-    and routed through the EventBus.
+    and routed through the EventBus using command-response pattern.
     """
 
     def __init__(self, event_bus: EventBus, robot_id: str = "rosclaw_default"):
@@ -76,6 +78,8 @@ class MCPHub(LifecycleMixin):
         )
         self._tools: dict[str, dict] = {}
         self._server: Optional[Any] = None
+        self._pending_requests: dict[str, asyncio.Future] = {}
+        self._default_timeout: float = 30.0
 
     def _do_initialize(self) -> None:
         """Initialize MCP server and register tools."""
@@ -91,6 +95,8 @@ class MCPHub(LifecycleMixin):
         # Subscribe to robot state updates
         self.event_bus.subscribe("robot.joint_states", self._on_joint_states)
         self.event_bus.subscribe("robot.end_effector_pose", self._on_end_effector_pose)
+        # Subscribe to command responses
+        self.event_bus.subscribe("agent.response", self._on_agent_response)
 
     def _do_start(self) -> None:
         """Start the MCP server."""
@@ -99,6 +105,11 @@ class MCPHub(LifecycleMixin):
     def _do_stop(self) -> None:
         """Stop the MCP server."""
         print("[MCPHub] MCP Hub stopped")
+        # Cancel any pending futures
+        for fut in self._pending_requests.values():
+            if not fut.done():
+                fut.cancel()
+        self._pending_requests.clear()
 
     def _register_all_tools(self) -> None:
         """Register all robot control tools."""
@@ -188,68 +199,122 @@ class MCPHub(LifecycleMixin):
             "inputSchema": {"type": "object", "properties": {}},
         }
 
-    def handle_tool_call(self, name: str, arguments: dict) -> dict:
+    async def handle_tool_call(self, name: str, arguments: dict) -> dict:
         """
         Handle an MCP tool call from an LLM.
 
-        All tool calls are converted to EventBus events for
-        processing by the appropriate grounding engines.
+        All tool calls are converted to EventBus events using
+        command-response pattern for reliable execution feedback.
         """
         print(f"[MCPHub] Tool call: {name}({arguments})")
 
         if name == "move_joints":
-            return self._handle_move_joints(arguments)
+            return await self._handle_move_joints(arguments)
         elif name == "grasp":
-            return self._handle_grasp(arguments)
+            return await self._handle_grasp(arguments)
         elif name == "get_robot_state":
             return self._handle_get_state()
         elif name == "validate_trajectory":
-            return self._handle_validate_trajectory(arguments)
+            return await self._handle_validate_trajectory(arguments)
         elif name == "emergency_stop":
             return self._handle_emergency_stop()
         else:
             return {"error": f"Unknown tool: {name}"}
 
-    def _handle_move_joints(self, arguments: dict) -> dict:
-        """Handle move_joints tool call."""
+    async def _send_command_and_wait(
+        self,
+        topic: str,
+        payload: dict,
+        timeout: Optional[float] = None,
+    ) -> dict:
+        """
+        Send a command via EventBus and wait for response.
+
+        Uses request-response pattern:
+        1. Generate unique request_id
+        2. Create asyncio.Future
+        3. Publish command with request_id in metadata
+        4. Await response future with timeout
+        5. Return execution result
+        """
+        request_id = str(uuid.uuid4())[:8]
+        future = asyncio.get_event_loop().create_future()
+        self._pending_requests[request_id] = future
+
+        event = Event(
+            topic=topic,
+            payload=payload,
+            source="mcp_hub",
+            priority=EventPriority.HIGH,
+            metadata={"request_id": request_id},
+        )
+        self.event_bus.publish(event)
+
+        try:
+            result = await asyncio.wait_for(future, timeout=timeout or self._default_timeout)
+            return result
+        except asyncio.TimeoutError:
+            return {
+                "status": "timeout",
+                "message": f"Command timed out after {timeout or self._default_timeout}s",
+                "request_id": request_id,
+            }
+        finally:
+            self._pending_requests.pop(request_id, None)
+
+    def _on_agent_response(self, event: Event) -> None:
+        """Handle command responses from other modules."""
+        request_id = event.metadata.get("request_id")
+        if request_id and request_id in self._pending_requests:
+            future = self._pending_requests[request_id]
+            if not future.done():
+                future.set_result(event.payload)
+
+    async def _handle_move_joints(self, arguments: dict) -> dict:
+        """Handle move_joints tool call with command-response."""
         positions = arguments.get("joint_positions", [])
         duration = arguments.get("duration", 2.0)
 
-        # Publish to EventBus for routing
-        self.event_bus.publish(Event(
+        result = await self._send_command_and_wait(
             topic="agent.command",
             payload={
                 "action": "move_joints",
                 "joint_positions": positions,
                 "duration": duration,
             },
-            source="mcp_hub",
-            priority=EventPriority.HIGH,
-        ))
+        )
 
-        return {
-            "status": "command_issued",
-            "action": "move_joints",
-            "target_positions": positions,
-        }
+        # If timeout or no response handler, fall back to issued status
+        if result.get("status") == "timeout":
+            return {
+                "status": "command_issued",
+                "action": "move_joints",
+                "target_positions": positions,
+                "warning": "No response received from execution layer",
+            }
+        return result
 
-    def _handle_grasp(self, arguments: dict) -> dict:
-        """Handle grasp tool call."""
+    async def _handle_grasp(self, arguments: dict) -> dict:
+        """Handle grasp tool call with command-response."""
         action = arguments.get("action", "close")
         force = arguments.get("force", 0.5)
 
-        self.event_bus.publish(Event(
+        result = await self._send_command_and_wait(
             topic="agent.command",
             payload={
                 "action": "grasp",
                 "grasp_action": action,
                 "force": force,
             },
-            source="mcp_hub",
-            priority=EventPriority.HIGH,
-        ))
+        )
 
-        return {"status": "command_issued", "action": f"grasp_{action}"}
+        if result.get("status") == "timeout":
+            return {
+                "status": "command_issued",
+                "action": f"grasp_{action}",
+                "warning": "No response received from execution layer",
+            }
+        return result
 
     def _handle_get_state(self) -> dict:
         """Handle get_robot_state tool call."""
@@ -261,21 +326,25 @@ class MCPHub(LifecycleMixin):
             },
         }
 
-    def _handle_validate_trajectory(self, arguments: dict) -> dict:
-        """Handle validate_trajectory tool call."""
+    async def _handle_validate_trajectory(self, arguments: dict) -> dict:
+        """Handle validate_trajectory tool call with command-response."""
         waypoints = arguments.get("waypoints", [])
 
-        self.event_bus.publish(Event(
+        result = await self._send_command_and_wait(
             topic="agent.command",
             payload={
                 "action": "validate_trajectory",
                 "waypoints": waypoints,
             },
-            source="mcp_hub",
-            priority=EventPriority.NORMAL,
-        ))
+        )
 
-        return {"status": "validation_requested", "waypoints_count": len(waypoints)}
+        if result.get("status") == "timeout":
+            return {
+                "status": "validation_requested",
+                "waypoints_count": len(waypoints),
+                "warning": "No response received from validation layer",
+            }
+        return result
 
     def _handle_emergency_stop(self) -> dict:
         """Handle emergency_stop tool call."""
@@ -285,7 +354,6 @@ class MCPHub(LifecycleMixin):
             source="mcp_hub",
             priority=EventPriority.CRITICAL,
         ))
-
         return {"status": "emergency_stop_triggered"}
 
     def _on_joint_states(self, event: Event) -> None:
