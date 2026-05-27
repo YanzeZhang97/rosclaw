@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rosclaw"
-version = "0.1.0"
+version = "1.0.0"
 description = "The Universal Operating System for Software-Defined Embodied AI"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -51,6 +51,7 @@ all = [
 ]
 
 [project.scripts]
+rosclaw = "rosclaw.cli:main"
 rosclaw-ur5-mcp = "rosclaw.mcp.ur5_server:main"
 
 [project.urls]
