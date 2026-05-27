@@ -117,11 +117,24 @@ class SkillRegistry(LifecycleMixin):
         """Retrieve a skill by name."""
         return self._skills.get(name)
 
-    def list_skills(self, skill_type: Optional[str] = None) -> list[str]:
-        """List all registered skill names."""
+    def list_skills(
+        self, skill_type: Optional[str] = None, return_entries: bool = False
+    ) -> "list[str] | list[SkillEntry]":
+        """List all registered skills.
+
+        Args:
+            skill_type: Filter by skill type ("programmed", "learned", "hybrid")
+            return_entries: If True, return list[SkillEntry]; if False, return list[str]
+
+        Returns:
+            list[str] of skill names (default) or list[SkillEntry] if return_entries=True
+        """
+        skills = self._skills.values()
         if skill_type:
-            return [s.name for s in self._skills.values() if s.skill_type == skill_type]
-        return list(self._skills.keys())
+            skills = [s for s in skills if s.skill_type == skill_type]
+        if return_entries:
+            return list(skills)
+        return [s.name for s in skills]
 
     def find_by_precondition(self, precondition: str) -> list[SkillEntry]:
         """Find skills matching a precondition."""

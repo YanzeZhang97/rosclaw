@@ -237,6 +237,46 @@ class UnifiedTimeline(LifecycleMixin):
             "reasoning_steps": reasoning_steps,
         }, correlation_id=correlation_id)
 
+    def record_agent_command(
+        self,
+        action: str,
+        joint_positions: list[float],
+        correlation_id: Optional[str] = None,
+    ) -> None:
+        """Record an agent command on the timeline.
+
+        Args:
+            action: Command action (e.g., "move_joints", "grasp")
+            joint_positions: Joint position values for the command
+            correlation_id: Optional correlation ID for grouping related entries
+        """
+        self._record(TimelineChannel.AGENT_COMMAND, {
+            "action": action,
+            "joint_positions": joint_positions,
+        }, correlation_id=correlation_id)
+
+    def export_session(self, correlation_id: str) -> Path:
+        """Manually export a session's timeline and sensorimotor data.
+
+        Args:
+            correlation_id: Session identifier to export
+
+        Returns:
+            Path to the exported session directory
+
+        Note:
+            Sessions are normally auto-exported when praxis.completed fires.
+            This method allows manual export for incomplete or in-progress sessions.
+        """
+        entries = [e for e in self._entries if e.correlation_id == correlation_id]
+        sensor_entries = [e for e in self._sensorimotor_buffer if e.correlation_id == correlation_id]
+
+        if not entries and not sensor_entries:
+            raise ValueError(f"No timeline entries found for session '{correlation_id}'")
+
+        self._export_timeline(correlation_id, entries, sensor_entries)
+        return self._output_dir / f"session_{correlation_id}"
+
     def _record(
         self,
         channel: TimelineChannel,

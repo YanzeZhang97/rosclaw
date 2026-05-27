@@ -273,11 +273,18 @@ timeline.record_sensorimotor(
     correlation_id="session_1",
 )
 
+# Record agent command (public method)
+timeline.record_agent_command(
+    action="move_joints",
+    joint_positions=[0.1, -0.2, 0.5, 0.0, 0.1, 0.0],
+    correlation_id="session_1",
+)
+
 # Query
 print(timeline.get_summary())
 entries = timeline.get_entries(correlation_id="session_1")
 
-# Agent commands are recorded AUTOMATICALLY via EventBus (no public method):
+# Agent commands can also be recorded AUTOMATICALLY via EventBus:
 from rosclaw.core.event_bus import Event
 bus.publish(Event(
     topic="agent.command",
@@ -286,13 +293,18 @@ bus.publish(Event(
 ))
 # -> UnifiedTimeline._on_agent_command() records to AGENT_COMMAND channel
 
-# Export is AUTOMATIC when praxis.completed fires:
+# Export session manually (for incomplete or in-progress sessions)
+from pathlib import Path
+session_path: Path = timeline.export_session("session_1")
+# -> Exports to output_dir/session_{id}/timeline.jsonl + sensorimotor.npz
+# -> Returns Path to the session directory
+
+# Export is also AUTOMATIC when praxis.completed fires:
 bus.publish(Event(
     topic="praxis.completed",
     payload={"correlation_id": "session_1", "instruction": "pick up block", "duration_sec": 3.2},
 ))
 # -> Auto-exports to output_dir/session_{id}/timeline.jsonl + sensorimotor.npz
-# NOTE: No manual export_session() method exists; export is event-driven.
 # NOTE: enable_mcap=True is EXPERIMENTAL — MCAP writer not fully implemented.
 ```
 
@@ -357,11 +369,20 @@ registry.register(entry)
 result = executor.execute("pick_and_place", {"target": "red_block"})
 print(result["status"])
 
-# List skill names (returns list[str], NOT list[SkillEntry])
+# List skill names (default: returns list[str])
 names = registry.list_skills()  # -> ["pick_and_place"]
 print(names)
 
-# Get SkillEntry by name (for full details)
+# List SkillEntry objects (return_entries=True)
+entries = registry.list_skills(return_entries=True)  # -> list[SkillEntry]
+for entry in entries:
+    print(entry.name, entry.description, entry.execution_count, entry.success_rate)
+
+# List by type
+learned_names = registry.list_skills(skill_type="learned")  # -> list[str]
+learned_entries = registry.list_skills(skill_type="learned", return_entries=True)  # -> list[SkillEntry]
+
+# Get SkillEntry by name
 entry = registry.get("pick_and_place")
 print(entry.name, entry.description, entry.execution_count, entry.success_rate)
 
