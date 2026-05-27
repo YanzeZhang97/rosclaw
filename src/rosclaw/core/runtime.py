@@ -12,10 +12,10 @@ Architecture:
          v
     ROSClaw Runtime (this file)
     |-- EventBus
-    |-- Firewall (Action Grounding)
-    |-- Memory (Experience Grounding)
-    |-- Practice (Timeline Grounding)
-    |-- Swarm (Collaboration Grounding)
+    |-- FirewallValidator (Action Grounding)
+    |-- MemoryInterface (Experience Grounding)
+    |-- UnifiedTimeline (Timeline Grounding)
+    |-- SwarmRuntimeManager (Collaboration Grounding)
     |-- SkillManager (Skill Grounding)
     |-- EURDFParser (Physical Grounding)
     |-- MCPDrivers (Hardware abstraction)
@@ -43,6 +43,11 @@ class RuntimeConfig:
     enable_skill_manager: bool = True
     joint_dof: int = 6
     sampling_rate_hz: int = 1000
+    safety_level: str = "MODERATE"          # STRICT | MODERATE | LENIENT
+    timeline_output_dir: str = "./practice_data"
+    enable_mcap: bool = False
+    seekdb_backend: str = "memory"          # "memory" | "sqlite"
+    seekdb_path: str = "./seekdb.sqlite"
 
 
 class Runtime(LifecycleMixin):
@@ -87,42 +92,54 @@ class Runtime(LifecycleMixin):
             self._e_urdf = EURDFParser(self.config.robot_model_path)
             print(f"[Runtime] Physical Grounding (e-URDF) loaded: {self.config.robot_model_path}")
 
-        # Initialize Action Grounding (Firewall)
-        if self.config.enable_firewall and self.config.robot_model_path:
+        # Initialize Action Grounding (FirewallValidator)
+        if self.config.enable_firewall and self._e_urdf is not None:
             try:
-                from rosclaw.firewall.decorator import DigitalTwinFirewall
-                self._firewall = DigitalTwinFirewall(self.config.robot_model_path)
+                from rosclaw.firewall.validator import FirewallValidator
+                self._firewall = FirewallValidator(
+                    robot_model=self._e_urdf.get_model(),
+                    event_bus=self.event_bus,
+                    mujoco_model_path=self.config.robot_model_path,
+                    safety_level=self.config.safety_level,
+                )
                 self._modules.append(self._firewall)
-                print("[Runtime] Action Grounding (Firewall) initialized")
-            except ImportError:
-                print("[Runtime] Firewall module not available (mujoco not installed)")
+                print("[Runtime] Action Grounding (FirewallValidator) initialized")
+            except ImportError as e:
+                print(f"[Runtime] FirewallValidator not available: {e}")
 
         # Initialize Experience Grounding (Memory)
         if self.config.enable_memory:
             try:
                 from rosclaw.memory.interface import MemoryInterface
+                from rosclaw.memory.seekdb_client import SeekDBSQLiteClient, SeekDBMemoryClient
+                if self.config.seekdb_backend == "sqlite":
+                    seekdb = SeekDBSQLiteClient(self.config.seekdb_path)
+                else:
+                    seekdb = SeekDBMemoryClient()
                 self._memory = MemoryInterface(
-                    self.config.robot_id,
+                    robot_id=self.config.robot_id,
                     event_bus=self.event_bus,
+                    seekdb_client=seekdb,
                 )
                 self._modules.append(self._memory)
                 print("[Runtime] Experience Grounding (Memory) initialized")
             except ImportError as e:
                 print(f"[Runtime] Memory module not available: {e}")
 
-        # Initialize Timeline Grounding (Practice)
+        # Initialize Timeline Grounding (UnifiedTimeline)
         if self.config.enable_practice:
             try:
-                from rosclaw.practice.recorder import PracticeRecorder
-                self._practice = PracticeRecorder(
+                from rosclaw.practice.timeline import UnifiedTimeline
+                self._practice = UnifiedTimeline(
                     robot_id=self.config.robot_id,
-                    joint_dof=self.config.joint_dof,
                     event_bus=self.event_bus,
+                    output_dir=self.config.timeline_output_dir,
+                    enable_mcap=self.config.enable_mcap,
                 )
                 self._modules.append(self._practice)
-                print("[Runtime] Timeline Grounding (Practice) initialized")
+                print("[Runtime] Timeline Grounding (UnifiedTimeline) initialized")
             except ImportError as e:
-                print(f"[Runtime] Practice module not available: {e}")
+                print(f"[Runtime] UnifiedTimeline not available: {e}")
 
         # Initialize Collaboration Grounding (Swarm)
         if self.config.enable_swarm:
