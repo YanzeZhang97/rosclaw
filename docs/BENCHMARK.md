@@ -5,24 +5,24 @@
 
 ## EventBus Throughput
 - Target: 10000 events
-- Elapsed: 0.0452s
-- Throughput: 221085.2 events/s
-- Average latency: 0.0045 ms/event
+- Elapsed: 0.0437s
+- Throughput: 228982.2 events/s
+- Average latency: 0.0044 ms/event
 - Received: 10000 / 10000
 - Verdict: PASS (needs >= 10000 events/s)
 
 ## SeekDB Scale Performance
 - Records inserted: 10000
-- Total insert time: 0.023s
-- Average insert: 0.0023 ms
+- Total insert time: 0.024s
+- Average insert: 0.0024 ms
 - P99 insert: 0.0036 ms
-- Query (success=True): 100 results in 3.81 ms
+- Query (success=True): 100 results in 3.83 ms
 - Verdict: PASS
 
 ## SkillRegistry Scale Performance
 - Skills registered: 1000
-- Register time: 2.32 ms (0.0023 ms/skill)
-- list_skills() [names]: 1000 in 0.038 ms
+- Register time: 2.28 ms (0.0023 ms/skill)
+- list_skills() [names]: 1000 in 0.034 ms
 - list_skills(return_entries=True): 1000 in 0.007 ms
 - list_skills(skill_type='programmed'): 500 in 0.032 ms
 - Verdict: PASS
