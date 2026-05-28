@@ -1,5 +1,6 @@
 """Skill Executor - Executes skills with parameter binding and validation."""
 
+import time
 from typing import Any, Optional
 
 from rosclaw.core.event_bus import EventBus, Event, EventPriority
@@ -16,12 +17,22 @@ class SkillExecutor(LifecycleMixin):
     - Practice recording
     - Memory storage
     - Swarm coordination
+
+    When a SeekDB client is provided, skill execution metadata
+    (success/failure counts, avg duration) is persisted to the
+    ``skill_metadata`` table after each execution.
     """
 
-    def __init__(self, event_bus: EventBus, registry: SkillRegistry):
+    def __init__(
+        self,
+        event_bus: EventBus,
+        registry: SkillRegistry,
+        seekdb_client: Optional[Any] = None,
+    ):
         super().__init__()
         self.event_bus = event_bus
         self.registry = registry
+        self._seekdb = seekdb_client
         self._current_skill: Optional[str] = None
 
     def _do_initialize(self) -> None:
@@ -66,6 +77,7 @@ class SkillExecutor(LifecycleMixin):
 
         # Execute handler if available
         result = {"status": "executed", "skill": skill_name}
+        t0 = time.time()
         if skill.handler is not None:
             try:
                 handler_result = skill.handler(params)
@@ -79,6 +91,11 @@ class SkillExecutor(LifecycleMixin):
         else:
             # No handler - event-driven execution
             result["status"] = "dispatched"
+        duration_sec = time.time() - t0
+        result["duration_sec"] = duration_sec
+
+        # Persist skill metadata to SeekDB
+        self._write_skill_metadata(skill, result, duration_sec)
 
         # Publish completion event
         self.event_bus.publish(Event(
@@ -93,6 +110,53 @@ class SkillExecutor(LifecycleMixin):
 
         self._current_skill = None
         return result
+
+    def _write_skill_metadata(
+        self,
+        skill: SkillEntry,
+        result: dict[str, Any],
+        duration_sec: float,
+    ) -> None:
+        """Write/update skill_metadata in SeekDB after execution."""
+        if self._seekdb is None:
+            return
+
+        success = result.get("status") == "success"
+        failure = result.get("status") == "error"
+
+        # Read existing metadata to accumulate counts
+        existing = self._seekdb.query(
+            "skill_metadata",
+            filters={"skill_id": skill.name},
+            limit=1,
+        )
+        if existing:
+            row = existing[0]
+            success_count = row.get("success_count", 0) + (1 if success else 0)
+            failure_count = row.get("failure_count", 0) + (1 if failure else 0)
+            old_avg = row.get("avg_duration_sec", 0.0) or 0.0
+            total_exec = success_count + failure_count
+            avg_duration = (old_avg * (total_exec - 1) + duration_sec) / total_exec
+        else:
+            success_count = 1 if success else 0
+            failure_count = 1 if failure else 0
+            avg_duration = duration_sec
+
+        record = {
+            "id": skill.name,
+            "skill_id": skill.name,
+            "name": skill.name,
+            "description": skill.description,
+            "category": skill.skill_type,
+            "source": "skill_executor",
+            "success_count": success_count,
+            "failure_count": failure_count,
+            "avg_duration_sec": round(avg_duration, 6),
+            "last_used": time.time(),
+            "prerequisites": skill.preconditions,
+            "metadata": skill.metadata,
+        }
+        self._seekdb.insert("skill_metadata", record)
 
     def _check_preconditions(self, skill: SkillEntry) -> dict[str, Any]:
         """Check if skill preconditions are met."""
