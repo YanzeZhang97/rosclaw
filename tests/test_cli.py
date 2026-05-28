@@ -90,4 +90,16 @@ class TestStatus:
         sys.argv = ["rosclaw", "status"]
         assert main() == 0
         captured = capsys.readouterr()
-        assert "Status check not yet implemented" in captured.out
+        assert "ROSClaw v1.0 Status" in captured.out
+        assert "Overall:" in captured.out
+        assert "HEALTHY" in captured.out
+
+    def test_status_shows_modules(self, capsys):
+        from rosclaw.cli import main
+
+        sys.argv = ["rosclaw", "status"]
+        main()
+        captured = capsys.readouterr()
+        assert "core.runtime" in captured.out
+        assert "firewall.validator" in captured.out
+        assert "memory.interface" in captured.out

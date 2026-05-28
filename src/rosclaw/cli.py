@@ -115,7 +115,51 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 def cmd_status(_args: argparse.Namespace) -> int:
     """Show ROSClaw runtime status."""
-    print("[ROSClaw] Status check not yet implemented")
+    import importlib
+
+    config_path = Path("rosclaw.yaml")
+    has_config = config_path.exists()
+
+    # Module health checks
+    modules = {
+        "core.runtime": "Runtime",
+        "core.event_bus": "EventBus",
+        "firewall.validator": "FirewallValidator",
+        "memory.interface": "MemoryInterface",
+        "practice.recorder": "PracticeRecorder",
+        "sandbox.runtime_adapter": "SandboxRuntimeAdapter",
+        "how.engine": "HeuristicEngine",
+    }
+
+    health = []
+    for mod_name, cls_name in modules.items():
+        try:
+            mod = importlib.import_module(f"rosclaw.{mod_name}")
+            getattr(mod, cls_name)
+            health.append((mod_name, "HEALTHY"))
+        except (ImportError, AttributeError):
+            health.append((mod_name, "DEGRADED"))
+
+    # Overall status
+    degraded = [m for m, s in health if s == "DEGRADED"]
+    overall = "HEALTHY" if not degraded else "DEGRADED"
+
+    # Output
+    print("=" * 50)
+    print("ROSClaw v1.0 Status")
+    print("=" * 50)
+    print(f"Config file:  {'found' if has_config else 'missing'} ({config_path})")
+    print(f"Overall:      {overall}")
+    print("-" * 50)
+    print("Modules:")
+    for mod_name, status in health:
+        icon = "OK" if status == "HEALTHY" else "DEGRADED"
+        print(f"  [{icon}] {mod_name:<30} {status}")
+    print("=" * 50)
+
+    if degraded:
+        print(f"\nDegraded modules ({len(degraded)}): {', '.join(degraded)}")
+        return 1
     return 0
 
 
