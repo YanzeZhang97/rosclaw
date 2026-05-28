@@ -151,6 +151,7 @@ class MCPHub(LifecycleMixin):
         self._register_emergency_stop_tool()
         self._register_query_knowledge_tool()
         self._register_get_safety_heuristic_tool()
+        self._register_get_recovery_strategy_tool()
 
     def _register_observe_scene_tool(self) -> None:
         self._tools["observe_scene"] = {
@@ -361,6 +362,27 @@ class MCPHub(LifecycleMixin):
             },
         }
 
+    def _register_get_recovery_strategy_tool(self) -> None:
+        self._tools["get_recovery_strategy"] = {
+            "name": "get_recovery_strategy",
+            "description": "Get a heuristic recovery strategy for a failure condition. Queries the HeuristicEngine for known recovery patterns.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "error_log": {
+                        "type": "string",
+                        "description": "Error message or failure description",
+                    },
+                    "previous_scores": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Optional list of previous verifier scores",
+                    },
+                },
+                "required": ["error_log"],
+            },
+        }
+
     def _register_query_world_objects_tool(self) -> None:
         self._tools["query_world_objects"] = {
             "name": "query_world_objects",
@@ -451,6 +473,10 @@ class MCPHub(LifecycleMixin):
             return self._handle_query_knowledge(arguments)
         elif name == "get_safety_heuristic":
             return self._handle_get_safety_heuristic(arguments)
+
+        # Heuristic recovery tool (HOW)
+        elif name == "get_recovery_strategy":
+            return await self._handle_get_recovery_strategy(arguments)
 
         else:
             return {"error": f"Unknown tool: {name}"}
@@ -776,6 +802,41 @@ class MCPHub(LifecycleMixin):
             }
         else:
             return {"status": "error", "error": f"Unknown query_type: {query_type}"}
+
+    async def _handle_get_recovery_strategy(self, arguments: dict) -> dict:
+        """Handle get_recovery_strategy tool call."""
+        if self.runtime is None:
+            return {"status": "error", "error": "Runtime not available"}
+
+        how_engine = getattr(self.runtime, "how", None)
+        if how_engine is None:
+            return {"status": "error", "error": "HeuristicEngine not available"}
+
+        error_log = arguments.get("error_log", "")
+        if not error_log:
+            return {"status": "error", "error": "error_log is required"}
+
+        try:
+            recovery = await how_engine.suggest_recovery(error_log)
+        except Exception as exc:
+            return {"status": "error", "error": f"Recovery lookup failed: {exc}"}
+
+        if recovery is None:
+            return {
+                "status": "ok",
+                "matched": False,
+                "message": "No heuristic recovery strategy found for this error.",
+            }
+
+        return {
+            "status": "ok",
+            "matched": True,
+            "rule_id": recovery.get("rule_id", ""),
+            "condition": recovery.get("condition", ""),
+            "action": recovery.get("action", ""),
+            "priority": recovery.get("priority", 0),
+            "source": recovery.get("source", "heuristic"),
+        }
 
     def _handle_get_safety_heuristic(self, arguments: dict) -> dict:
         """Handle get_safety_heuristic tool call."""

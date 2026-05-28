@@ -59,7 +59,8 @@ class RuntimeConfig:
     enable_practice: bool = True
     enable_swarm: bool = False
     enable_skill_manager: bool = True
-    enable_knowledge: bool = True
+    enable_knowledge: bool = False          # KnowledgeInterface (KNOW module)
+    enable_how: bool = False                # HeuristicEngine (HOW module)
     enable_provider: bool = True
     joint_dof: int = 6
     sampling_rate_hz: int = 1000
@@ -94,6 +95,7 @@ class Runtime(LifecycleMixin):
         self._practice: Optional[Any] = None
         self._swarm: Optional[Any] = None
         self._skill_manager: Optional[Any] = None
+        self._knowledge: Optional[Any] = None
         self._how: Optional[Any] = None
         self._e_urdf: Optional[Any] = None
         self._mcp_drivers: dict[str, Any] = {}
@@ -194,27 +196,7 @@ class Runtime(LifecycleMixin):
             except ImportError as e:
                 print(f"[Runtime] SkillManager module not available: {e}")
 
-        # Initialize Heuristic Grounding (HeuristicEngine)
-        if self.config.enable_how:
-            try:
-                from rosclaw.how.engine import HeuristicEngine
-                # Reuse Memory's SeekDB client if available
-                seekdb = None
-                if self._memory is not None:
-                    seekdb = getattr(self._memory, "seekdb_client", None)
-                if seekdb is not None:
-                    self._how = HeuristicEngine(
-                        seekdb_client=seekdb,
-                        knowledge_interface=self._knowledge,
-                    )
-                    self._modules.append(self._how)
-                    print("[Runtime] Heuristic Grounding (HeuristicEngine) initialized")
-                else:
-                    print("[Runtime] HeuristicEngine skipped: no SeekDB client (memory not enabled)")
-            except ImportError as e:
-                print(f"[Runtime] HeuristicEngine not available: {e}")
-
-        # Initialize Knowledge Grounding (KnowledgeInterface)
+        # Initialize Knowledge Grounding (KnowledgeInterface) - MUST come before HOW
         if self.config.enable_knowledge:
             try:
                 from rosclaw.know.interface import KnowledgeInterface
@@ -235,6 +217,26 @@ class Runtime(LifecycleMixin):
                     seed_knowledge_graph(seekdb)
             except ImportError as e:
                 print(f"[Runtime] Knowledge module not available: {e}")
+
+        # Initialize Heuristic Grounding (HeuristicEngine) - depends on KNOW
+        if self.config.enable_how:
+            try:
+                from rosclaw.how.engine import HeuristicEngine
+                # Reuse Memory's SeekDB client if available
+                seekdb = None
+                if self._memory is not None:
+                    seekdb = getattr(self._memory, "seekdb_client", None)
+                if seekdb is not None:
+                    self._how = HeuristicEngine(
+                        seekdb_client=seekdb,
+                        knowledge_interface=self._knowledge,
+                    )
+                    self._modules.append(self._how)
+                    print("[Runtime] Heuristic Grounding (HeuristicEngine) initialized")
+                else:
+                    print("[Runtime] HeuristicEngine skipped: no SeekDB client (memory not enabled)")
+            except ImportError as e:
+                print(f"[Runtime] HeuristicEngine not available: {e}")
 
         # Initialize Provider Layer (Capability Router + Guard)
         if self.config.enable_provider and ProviderRegistry is not None:
@@ -376,7 +378,11 @@ class Runtime(LifecycleMixin):
 
     @property
     def knowledge(self) -> Optional[Any]:
-        return getattr(self, "_knowledge", None)
+        return self._knowledge
+
+    @property
+    def how(self) -> Optional[Any]:
+        return self._how
 
     @property
     def e_urdf(self) -> Optional[Any]:

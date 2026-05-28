@@ -64,27 +64,77 @@ class ProviderRegistry:
         self._providers[name] = provider
 
         if auto_load:
+            self._load_provider(provider)
+
+        self._health[name] = {"last_check": 0.0, "ok": provider._healthy}
+        return provider
+
+    def _load_provider(self, provider: Provider) -> None:
+        """Load a provider, handling both sync and async calling contexts."""
+        try:
+            loop = asyncio.get_running_loop()
+            # Called from within an async context — schedule deferred load.
+            # The caller must await asyncio.sleep() or similar to let the
+            # task complete before relying on provider._healthy.
+            asyncio.create_task(self._deferred_load(provider))
+        except RuntimeError:
+            # No running event loop — safe to run synchronously.
             try:
-                asyncio.get_event_loop().run_until_complete(provider.load())
+                asyncio.run(provider.load())
                 provider._healthy = True
             except Exception as e:
                 provider._healthy = False
                 provider._load_error = str(e)
 
-        self._health[name] = {"last_check": 0.0, "ok": provider._healthy}
-        return provider
+    async def _deferred_load(self, provider: Provider) -> None:
+        """Async-load a provider from within an existing event loop."""
+        try:
+            await provider.load()
+            provider._healthy = True
+            self._health[provider.name] = {"last_check": time.time(), "ok": True}
+        except Exception as e:
+            provider._healthy = False
+            provider._load_error = str(e)
+            self._health[provider.name] = {"last_check": time.time(), "ok": False, "error": str(e)}
 
     def unregister(self, name: str) -> None:
         """Unregister and unload a provider."""
         provider = self._providers.pop(name, None)
         if provider is not None:
             try:
-                asyncio.get_event_loop().run_until_complete(provider.unload())
-            except Exception:
-                pass
+                loop = asyncio.get_running_loop()
+                asyncio.create_task(provider.unload())
+            except RuntimeError:
+                try:
+                    asyncio.run(provider.unload())
+                except Exception:
+                    pass
         self._factories.pop(name, None)
         self._manifests.pop(name, None)
         self._health.pop(name, None)
+
+    def set_provider_health(
+        self,
+        name: str,
+        ok: bool,
+        error: str = "",
+    ) -> None:
+        """Set the cached health status for a provider.
+
+        This is the public API for marking pre-initialized providers
+        (e.g. mock providers registered with auto_load=False) as
+        healthy without bypassing the registry boundary.
+        """
+        provider = self._providers.get(name)
+        if provider is not None:
+            provider._healthy = ok
+            if error:
+                provider._load_error = error
+        self._health[name] = {
+            "last_check": time.time(),
+            "ok": ok,
+            "error": error,
+        }
 
     # ------------------------------------------------------------------
     # Lookups
