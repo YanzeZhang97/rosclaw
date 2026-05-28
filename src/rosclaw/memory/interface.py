@@ -20,6 +20,34 @@ from rosclaw.core.event_bus import EventBus, Event, EventPriority
 from rosclaw.core.lifecycle import LifecycleMixin
 from rosclaw.memory.seekdb_client import SeekDBClient, SeekDBMemoryClient
 
+# Conditional import: powermem Protocol types for type-safe proxy methods
+try:
+    from powermem.embodied.protocols import (
+        WorldObjectLike,
+        PoseLike,
+        Vec3Like,
+        TemporalIntervalLike,
+        PermanenceReportLike,
+        MemoryAtomLike,
+    )
+    _HAS_POWERMEM_PROTOCOLS = True
+except ImportError:
+    _HAS_POWERMEM_PROTOCOLS = False
+    # Fallback: use Any when powermem not installed
+    WorldObjectLike = Any  # type: ignore
+    PoseLike = Any  # type: ignore
+    Vec3Like = Any  # type: ignore
+    TemporalIntervalLike = Any  # type: ignore
+    PermanenceReportLike = Any  # type: ignore
+    MemoryAtomLike = Any  # type: ignore
+
+# Conditional import: BM25 ranking for semantic search
+try:
+    from rank_bm25 import BM25Okapi
+    _HAS_BM25 = True
+except ImportError:
+    _HAS_BM25 = False
+
 
 class MemoryInterface(LifecycleMixin):
     """
@@ -84,6 +112,11 @@ class MemoryInterface(LifecycleMixin):
             self.event_bus.unsubscribe("praxis.recorded", self._on_praxis_recorded)
         self._client.disconnect()
 
+    @property
+    def seekdb_client(self) -> SeekDBClient:
+        """Public accessor for the SeekDB client (used by HOW/KNOW modules)."""
+        return self._client
+
     def _on_praxis_recorded(self, event: Event) -> None:
         """Auto-ingest PraxisEvent as an experience."""
         payload = event.payload
@@ -139,6 +172,16 @@ class MemoryInterface(LifecycleMixin):
 
         return record_id
 
+    @staticmethod
+    def _tokenize(text: str) -> list[str]:
+        """Tokenize text for BM25/keyword matching.
+
+        Lowercases, splits on whitespace and punctuation, removes short tokens.
+        """
+        import re
+        tokens = re.findall(r'[a-z0-9一-鿿]+', text.lower())
+        return [t for t in tokens if len(t) >= 2]
+
     def find_similar_experiences(
         self,
         instruction: str,
@@ -148,8 +191,8 @@ class MemoryInterface(LifecycleMixin):
         """
         Find past experiences similar to the given instruction.
 
-        Current implementation: keyword matching.
-        Future: vector embeddings for semantic similarity.
+        Uses BM25Okapi ranking when ``rank_bm25`` is installed,
+        falling back to keyword set intersection otherwise.
         """
         filters = {"robot_id": self._robot_id}
         if outcome_filter:
@@ -159,15 +202,56 @@ class MemoryInterface(LifecycleMixin):
             "experience_graph",
             filters=filters,
             order_by="-timestamp",
-            limit=100,
+            limit=200,
         )
 
-        keywords = set(instruction.lower().split())
+        if not all_experiences:
+            return []
+
+        query_tokens = self._tokenize(instruction)
+        if not query_tokens:
+            return []
+
+        if _HAS_BM25:
+            return self._bm25_search(all_experiences, query_tokens, limit)
+        return self._keyword_search(all_experiences, query_tokens, limit)
+
+    def _bm25_search(
+        self,
+        experiences: list[dict],
+        query_tokens: list[str],
+        limit: int,
+    ) -> list[dict]:
+        """Rank experiences using BM25Okapi."""
+        corpus = []
+        for exp in experiences:
+            text = exp.get("instruction", "") + " " + " ".join(exp.get("tags", []))
+            corpus.append(self._tokenize(text))
+
+        bm25 = BM25Okapi(corpus)
+        scores = bm25.get_scores(query_tokens)
+
+        # Pair scores with experiences and filter zero scores
+        scored = [
+            (score, exp)
+            for score, exp in zip(scores, experiences)
+            if score > 0
+        ]
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [exp for _, exp in scored[:limit]]
+
+    def _keyword_search(
+        self,
+        experiences: list[dict],
+        query_tokens: list[str],
+        limit: int,
+    ) -> list[dict]:
+        """Fallback: keyword set intersection scoring."""
+        keywords = set(query_tokens)
         scored = []
-        for exp in all_experiences:
-            exp_text = (exp.get("instruction", "") + " " +
-                       " ".join(exp.get("tags", []))).lower()
-            exp_words = set(exp_text.split())
+        for exp in experiences:
+            text = exp.get("instruction", "") + " " + " ".join(exp.get("tags", []))
+            exp_words = set(self._tokenize(text))
             overlap = len(keywords & exp_words)
             if overlap > 0:
                 scored.append((overlap, exp))
@@ -210,19 +294,21 @@ class MemoryInterface(LifecycleMixin):
 
     # -- World Objects --
 
-    def add_world_object(self, obj: Any) -> Optional[str]:
+    def add_world_object(self, obj: WorldObjectLike) -> Optional[str]:
         """Add a world object. Returns obj_id or None if no EmbodiedMemory."""
         if self._embodied is None:
             return None
         return self._embodied.add_world_object(obj)
 
-    def get_world_object(self, obj_id: str) -> Optional[Any]:
+    def get_world_object(self, obj_id: str) -> Optional[WorldObjectLike]:
         """Get a world object by ID."""
         if self._embodied is None:
             return None
         return self._embodied.get_world_object(obj_id)
 
-    def update_world_object_pose(self, obj_id: str, pose: Any, state: Optional[str] = None) -> bool:
+    def update_world_object_pose(
+        self, obj_id: str, pose: PoseLike, state: Optional[str] = None
+    ) -> bool:
         """Update world object pose and optional state."""
         if self._embodied is None:
             return False
@@ -230,22 +316,26 @@ class MemoryInterface(LifecycleMixin):
 
     def search_world_objects(
         self,
-        center: Any,
+        center: Vec3Like,
         radius: float,
         scene_id: Optional[str] = None,
-    ) -> list[Any]:
+    ) -> list[WorldObjectLike]:
         """Search world objects within spatial radius."""
         if self._embodied is None:
             return []
         return self._embodied.search_world_objects(center, radius, scene_id)
 
-    def get_scene_graph(self, scene_id: str) -> tuple[list[Any], list[Any]]:
+    def get_scene_graph(
+        self, scene_id: str
+    ) -> tuple[list[WorldObjectLike], list[Any]]:
         """Get scene graph: (objects, relations)."""
         if self._embodied is None:
             return [], []
         return self._embodied.get_scene_graph(scene_id)
 
-    def compute_relations(self, scene_id: str, spatial_tolerance: float = 0.05) -> list[Any]:
+    def compute_relations(
+        self, scene_id: str, spatial_tolerance: float = 0.05
+    ) -> list[Any]:
         """Compute spatial relations for a scene."""
         if self._embodied is None:
             return []
@@ -256,10 +346,10 @@ class MemoryInterface(LifecycleMixin):
     def sync_scene_objects(
         self,
         scene_id: str,
-        detections: list[Any],
+        detections: list[WorldObjectLike],
         timestamp_sec: float,
         occlusion_radius: float = 0.5,
-    ) -> Optional[Any]:
+    ) -> Optional[PermanenceReportLike]:
         """
         Sync sensor detections with world model (Object Permanence).
 
@@ -273,7 +363,9 @@ class MemoryInterface(LifecycleMixin):
 
     # -- Trajectories --
 
-    def record_trajectory(self, content: str, waypoints: list[tuple[Any, float]]) -> Optional[int]:
+    def record_trajectory(
+        self, content: str, waypoints: list[tuple[Vec3Like, float]]
+    ) -> Optional[int]:
         """Record a trajectory. Returns memory_id or None."""
         if self._embodied is None:
             return None
@@ -281,10 +373,10 @@ class MemoryInterface(LifecycleMixin):
 
     def search_similar_trajectories(
         self,
-        query_waypoints: list[tuple[Any, float]],
+        query_waypoints: list[tuple[Vec3Like, float]],
         top_k: int = 5,
         max_dtw_distance: Optional[float] = None,
-    ) -> list[tuple[Any, float]]:
+    ) -> list[tuple[MemoryAtomLike, float]]:
         """Search for similar trajectories using DTW."""
         if self._embodied is None:
             return []
@@ -297,11 +389,11 @@ class MemoryInterface(LifecycleMixin):
     def cognitive_search(
         self,
         query: str,
-        spatial_center: Optional[Any] = None,
+        spatial_center: Optional[Vec3Like] = None,
         spatial_radius: float = 2.0,
-        temporal_interval: Optional[Any] = None,
+        temporal_interval: Optional[TemporalIntervalLike] = None,
         limit: int = 10,
-    ) -> list[Any]:
+    ) -> list[MemoryAtomLike]:
         """Cognitive search: semantic + spatial + temporal."""
         if self._embodied is None:
             return []
