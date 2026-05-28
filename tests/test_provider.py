@@ -18,7 +18,8 @@ from rosclaw.provider.core import (
     RouterDecision,
     RuntimeAdapterError,
 )
-from rosclaw.provider.core.errors import CapabilityNotSupportedError
+from rosclaw.provider.core.errors import CapabilityNotSupportedError, ManifestValidationError
+from rosclaw.provider.core.manifest import EmbodimentSpec
 
 
 # ---------------------------------------------------------------------------
@@ -42,7 +43,7 @@ def robot_manifest() -> ProviderManifest:
         version="0.1.0",
         type="vlm",
         capabilities=["vlm.ground"],
-        embodiment={"supported_robots": ["ur5e"]},
+        embodiment=EmbodimentSpec(supported_robots=["ur5e"]),
     )
 
 
@@ -83,7 +84,10 @@ class TestProviderManifest:
 
     def test_supports_robot(self, robot_manifest: ProviderManifest):
         assert robot_manifest.supports_robot("ur5e")
-        assert robot_manifest.supports_robot("any")  # empty list means universal
+        assert not robot_manifest.supports_robot("any")
+
+    def test_supports_robot_universal(self, manifest: ProviderManifest):
+        assert manifest.supports_robot("any")  # empty list means universal
 
     def test_supports_input_modality_empty(self, manifest: ProviderManifest):
         assert manifest.supports_input_modality("text")  # empty modalities = universal
@@ -327,9 +331,12 @@ class TestCapabilityRouter:
         assert resp.is_ok
 
     def test_infer_input_modality(self):
-        assert CapabilityRouter._infer_input_modality({"image": {}}) == "image"
-        assert CapabilityRouter._infer_input_modality({"text": {}}) == "text"
-        assert CapabilityRouter._infer_input_modality({}) == ""
+        req_image = ProviderRequest(request_id="r1", capability="c", inputs={"image": {}})
+        req_text = ProviderRequest(request_id="r2", capability="c", inputs={"text": {}})
+        req_empty = ProviderRequest(request_id="r3", capability="c", inputs={})
+        assert CapabilityRouter._infer_input_modality(req_image) == "image"
+        assert CapabilityRouter._infer_input_modality(req_text) == "text"
+        assert CapabilityRouter._infer_input_modality(req_empty) == ""
 
 
 # ---------------------------------------------------------------------------
