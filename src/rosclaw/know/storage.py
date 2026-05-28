@@ -24,6 +24,8 @@ _SEED_CAPABILITIES: list[tuple[str, str, str, float, str]] = [
     ("ur5e", "has_capability", "reach_850mm", 1.0, "e_urdf"),
     ("ur5e", "has_capability", "force_control", 0.9, "e_urdf"),
     ("ur5e", "has_capability", "tool_changer", 0.8, "e_urdf"),
+    ("ur5e", "has_capability", "sort_objects", 0.7, "task_profile"),
+    ("ur5e", "has_capability", "stack_blocks", 0.75, "task_profile"),
     # Panda (Franka Emika)
     ("panda", "has_capability", "7dof_arm", 1.0, "e_urdf"),
     ("panda", "has_capability", "grasp", 1.0, "e_urdf"),
@@ -32,12 +34,28 @@ _SEED_CAPABILITIES: list[tuple[str, str, str, float, str]] = [
     ("panda", "has_capability", "torque_sensing", 1.0, "e_urdf"),
     ("panda", "has_capability", "collision_detection", 0.95, "e_urdf"),
     ("panda", "has_capability", "impedance_control", 0.9, "e_urdf"),
+    ("panda", "has_capability", "assembly", 0.85, "task_profile"),
+    ("panda", "has_capability", "handover_object", 0.8, "task_profile"),
     # Unitree G1
     ("unitree_g1", "has_capability", "humanoid_walk", 1.0, "e_urdf"),
     ("unitree_g1", "has_capability", "grasp", 1.0, "e_urdf"),
     ("unitree_g1", "has_capability", "balance", 1.0, "e_urdf"),
     ("unitree_g1", "has_capability", "locomotion", 1.0, "e_urdf"),
     ("unitree_g1", "has_capability", "payload_2kg", 1.0, "e_urdf"),
+    ("unitree_g1", "has_capability", "walk_to_point", 0.95, "task_profile"),
+    ("unitree_g1", "has_capability", "open_door", 0.7, "task_profile"),
+    # Boston Dynamics Spot
+    ("spot", "has_capability", "quadruped_walk", 1.0, "e_urdf"),
+    ("spot", "has_capability", "inspect_surface", 0.9, "task_profile"),
+    ("spot", "has_capability", "locomotion", 1.0, "e_urdf"),
+    ("spot", "has_capability", "payload_14kg", 1.0, "e_urdf"),
+    ("spot", "has_capability", "balance", 0.95, "e_urdf"),
+    # AgileX Piper
+    ("agilex_piper", "has_capability", "6dof_arm", 1.0, "e_urdf"),
+    ("agilex_piper", "has_capability", "grasp", 1.0, "e_urdf"),
+    ("agilex_piper", "has_capability", "pick_and_place", 0.9, "e_urdf"),
+    ("agilex_piper", "has_capability", "payload_1kg", 1.0, "e_urdf"),
+    ("agilex_piper", "has_capability", "sort_objects", 0.75, "task_profile"),
 ]
 
 # Symptom triples: (subject, predicate, object, confidence, source)

@@ -158,6 +158,10 @@ class ProviderRegistry:
         self._factories.pop(name, None)
         self._manifests.pop(name, None)
         self._health.pop(name, None)
+        self._publish_event(
+            "provider_unregistered",
+            {"provider": name},
+        )
 
     def set_provider_health(
         self,
@@ -181,6 +185,7 @@ class ProviderRegistry:
             "ok": ok,
             "error": error,
         }
+        self._publish_health_changed(name, ok, error or "manual_set")
 
     # ------------------------------------------------------------------
     # Lookups
@@ -235,11 +240,15 @@ class ProviderRegistry:
             result = await provider.health()
             result["timestamp"] = time.time()
             self._health[name] = result
-            provider._healthy = result.get("ok", False)
+            new_ok = result.get("ok", False)
+            if provider._healthy != new_ok:
+                self._publish_health_changed(name, new_ok, "health_check")
+            provider._healthy = new_ok
             return result
         except Exception as e:
             provider._healthy = False
             self._health[name] = {"ok": False, "error": str(e), "timestamp": time.time()}
+            self._publish_health_changed(name, False, f"health_check_error: {e}")
             return self._health[name]
 
     async def check_all_health(self) -> dict[str, dict[str, Any]]:
