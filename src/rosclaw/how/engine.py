@@ -144,6 +144,9 @@ class HeuristicEngine:
             ("collision_detected", "Replan with obstacle avoidance", 2),
             ("timeout", "Increase timeout or simplify task", 0),
             ("gripper_slip", "Increase grip force by 20% and retry", 1),
+            ("joint overload", "Reduce payload and re-home joints; check current limits", 3),
+            ("collision avoidance", "Switch to compliant mode and back off 5cm", 2),
+            ("communication timeout", "Retry with exponential backoff; check ROS master", 1),
         ]
         inserted = 0
         for idx, (condition, action, priority) in enumerate(defaults):

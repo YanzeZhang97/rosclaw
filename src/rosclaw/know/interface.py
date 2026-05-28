@@ -93,6 +93,19 @@ class KnowledgeInterface(LifecycleMixin):
         },
     }
 
+    # Task decomposition hints: high-level task -> ordered sub-task list.
+    # v1.0: Curated patterns for common embodied-intelligence tasks.
+    _TASK_DECOMPOSITIONS: dict[str, list[str]] = {
+        "pick and place": ["navigate_to_object", "align_gripper", "grasp", "lift", "move_to_target", "release"],
+        "sort objects": ["scan_workspace", "classify_object", "grasp", "move_to_bin", "release", "repeat"],
+        "walk to point": ["balance", "plan_footsteps", "step", "step", "step", "arrive_check"],
+        "assembly": ["grasp_part", "align_holes", "insert", "verify_fit", "release"],
+        "inspect surface": ["position_sensor", "scan_line", "scan_line", "analyze_defects", "report"],
+        "handover object": ["detect_human", "approach", "grasp", "extend_arm", "wait_signal", "release"],
+        "open door": ["approach_door", "grasp_handle", "pull", "hold", "pass_through", "release"],
+        "stack blocks": ["grasp_block", "lift", "move_above_target", "align", "lower", "release", "repeat"],
+    }
+
     # Cross-domain analogies for common symptoms.
     _CROSS_DOMAIN_ANALOGIES: dict[str, list[dict[str, str]]] = {
         "Torque_Overflow": [
@@ -238,6 +251,83 @@ class KnowledgeInterface(LifecycleMixin):
         if anti:
             parts.append(f"Avoid: {anti}")
         return "\n".join(parts)
+
+    def robot_capability_query(self, skill_name: str) -> list[str]:
+        """Return list of robot IDs that possess a given skill/capability.
+
+        Queries the SeekDB knowledge_graph for all robots with the
+        ``has_capability`` predicate matching ``skill_name``.
+        Falls back to in-memory cache if SeekDB is unavailable.
+        """
+        if not skill_name:
+            return []
+
+        # Prefer SeekDB query when available
+        if self.seekdb is not None:
+            try:
+                from rosclaw.know.graph import get_related_robots
+                return get_related_robots(self.seekdb, skill_name)
+            except Exception as exc:
+                logger.warning("[Know] robot_capability_query SeekDB failed: %s", exc)
+
+        # Fallback: scan in-memory capabilities cache
+        results = []
+        skill_lower = skill_name.lower()
+        for robot_id, caps in self._capabilities.items():
+            for cap in caps:
+                if cap.lower() == skill_lower:
+                    results.append(robot_id)
+                    break
+        return results
+
+    def task_decomposition_hint(self, task: str) -> dict[str, Any] | None:
+        """Decompose a high-level task into ordered sub-tasks.
+
+        Uses keyword matching against curated task decomposition patterns.
+        Returns the best-matching decomposition with confidence score.
+        """
+        if not task or not self._initialized:
+            return None
+
+        task_lower = task.lower()
+        best_key: str | None = None
+        best_score = 0.0
+
+        for pattern, steps in self._TASK_DECOMPOSITIONS.items():
+            score = self._score_task_match(task_lower, pattern)
+            if score > best_score:
+                best_score = score
+                best_key = pattern
+
+        if best_key and best_score > 0.3:
+            return {
+                "task": task,
+                "matched_pattern": best_key,
+                "steps": self._TASK_DECOMPOSITIONS[best_key],
+                "step_count": len(self._TASK_DECOMPOSITIONS[best_key]),
+                "confidence": round(best_score, 4),
+            }
+        return None
+
+    def _score_task_match(self, task_lower: str, pattern: str) -> float:
+        """Score how well a task description matches a decomposition pattern."""
+        pattern_lower = pattern.lower()
+
+        # Exact match
+        if task_lower == pattern_lower:
+            return 1.0
+
+        # Substring match
+        if pattern_lower in task_lower or task_lower in pattern_lower:
+            return 0.85
+
+        # Keyword overlap
+        task_words = set(re.findall(r"[a-z][a-z0-9_]+", task_lower))
+        pattern_words = set(re.findall(r"[a-z][a-z0-9_]+", pattern_lower))
+        if task_words and pattern_words:
+            overlap = len(task_words & pattern_words)
+            return min(1.0, overlap / max(len(pattern_words), 1) * 0.7 + 0.1)
+        return 0.0
 
     # -- Internal loaders --
 

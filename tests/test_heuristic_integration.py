@@ -60,6 +60,30 @@ class TestHeuristicEngine:
         assert stats["rule_count"] > 0
         assert stats["cache_valid"] is True
 
+    @pytest.mark.asyncio
+    async def test_suggest_recovery_joint_overload(self, engine):
+        await engine.seed_defaults()
+        recovery = await engine.suggest_recovery("joint overload detected on axis 2")
+        assert recovery is not None
+        assert "payload" in recovery["action"].lower()
+        assert recovery["source"] == "heuristic"
+
+    @pytest.mark.asyncio
+    async def test_suggest_recovery_collision_avoidance(self, engine):
+        await engine.seed_defaults()
+        recovery = await engine.suggest_recovery("collision avoidance triggered near workspace boundary")
+        assert recovery is not None
+        assert "compliant" in recovery["action"].lower()
+        assert recovery["source"] == "heuristic"
+
+    @pytest.mark.asyncio
+    async def test_suggest_recovery_communication_timeout(self, engine):
+        await engine.seed_defaults()
+        recovery = await engine.suggest_recovery("communication timeout to ROS master")
+        assert recovery is not None
+        assert "backoff" in recovery["action"].lower()
+        assert recovery["source"] == "heuristic"
+
 
 class TestRuleManager:
     """Tests for RuleManager CRUD operations."""

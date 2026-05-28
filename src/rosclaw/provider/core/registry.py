@@ -25,7 +25,11 @@ class ProviderRegistry:
     or protect with locks if accessed from multiple threads.
     """
 
-    def __init__(self, health_check_interval_sec: float = 30.0):
+    def __init__(
+        self,
+        event_bus: Any | None = None,
+        health_check_interval_sec: float = 30.0,
+    ):
         self._providers: dict[str, Provider] = {}
         self._factories: dict[str, Callable[[ProviderManifest], Provider]] = {}
         self._manifests: dict[str, ProviderManifest] = {}
@@ -33,6 +37,34 @@ class ProviderRegistry:
         self._health_interval = health_check_interval_sec
         self._health_task: asyncio.Task | None = None
         self._shutdown: bool = False
+        self._event_bus = event_bus
+
+    def _publish_event(self, topic: str, payload: dict[str, Any]) -> None:
+        """Publish a lifecycle event if EventBus is available."""
+        if self._event_bus is None:
+            return
+        try:
+            from rosclaw.core.event_bus import Event
+
+            self._event_bus.publish(
+                Event(topic=topic, payload=payload, source="provider_registry")
+            )
+        except Exception:
+            pass
+
+    def _publish_health_changed(
+        self, name: str, ok: bool, reason: str = ""
+    ) -> None:
+        """Publish provider_health_changed event."""
+        self._publish_event(
+            "provider_health_changed",
+            {
+                "provider": name,
+                "ok": ok,
+                "reason": reason,
+                "timestamp": time.time(),
+            },
+        )
 
     # ------------------------------------------------------------------
     # Registration
@@ -63,6 +95,16 @@ class ProviderRegistry:
         provider = factory(manifest)
         self._providers[name] = provider
 
+        self._publish_event(
+            "provider_registered",
+            {
+                "provider": name,
+                "type": manifest.type,
+                "capabilities": manifest.capabilities,
+                "auto_load": auto_load,
+            },
+        )
+
         if auto_load:
             self._load_provider(provider)
 
@@ -82,9 +124,11 @@ class ProviderRegistry:
             try:
                 asyncio.run(provider.load())
                 provider._healthy = True
+                self._publish_health_changed(provider.name, True, "load_success")
             except Exception as e:
                 provider._healthy = False
                 provider._load_error = str(e)
+                self._publish_health_changed(provider.name, False, f"load_failed: {e}")
 
     async def _deferred_load(self, provider: Provider) -> None:
         """Async-load a provider from within an existing event loop."""
@@ -92,10 +136,12 @@ class ProviderRegistry:
             await provider.load()
             provider._healthy = True
             self._health[provider.name] = {"last_check": time.time(), "ok": True}
+            self._publish_health_changed(provider.name, True, "load_success")
         except Exception as e:
             provider._healthy = False
             provider._load_error = str(e)
             self._health[provider.name] = {"last_check": time.time(), "ok": False, "error": str(e)}
+            self._publish_health_changed(provider.name, False, f"load_failed: {e}")
 
     def unregister(self, name: str) -> None:
         """Unregister and unload a provider."""
