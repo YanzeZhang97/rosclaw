@@ -22,12 +22,12 @@ REPO_ROOT = Path(__file__).parent.parent
 RESULTS_PATH = REPO_ROOT / "benchmarks" / "results.md"
 
 
-def _fmt_ms(seconds: float) -> str:
-    return f"{seconds * 1000:.4f}"
+def _fmt_ms(ms: float) -> str:
+    return f"{ms:.4f}"
 
 
-def _fmt_us(seconds: float) -> str:
-    return f"{seconds * 1_000_000:.4f}"
+def _fmt_us(us: float) -> str:
+    return f"{us:.4f}"
 
 
 # ---------------------------------------------------------------------------
