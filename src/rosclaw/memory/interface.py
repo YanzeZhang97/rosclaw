@@ -458,6 +458,28 @@ class MemoryInterface(LifecycleMixin):
     DEFAULT_MAX_EXPERIENCES = 10_000
     DEFAULT_MAX_AGE_DAYS = 30
 
+    def write(self, key: str, value: dict[str, Any]) -> str:
+        """Store an experience by key — convenience alias for store_experience.
+
+        Matches the simple key-value API expected by MCP/demo consumers.
+        """
+        return self.store_experience(
+            event_id=key,
+            event_type=value.get("event_type", "experience"),
+            instruction=value.get("instruction", key),
+            outcome=value.get("outcome", "unknown"),
+            duration_sec=value.get("duration_sec", 0.0),
+            tags=value.get("tags", []),
+            metadata=value,
+        )
+
+    def search(self, query: str, limit: int = 5) -> list[dict]:
+        """Search experiences by query text — convenience alias for find_similar_experiences.
+
+        Matches the simple search API expected by MCP/demo consumers.
+        """
+        return self.find_similar_experiences(instruction=query, limit=limit)
+
     def delete_experience(self, experience_id: str) -> bool:
         """Delete a single experience by ID."""
         return self._client.delete("experience_graph", experience_id)

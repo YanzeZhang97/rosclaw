@@ -34,6 +34,28 @@ class DashboardWebServer:
         self.app = FastAPI(title="ROSClaw Dashboard", version="1.0.0")
         self._setup_routes()
 
+    def attach_to_event_bus(self, event_bus: Any) -> None:
+        """Subscribe to episode/praxis events for live metrics updates."""
+        self.server.attach_to_event_bus(event_bus)
+
+        # Subscribe to episode completion events
+        def on_episode_complete(event: Any) -> None:
+            payload = getattr(event, "payload", {})
+            episode_id = payload.get("episode_id", "unknown")
+            robot_id = payload.get("robot_id", "unknown")
+            success = payload.get("success", False)
+            duration = payload.get("duration_sec")
+            self.metrics.record_episode(
+                episode_id=episode_id,
+                robot_id=robot_id,
+                status="success" if success else "failed",
+                reward=1.0 if success else 0.0,
+                duration_sec=duration,
+            )
+
+        event_bus.subscribe("praxis.completed", on_episode_complete)
+        event_bus.subscribe("rosclaw.sandbox.episode.finished", on_episode_complete)
+
     def _setup_routes(self) -> None:
         @self.app.get("/health")
         async def health() -> dict[str, Any]:

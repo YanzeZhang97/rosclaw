@@ -89,10 +89,12 @@ async def main() -> int:
     runtime = Runtime(config)
     runtime.initialize()
     runtime.start()
+    dashboard.attach_to_event_bus(runtime.event_bus)
     print(f"  Runtime: {runtime.config.robot_id}")
     print(f"  EventBus: active")
     print(f"  How module: {'enabled' if runtime._how else 'disabled'}")
     print(f"  Memory: {'enabled' if runtime._memory else 'disabled'}")
+    print(f"  Dashboard: connected to EventBus")
 
     # ------------------------------------------------------------------
     # 5. Run a sandbox reach task (mock — MuJoCo simulation)
