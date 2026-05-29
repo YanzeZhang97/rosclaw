@@ -83,12 +83,16 @@ class TestKnowHowRuntimeE2E:
         hub._register_get_safety_heuristic_tool()
         hub._register_get_recovery_strategy_tool()
 
-        result = asyncio.get_event_loop().run_until_complete(
-            hub.handle_tool_call("query_knowledge", {
-                "query_type": "symptom",
-                "query": "torque overflow",
-            })
-        )
+        loop = asyncio.new_event_loop()
+        try:
+            result = loop.run_until_complete(
+                hub.handle_tool_call("query_knowledge", {
+                    "query_type": "symptom",
+                    "query": "torque overflow",
+                })
+            )
+        finally:
+            loop.close()
         assert result["status"] == "ok"
         assert result["matched"] is True
         assert result["result"]["pattern_id"] == "Torque_Overflow"
@@ -99,11 +103,15 @@ class TestKnowHowRuntimeE2E:
         hub._do_initialize()
         hub._register_get_recovery_strategy_tool()
 
-        result = asyncio.get_event_loop().run_until_complete(
-            hub.handle_tool_call("get_recovery_strategy", {
-                "error_log": "collision detected during move",
-            })
-        )
+        loop = asyncio.new_event_loop()
+        try:
+            result = loop.run_until_complete(
+                hub.handle_tool_call("get_recovery_strategy", {
+                    "error_log": "collision detected during move",
+                })
+            )
+        finally:
+            loop.close()
         assert result["status"] == "ok"
         assert result["matched"] is True
         assert "action" in result
@@ -114,11 +122,15 @@ class TestKnowHowRuntimeE2E:
         hub._do_initialize()
         hub._register_get_safety_heuristic_tool()
 
-        result = asyncio.get_event_loop().run_until_complete(
-            hub.handle_tool_call("get_safety_heuristic", {
-                "condition": "torque_overflow",
-            })
-        )
+        loop = asyncio.new_event_loop()
+        try:
+            result = loop.run_until_complete(
+                hub.handle_tool_call("get_safety_heuristic", {
+                    "condition": "torque_overflow",
+                })
+            )
+        finally:
+            loop.close()
         assert result["status"] == "ok"
         assert "SAFETY: Torque_Overflow" in result["safety_rule"]
         hub._do_stop()

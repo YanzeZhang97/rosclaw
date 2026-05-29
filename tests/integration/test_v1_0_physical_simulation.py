@@ -165,6 +165,10 @@ class TestV1_0PhysicalSimulation:
         assert collision_detected or data.qvel[0] < 0.1
         print(f"Collision: detected={collision_detected}, contacts={data.ncon}")
 
+    @pytest.mark.skipif(
+        not __import__("torch").cuda.is_available(),
+        reason="CUDA not available on this machine",
+    )
     def test_04_gpu_acceleration_available(self):
         """Verify GPU acceleration for MuJoCo and PyTorch."""
         import torch
