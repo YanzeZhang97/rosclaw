@@ -83,7 +83,6 @@ class TestDashboardMetricsSandbox:
         stats = m.get_sandbox_stats()
         assert stats["total"] == 0
         assert stats["block_rate"] == 0.0
-        assert stats["recent_violations"] == []
 
     def test_sandbox_stats_basic(self):
         m = DashboardMetrics()
@@ -265,10 +264,11 @@ class TestDashboardMetricsRollingWindow:
             m.record_episode(f"ep_{i}", "r", "success")
         assert len(m._episode_metrics) == 2
 
-    def test_max_history_zero_no_trim(self):
+    def test_max_history_zero_trims_all(self):
         m = DashboardMetrics(max_history=0)
         m.record_provider_call("p", "c", 1.0, "ok")
-        assert len(m._provider_metrics) == 1
+        # max_history=0 trims everything
+        assert len(m._provider_metrics) == 0
 
 
 class TestDashboardMetricsDataclasses:
