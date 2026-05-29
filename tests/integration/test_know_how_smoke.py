@@ -264,7 +264,6 @@ class TestRuntimeKnowHowIntegration:
         results = seekdb.query("knowledge_graph", filters={}, limit=10)
         assert len(results) >= 0  # Knowledge graph may or may not be seeded
 
-    @pytest.mark.skip(reason="Test isolation issue: event loop state corrupted by previous HOW tests. Passes individually. Bug tracked as #RUNTIME-ASYNC-001")
     def test_heuristic_rules_seeded_after_init(self):
         """heuristic_rules are seeded after Runtime init with enable_how=True."""
         config = RuntimeConfig(
