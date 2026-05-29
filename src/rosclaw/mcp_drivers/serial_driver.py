@@ -134,4 +134,4 @@ class SerialDriver(BaseDriver):
             self._driver_state.joint_positions = state.get("positions", [])
             self._driver_state.joint_velocities = state.get("velocities", [])
             self._driver_state.joint_torques = state.get("torques", [])
-        return self._state
+        return self._driver_state
