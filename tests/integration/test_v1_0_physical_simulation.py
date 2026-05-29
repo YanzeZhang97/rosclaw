@@ -6,6 +6,7 @@ Full pipeline with actual physics:
     → Provider routing → physics execution → Memory recording
 """
 
+import asyncio
 import time
 
 import pytest
@@ -180,9 +181,9 @@ class TestV1_0PhysicalSimulation:
         mem = torch.cuda.get_device_properties(0).total_memory / 1e9
         print(f"GPU: {gpu_name}, Memory: {mem:.1f} GB")
 
-    def test_05_provider_inference_with_physics(self):
+    @pytest.mark.asyncio
+    async def test_05_provider_inference_with_physics(self):
         """Test provider routing with physics-backed validation."""
-        import asyncio
         import mujoco
 
         from rosclaw.provider.core.request import ProviderRequest
@@ -238,7 +239,7 @@ class TestV1_0PhysicalSimulation:
             )
             return await router.invoke(request)
 
-        response = asyncio.get_event_loop().run_until_complete(run_test())
+        response = await run_test()
         assert response.is_ok
         trajectory = response.result["trajectory"]
 

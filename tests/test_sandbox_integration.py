@@ -1,5 +1,7 @@
 """Integration tests for rosclaw-sandbox in v1.0 Runtime."""
 
+from pathlib import Path
+
 import pytest
 
 
@@ -86,7 +88,8 @@ class TestMCPUsesEventBus:
         import inspect
 
         # Read source without importing (avoids rclpy dependency)
-        with open("/home/ubuntu/rosclaw/rosclaw/rosclaw-v1.0/src/rosclaw/mcp/ur5_server.py") as f:
+        mcp_path = Path(__file__).parent.parent / "src" / "rosclaw" / "mcp" / "ur5_server.py"
+        with open(mcp_path) as f:
             source = f.read()
 
         assert "firewall.validation_request" in source or "event_bus" in source
