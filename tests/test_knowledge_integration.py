@@ -271,3 +271,102 @@ class TestMCPKnowledgeTool:
         assert result["status"] == "ok"
         assert result["condition"] == "torque_overflow"
         assert "SAFETY: Torque_Overflow" in result["safety_rule"]
+
+
+class TestRobotCapabilityQuery:
+    """Tests for robot_capability_query method."""
+
+    def test_capability_query_with_seekdb(self):
+        client = SeekDBMemoryClient()
+        client.connect()
+        seed_knowledge_graph(client)
+
+        ki = KnowledgeInterface(robot_id="ur5e", seekdb_client=client)
+        ki._do_initialize()
+
+        # Query which robots can grasp
+        robots = ki.robot_capability_query("grasp")
+        assert "ur5e" in robots
+        assert "panda" in robots
+        assert "unitree_g1" in robots
+
+        # Query pick_and_place
+        robots = ki.robot_capability_query("pick_and_place")
+        assert "ur5e" in robots
+        assert "panda" in robots
+
+        ki._do_stop()
+
+    def test_capability_query_no_match(self):
+        client = SeekDBMemoryClient()
+        client.connect()
+        seed_knowledge_graph(client)
+
+        ki = KnowledgeInterface(robot_id="ur5e", seekdb_client=client)
+        ki._do_initialize()
+
+        robots = ki.robot_capability_query("nonexistent_skill")
+        assert robots == []
+
+        ki._do_stop()
+
+    def test_capability_query_empty_skill(self):
+        ki = KnowledgeInterface(robot_id="ur5e")
+        ki._do_initialize()
+        assert ki.robot_capability_query("") == []
+        ki._do_stop()
+
+
+class TestTaskDecompositionHint:
+    """Tests for task_decomposition_hint method."""
+
+    def test_decompose_pick_and_place(self):
+        ki = KnowledgeInterface(robot_id="test_robot")
+        ki._do_initialize()
+
+        result = ki.task_decomposition_hint("pick and place")
+        assert result is not None
+        assert result["matched_pattern"] == "pick and place"
+        assert "navigate_to_object" in result["steps"]
+        assert "grasp" in result["steps"]
+        assert "release" in result["steps"]
+        assert result["step_count"] == 6
+        assert result["confidence"] > 0.8
+        ki._do_stop()
+
+    def test_decompose_walk_to_point(self):
+        ki = KnowledgeInterface(robot_id="test_robot")
+        ki._do_initialize()
+
+        result = ki.task_decomposition_hint("walk to point")
+        assert result is not None
+        assert result["matched_pattern"] == "walk to point"
+        assert "balance" in result["steps"]
+        assert "plan_footsteps" in result["steps"]
+        ki._do_stop()
+
+    def test_decompose_assembly(self):
+        ki = KnowledgeInterface(robot_id="test_robot")
+        ki._do_initialize()
+
+        result = ki.task_decomposition_hint("assembly task")
+        assert result is not None
+        assert result["matched_pattern"] == "assembly"
+        assert "grasp_part" in result["steps"]
+        assert "verify_fit" in result["steps"]
+        ki._do_stop()
+
+    def test_decompose_no_match(self):
+        ki = KnowledgeInterface(robot_id="test_robot")
+        ki._do_initialize()
+
+        result = ki.task_decomposition_hint("completely unrelated nonsense task")
+        assert result is None
+        ki._do_stop()
+
+    def test_decompose_empty(self):
+        ki = KnowledgeInterface(robot_id="test_robot")
+        ki._do_initialize()
+
+        assert ki.task_decomposition_hint("") is None
+        ki._do_stop()
