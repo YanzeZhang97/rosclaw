@@ -142,10 +142,20 @@ class Runtime(LifecycleMixin):
         # Initialize Sandbox (Digital Twin + Physics Simulation)
         try:
             from rosclaw.sandbox.runtime_adapter import SandboxRuntimeAdapter
+            # Map short robot_id to canonical full name via e-URDF Zoo
+            canonical_robot_id = self.config.robot_id
+            try:
+                from rosclaw.runtime.eurdf_loader import RobotRegistry
+                reg = RobotRegistry()
+                profile = reg.get(canonical_robot_id)
+                if profile is not None:
+                    canonical_robot_id = profile.robot_id
+            except Exception:
+                pass
             sandbox_config = {
                 "engine": "mujoco",
                 "world_id": "empty",
-                "robot_id": self.config.robot_id,
+                "robot_id": canonical_robot_id,
             }
             self._sandbox = SandboxRuntimeAdapter(
                 config=sandbox_config,
