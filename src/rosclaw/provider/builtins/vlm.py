@@ -10,11 +10,33 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from rosclaw.provider.core.artifact import ArtifactManager, ArtifactRef
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
 from rosclaw.provider.core.errors import CapabilityNotSupportedError
 from rosclaw.provider.core.provider import Provider
 from rosclaw.provider.core.request import ProviderRequest
 from rosclaw.provider.core.response import ProviderResponse
+
+
+@dataclass(frozen=True)
+class _ArtifactRef:
+    type: str
+    uri: str = ""
+    value: str = ""
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "_ArtifactRef":
+        return cls(type=d.get("type", ""), uri=d.get("uri", ""), value=d.get("value", ""))
+
+
+def _resolve_artifact(uri: str) -> Path:
+    if uri.startswith("artifact://"):
+        parts = uri[11:].split("/", 1)
+        if len(parts) == 2:
+            return Path("./artifacts") / parts[0] / parts[1]
+    return Path(uri)
 
 # Color detection thresholds (RGB) for common object queries
 _COLOR_MAP: dict[str, tuple[tuple[int, int, int], tuple[int, int, int]]] = {
@@ -42,7 +64,6 @@ class MockVLMProvider(Provider):
 
     def __init__(self, manifest, artifact_manager=None):
         super().__init__(manifest)
-        self._artifact_manager = artifact_manager or ArtifactManager()
         self._color_map = _COLOR_MAP
 
     async def infer(self, request: ProviderRequest) -> ProviderResponse:
@@ -106,15 +127,14 @@ class MockVLMProvider(Provider):
     def _resolve_image_path(self, image_input):
         if isinstance(image_input, dict):
             if image_input.get("type") == "artifact":
-                ref = ArtifactRef.from_dict(image_input)
-                return self._artifact_manager.resolve(ref)
+                ref = _ArtifactRef.from_dict(image_input)
+                return _resolve_artifact(ref.uri)
             if image_input.get("type") == "file":
                 return Path(image_input.get("value", ""))
             return None
         if isinstance(image_input, str):
             if image_input.startswith("artifact://"):
-                ref = ArtifactRef(type="artifact", uri=image_input)
-                return self._artifact_manager.resolve(ref)
+                return _resolve_artifact(image_input)
             if image_input.startswith("file://"):
                 return Path(image_input[7:])
             return Path(image_input)
