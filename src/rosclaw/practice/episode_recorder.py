@@ -237,6 +237,7 @@ class EpisodeRecorder(LifecycleMixin):
         buf.praxis_status = "success"
         buf.praxis_reward = outcome.get("reward", 1.0)
         buf.last_event_at = time.time()
+        self._finalize_episode(episode_id)
 
     def _on_praxis_failed(self, event: Event) -> None:
         payload = event.payload if isinstance(event.payload, dict) else {}
@@ -248,6 +249,7 @@ class EpisodeRecorder(LifecycleMixin):
         buf.praxis_reward = outcome.get("reward", -1.0)
         buf.runtime_error = payload.get("error_log", buf.runtime_error)
         buf.last_event_at = time.time()
+        self._finalize_episode(episode_id)
 
     def _on_firewall_blocked(self, event: Event) -> None:
         payload = event.payload if isinstance(event.payload, dict) else {}
@@ -267,6 +269,7 @@ class EpisodeRecorder(LifecycleMixin):
             "reason": buf.sandbox_block_reason,
         })
         buf.last_event_at = time.time()
+        self._finalize_episode(episode_id)
 
     def _on_safety_violation(self, event: Event) -> None:
         payload = event.payload if isinstance(event.payload, dict) else {}
@@ -279,6 +282,7 @@ class EpisodeRecorder(LifecycleMixin):
             "; ".join(violations) if isinstance(violations, list) else str(violations)
         ) or "safety violation"
         buf.last_event_at = time.time()
+        self._finalize_episode(episode_id)
 
     def _on_agent_response(self, event: Event) -> None:
         payload = event.payload if isinstance(event.payload, dict) else {}

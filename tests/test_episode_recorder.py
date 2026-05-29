@@ -56,7 +56,7 @@ class TestEventBuffering:
         assert buf.semantic_intent == "pick"
         assert "skill.execution.start" in buf.received_events
 
-    def test_skill_complete_finalizes_episode(self, recorder, temp_artifact_dir):
+    def test_skill_complete_then_praxis_finalizes(self, recorder, temp_artifact_dir):
         recorder._event_bus.publish(Event(
             topic="skill.execution.start",
             payload={"skill_name": "pick", "correlation_id": "ep_002"},
@@ -64,6 +64,10 @@ class TestEventBuffering:
         recorder._event_bus.publish(Event(
             topic="skill.execution.complete",
             payload={"correlation_id": "ep_002", "result": {"status": "success"}, "duration_sec": 3.5},
+        ))
+        recorder._event_bus.publish(Event(
+            topic="praxis.completed",
+            payload={"practice_id": "ep_002", "outcome": {"reward": 1.0}},
         ))
         assert recorder.active_episode_count == 0
         meta_path = os.path.join(temp_artifact_dir, "episodes", "ep_002", "metadata.json")
@@ -75,12 +79,12 @@ class TestEventBuffering:
             payload={"skill_name": "pick", "correlation_id": "ep_003"},
         ))
         recorder._event_bus.publish(Event(
-            topic="praxis.completed",
-            payload={"practice_id": "ep_003", "outcome": {"reward": 0.95}},
-        ))
-        recorder._event_bus.publish(Event(
             topic="skill.execution.complete",
             payload={"correlation_id": "ep_003"},
+        ))
+        recorder._event_bus.publish(Event(
+            topic="praxis.completed",
+            payload={"practice_id": "ep_003", "outcome": {"reward": 0.95}},
         ))
         meta_path = os.path.join(temp_artifact_dir, "episodes", "ep_003", "metadata.json")
         with open(meta_path) as f:
@@ -94,12 +98,12 @@ class TestEventBuffering:
             payload={"skill_name": "pick", "correlation_id": "ep_004"},
         ))
         recorder._event_bus.publish(Event(
-            topic="praxis.failed",
-            payload={"practice_id": "ep_004", "outcome": {"reward": -0.8}, "error_log": "slip"},
-        ))
-        recorder._event_bus.publish(Event(
             topic="skill.execution.complete",
             payload={"correlation_id": "ep_004"},
+        ))
+        recorder._event_bus.publish(Event(
+            topic="praxis.failed",
+            payload={"practice_id": "ep_004", "outcome": {"reward": -0.8}, "error_log": "slip"},
         ))
         meta_path = os.path.join(temp_artifact_dir, "episodes", "ep_004", "metadata.json")
         with open(meta_path) as f:
@@ -119,10 +123,6 @@ class TestEventBuffering:
                 "violations": [{"description": "collision detected"}],
             },
         ))
-        recorder._event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"correlation_id": "ep_005"},
-        ))
         meta_path = os.path.join(temp_artifact_dir, "episodes", "ep_005", "metadata.json")
         with open(meta_path) as f:
             meta = json.load(f)
@@ -139,10 +139,6 @@ class TestEventBuffering:
             topic="safety.violation",
             payload={"request_id": "ep_006", "violations": ["joint limit exceeded"]},
         ))
-        recorder._event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"correlation_id": "ep_006"},
-        ))
         meta_path = os.path.join(temp_artifact_dir, "episodes", "ep_006", "metadata.json")
         with open(meta_path) as f:
             meta = json.load(f)
@@ -158,8 +154,8 @@ class TestEventBuffering:
             payload={"request_id": "ep_007", "status": "safe", "is_safe": True},
         ))
         recorder._event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"correlation_id": "ep_007"},
+            topic="praxis.completed",
+            payload={"practice_id": "ep_007", "outcome": {"reward": 1.0}},
         ))
         trace_path = os.path.join(temp_artifact_dir, "episodes", "ep_007", "provider_trace.jsonl")
         assert os.path.exists(trace_path)
@@ -177,6 +173,10 @@ class TestEventBuffering:
             topic="skill.execution.start",
             payload={"skill_name": "pick", "correlation_id": "ep_008"},
         ))
+        recorder._event_bus.publish(Event(
+            topic="praxis.completed",
+            payload={"practice_id": "ep_008", "outcome": {"reward": 1.0}},
+        ))
         meta_path = os.path.join(temp_artifact_dir, "episodes", "ep_008", "metadata.json")
         assert os.path.exists(meta_path)
         with open(meta_path) as f:
@@ -191,8 +191,8 @@ class TestArtifactFiles:
             payload={"skill_name": "pick", "correlation_id": "ep_009"},
         ))
         recorder._event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"correlation_id": "ep_009"},
+            topic="praxis.completed",
+            payload={"practice_id": "ep_009", "outcome": {"reward": 1.0}},
         ))
         ep_dir = os.path.join(temp_artifact_dir, "episodes", "ep_009")
         assert os.path.exists(os.path.join(ep_dir, "metadata.json"))
@@ -206,16 +206,15 @@ class TestArtifactFiles:
             payload={"skill_name": "grasp", "parameters": {"force": 10}, "correlation_id": "ep_010"},
         ))
         recorder._event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"correlation_id": "ep_010", "result": {"status": "success"}},
+            topic="praxis.completed",
+            payload={"practice_id": "ep_010", "outcome": {"reward": 1.0}},
         ))
         traj_path = os.path.join(temp_artifact_dir, "episodes", "ep_010", "trajectory.jsonl")
         with open(traj_path) as f:
             entries = [json.loads(line) for line in f]
-        assert len(entries) == 2
+        assert len(entries) == 1
         assert entries[0]["phase"] == "start"
         assert entries[0]["skill_name"] == "grasp"
-        assert entries[1]["phase"] == "complete"
 
     def test_sandbox_replay_content(self, recorder, temp_artifact_dir):
         recorder._event_bus.publish(Event(
@@ -225,10 +224,6 @@ class TestArtifactFiles:
         recorder._event_bus.publish(Event(
             topic="firewall.action_blocked",
             payload={"request_id": "ep_011", "violations": [{"description": "blocked"}]},
-        ))
-        recorder._event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"correlation_id": "ep_011"},
         ))
         replay_path = os.path.join(temp_artifact_dir, "episodes", "ep_011", "sandbox_replay.json")
         with open(replay_path) as f:
@@ -248,8 +243,8 @@ class TestPraxisRecordedEvent:
             payload={"skill_name": "pick", "correlation_id": "ep_012"},
         ))
         recorder._event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"correlation_id": "ep_012"},
+            topic="praxis.completed",
+            payload={"practice_id": "ep_012", "outcome": {"reward": 1.0}},
         ))
 
         assert len(captured) == 1
@@ -269,8 +264,8 @@ class TestPublicAPI:
                 payload={"skill_name": "pick", "correlation_id": cid},
             ))
             recorder._event_bus.publish(Event(
-                topic="skill.execution.complete",
-                payload={"correlation_id": cid},
+                topic="praxis.completed",
+                payload={"practice_id": cid, "outcome": {"reward": 1.0}},
             ))
 
         episodes = recorder.list_episodes()
@@ -285,8 +280,8 @@ class TestPublicAPI:
             payload={"skill_name": "pick", "correlation_id": "ep_015"},
         ))
         recorder._event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"correlation_id": "ep_015"},
+            topic="praxis.completed",
+            payload={"practice_id": "ep_015", "outcome": {"reward": 1.0}},
         ))
 
         meta = recorder.get_episode("ep_015")
@@ -308,8 +303,8 @@ class TestStubTopics:
             payload={"skill_name": "grasp", "correlation_id": "ep_016"},
         ))
         recorder._event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"correlation_id": "ep_016"},
+            topic="praxis.completed",
+            payload={"practice_id": "ep_016", "outcome": {"reward": 1.0}},
         ))
         meta_path = os.path.join(temp_artifact_dir, "episodes", "ep_016", "metadata.json")
         with open(meta_path) as f:
@@ -326,8 +321,8 @@ class TestStubTopics:
             payload={"episode_id": "ep_017", "success": True, "reward": 0.9},
         ))
         recorder._event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"correlation_id": "ep_017"},
+            topic="praxis.completed",
+            payload={"practice_id": "ep_017", "outcome": {"reward": 1.0}},
         ))
         meta_path = os.path.join(temp_artifact_dir, "episodes", "ep_017", "metadata.json")
         with open(meta_path) as f:

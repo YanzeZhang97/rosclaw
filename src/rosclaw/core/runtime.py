@@ -52,9 +52,10 @@ except ImportError:
 @dataclass
 class RuntimeConfig:
     """Configuration for ROSClaw Runtime."""
-    robot_id: str = "ur5e"
+    robot_id: str = "rosclaw_default"
     robot_model_path: Optional[str] = None
     robot_zoo_path: Optional[str] = None
+    default_eurdf_robot: str = "ur5e"
     enable_firewall: bool = True
     enable_memory: bool = True
     enable_practice: bool = True
@@ -622,8 +623,9 @@ class Runtime(LifecycleMixin):
         try:
             from rosclaw.runtime.eurdf_loader import EURDFLoader
             loader = EURDFLoader(self.config.robot_zoo_path)
-            self._robot_profile = loader.load(self.config.robot_id)
-            robot_dir = loader.zoo_path / self.config.robot_id
+            robot_id = self.config.default_eurdf_robot
+            self._robot_profile = loader.load(robot_id)
+            robot_dir = loader.zoo_path / robot_id
             eurdf_path = robot_dir / "robot.eurdf.yaml"
             if eurdf_path.exists():
                 from rosclaw.e_urdf.parser import EURDFParser
@@ -631,13 +633,13 @@ class Runtime(LifecycleMixin):
             self.event_bus.publish(Event(
                 topic="rosclaw.runtime.robot_loaded",
                 payload={
-                    "robot_id": self.config.robot_id,
+                    "robot_id": robot_id,
                     "profile": self._robot_profile.to_dict(),
                 },
                 source="runtime",
                 priority=EventPriority.HIGH,
             ))
-            print(f"[Runtime] Robot '{self.config.robot_id}' loaded from e-URDF Zoo")
+            print(f"[Runtime] Robot '{robot_id}' loaded from e-URDF Zoo")
         except Exception as e:
             print(f"[Runtime] Failed to load robot from zoo: {e}")
 

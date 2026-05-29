@@ -62,6 +62,10 @@ class TestFullPipeline:
                 "duration_sec": 4.2,
             },
         ))
+        runtime.event_bus.publish(Event(
+            topic="praxis.completed",
+            payload={"practice_id": "e2e-session-001", "outcome": {"reward": 1.0}},
+        ))
 
         assert len(captured) >= 1
         evt = captured[-1]

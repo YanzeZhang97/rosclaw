@@ -8,7 +8,7 @@ Full pipeline:
 import asyncio
 import pytest
 
-from rosclaw.core import EventBus, Runtime, RuntimeConfig
+from rosclaw.core.event_bus import EventBus, Event
 from rosclaw.provider.core.manifest import ProviderManifest
 from rosclaw.provider.core.provider import Provider
 from rosclaw.provider.core.registry import ProviderRegistry
@@ -73,11 +73,11 @@ class MockCriticProvider(Provider):
 
 
 class TestV1_0ClosedLoop:
-    """End-to-end closed loop: e-URDF → Provider → Sandbox → Runtime → Practice → Memory → HOW."""
+    """End-to-end closed loop: e-URDF → Provider → Sandbox → Memory → HOW."""
 
     @pytest.fixture
     async def e2e_setup(self):
-        # 1. e-URDF: Load UR5e
+        # 1. e-URDF
         robot_reg = RobotRegistry()
         profile = robot_reg.install("ur5e")
 
@@ -125,7 +125,7 @@ class TestV1_0ClosedLoop:
 
         router = CapabilityRouter(provider_reg)
 
-        # 4. Sandbox (use stub to avoid MuJoCo dependency)
+        # 4. Sandbox
         sandbox = SandboxRuntimeAdapter(
             config={"engine": "mujoco", "world_id": "tabletop", "robot_id": "universal_robots_ur5e"},
             event_bus=event_bus,
@@ -136,9 +136,10 @@ class TestV1_0ClosedLoop:
         # 5. Memory
         memory = MemoryInterface(robot_id=profile.robot_id)
 
-        # 6. HOW
+        # 6. HOW — seed defaults for rule-based recovery
         how = HeuristicEngine(seekdb_client=memory.seekdb_client)
         await how.initialize()
+        await how.seed_defaults()
 
         yield {
             "profile": profile,
@@ -151,7 +152,6 @@ class TestV1_0ClosedLoop:
         }
 
         sandbox.stop()
-        await how.shutdown()
 
     @pytest.mark.asyncio
     async def test_01_eurdf_loaded(self, e2e_setup):
@@ -230,8 +230,8 @@ class TestV1_0ClosedLoop:
             "provider": "moveit_skill",
             "status": "success",
         }
-        memory.write("events", event)
-        results = memory.read("events", filters={"task_id": "pick_red_cup"})
+        memory.seekdb_client.insert("events", event)
+        results = memory.seekdb_client.query("events", filters={"task_id": "pick_red_cup"})
         assert len(results) >= 1
 
     @pytest.mark.asyncio
@@ -266,7 +266,7 @@ class TestV1_0ClosedLoop:
         def subscriber(event):
             received.append(event)
         event_bus.subscribe("test.topic", subscriber)
-        event_bus.publish(event_bus.Event("test.topic", {"msg": "hello"}, source="test"))
+        event_bus.publish(Event("test.topic", {"msg": "hello"}, source="test"))
         await asyncio.sleep(0.01)
         assert len(received) == 1
         assert received[0].payload["msg"] == "hello"
@@ -309,7 +309,7 @@ class TestV1_0ClosedLoop:
         assert "is_safe" in validation
 
         # Memory Record
-        memory.write("episodes", {
+        memory.seekdb_client.insert("episodes", {
             "episode_id": "ep_001",
             "robot_id": profile.robot_id,
             "task_id": "pick_red_cup",
@@ -337,7 +337,7 @@ class TestV1_0ClosedLoop:
             assert recovery is not None
 
         # Verify Memory
-        episodes = memory.read("episodes", filters={"episode_id": "ep_001"})
+        episodes = memory.seekdb_client.query("episodes", filters={"episode_id": "ep_001"})
         assert len(episodes) >= 1
         assert episodes[0]["robot_id"] == profile.robot_id
 
