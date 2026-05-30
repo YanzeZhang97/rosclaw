@@ -147,7 +147,7 @@ def test_mcp_hub_semantic_tools_with_runtime():
     runtime = Runtime(RuntimeConfig(robot_id="test_bot", enable_provider=True))
     runtime.initialize()
 
-    bus = EventBus()
+    bus = runtime.event_bus
     hub = MCPHub(bus, robot_id="test_bot", runtime=runtime)
     hub.initialize()
 
@@ -176,7 +176,7 @@ async def test_mcp_hub_observe_scene_via_provider():
     runtime = Runtime(RuntimeConfig(robot_id="test_bot", enable_provider=True))
     runtime.initialize()
 
-    bus = EventBus()
+    bus = runtime.event_bus
     hub = MCPHub(bus, robot_id="test_bot", runtime=runtime)
     hub.initialize()
 
@@ -196,7 +196,7 @@ async def test_mcp_hub_locate_object_via_provider():
     runtime = Runtime(RuntimeConfig(robot_id="test_bot", enable_provider=True))
     runtime.initialize()
 
-    bus = EventBus()
+    bus = runtime.event_bus
     hub = MCPHub(bus, robot_id="test_bot", runtime=runtime)
     hub.initialize()
 
@@ -217,7 +217,7 @@ async def test_mcp_hub_delegate_skill_via_provider():
     runtime = Runtime(RuntimeConfig(robot_id="test_bot", enable_provider=True))
     runtime.initialize()
 
-    bus = EventBus()
+    bus = runtime.event_bus
     hub = MCPHub(bus, robot_id="test_bot", runtime=runtime)
     hub.initialize()
 
@@ -241,7 +241,7 @@ async def test_mcp_hub_verify_task_success_via_provider():
     runtime = Runtime(RuntimeConfig(robot_id="test_bot", enable_provider=True))
     runtime.initialize()
 
-    bus = EventBus()
+    bus = runtime.event_bus
     hub = MCPHub(bus, robot_id="test_bot", runtime=runtime)
     hub.initialize()
 
@@ -263,7 +263,7 @@ async def test_mcp_hub_emergency_stop_with_runtime():
     runtime = Runtime(RuntimeConfig(robot_id="test_bot", enable_provider=True))
     runtime.initialize()
 
-    bus = EventBus()
+    bus = runtime.event_bus
     hub = MCPHub(bus, robot_id="test_bot", runtime=runtime)
     hub.initialize()
 
