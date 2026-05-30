@@ -225,6 +225,18 @@ class Runtime(LifecycleMixin):
             except ImportError as e:
                 print(f"[Runtime] EpisodeRecorder not available: {e}")
 
+            # Initialize Critic for automatic success detection
+            try:
+                from rosclaw.critic.basic_critic import BasicCritic
+                self._critic = BasicCritic(
+                    robot_id=self.config.robot_id,
+                    event_bus=self.event_bus,
+                )
+                self._modules.append(self._critic)
+                print("[Runtime] Critic (BasicCritic) initialized")
+            except ImportError as e:
+                print(f"[Runtime] Critic not available: {e}")
+
         # Initialize Collaboration Grounding (Swarm)
         if self.config.enable_swarm:
             try:
