@@ -151,9 +151,12 @@ class DashboardMetrics:
     # ── Event counts ──
 
     def increment_event(self, topic: str) -> None:
-        # Only count known topics to prevent unbounded dict growth from rogue input.
-        if topic in self._KNOWN_TOPICS:
-            self._event_counts[topic] = self._event_counts.get(topic, 0) + 1
+        self._event_counts[topic] = self._event_counts.get(topic, 0) + 1
+        # Prevent unbounded dict growth: cap total unique topics.
+        if len(self._event_counts) > 200:
+            # Drop oldest entries to make room.
+            for _key in list(self._event_counts.keys())[:50]:
+                del self._event_counts[_key]
 
     def get_event_counts(self) -> dict[str, int]:
         return dict(self._event_counts)
