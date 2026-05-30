@@ -49,6 +49,14 @@ try:
 except ImportError:
     _HAS_BM25 = False
 
+# Conditional import: sklearn TF-IDF for lightweight semantic similarity
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+    _HAS_SKLEARN = True
+except ImportError:
+    _HAS_SKLEARN = False
+
 
 class MemoryInterface(LifecycleMixin):
     """
@@ -278,8 +286,10 @@ class MemoryInterface(LifecycleMixin):
         """
         Find past experiences similar to the given instruction.
 
-        Uses BM25Okapi ranking when ``rank_bm25`` is installed,
-        falling back to keyword set intersection otherwise.
+        Search priority (best available wins):
+          1. TF-IDF + cosine similarity (semantic, via sklearn)
+          2. BM25Okapi ranking (statistical, via rank_bm25)
+          3. Keyword set intersection (fallback, always works)
         """
         filters = {"robot_id": self._robot_id}
         if outcome_filter:
@@ -299,9 +309,64 @@ class MemoryInterface(LifecycleMixin):
         if not query_tokens:
             return []
 
+        # Priority 1: semantic search via TF-IDF
+        if _HAS_SKLEARN:
+            return self._semantic_search(all_experiences, instruction, limit)
+        # Priority 2: BM25
         if _HAS_BM25:
             return self._bm25_search(all_experiences, query_tokens, limit)
+        # Priority 3: keyword fallback
         return self._keyword_search(all_experiences, query_tokens, limit)
+
+    def _semantic_search(
+        self,
+        experiences: list[dict],
+        query: str,
+        limit: int,
+    ) -> list[dict]:
+        """Rank experiences using TF-IDF + cosine similarity.
+
+        This provides semantic-level matching (e.g. "grasp cup" will match
+        "pick up the red mug") without requiring heavy embeddings.
+        """
+        texts: list[str] = []
+        for exp in experiences:
+            parts = [
+                exp.get("instruction", ""),
+                " ".join(exp.get("tags", [])),
+                exp.get("error_details", ""),
+            ]
+            texts.append(" ".join(p for p in parts if p))
+
+        if not any(texts):
+            return []
+
+        try:
+            vectorizer = TfidfVectorizer(
+                tokenizer=self._tokenize,
+                lowercase=True,
+                stop_words="english",
+                min_df=1,
+                max_df=1.0,
+            )
+            tfidf_matrix = vectorizer.fit_transform(texts + [query])
+            similarities = cosine_similarity(
+                tfidf_matrix[-1:], tfidf_matrix[:-1]
+            )[0]
+        except Exception:
+            # TF-IDF can fail on very small corpora — fall back to keywords
+            return self._keyword_search(experiences, self._tokenize(query), limit)
+
+        scored = [
+            (sim, exp)
+            for sim, exp in zip(similarities, experiences)
+            if sim > 0
+        ]
+        if not scored:
+            return []
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [exp for _, exp in scored[:limit]]
 
     def _bm25_search(
         self,
@@ -322,7 +387,6 @@ class MemoryInterface(LifecycleMixin):
         bm25 = BM25Okapi(corpus)
         scores = bm25.get_scores(query_tokens)
 
-        # Pair scores with experiences and filter non-positive scores
         scored = [
             (score, exp)
             for score, exp in zip(scores, experiences)
@@ -330,8 +394,6 @@ class MemoryInterface(LifecycleMixin):
         ]
 
         if not scored:
-            # BM25 IDF can go negative for terms in >50% of docs (small corpus).
-            # Fall back to keyword matching which always works for overlaps.
             return self._keyword_search(experiences, query_tokens, limit)
 
         scored.sort(key=lambda x: x[0], reverse=True)
