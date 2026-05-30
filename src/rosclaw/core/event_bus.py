@@ -17,6 +17,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Coroutine, Optional
 
+try:
+    from rosclaw.core.event_topics import normalize_topic
+except ImportError:
+    def normalize_topic(topic: str) -> str:
+        return topic
+
 
 class EventPriority(Enum):
     """Priority levels for event processing."""
@@ -92,7 +98,7 @@ class EventBus:
         ))
     """
 
-    def __init__(self):
+    def __init__(self, normalize_topics: bool = True):
         self._subscribers: dict[str, list[Callable]] = {}
         self._async_subscribers: dict[str, list[Callable]] = {}
         self._event_history: list[Event] = []
@@ -100,15 +106,26 @@ class EventBus:
         self._lock = asyncio.Lock()
         self._running = False
         self._event_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
+        self._normalize_topics = normalize_topics
+
+    def _norm(self, topic: str) -> str:
+        """Normalize topic if normalization is enabled."""
+        if self._normalize_topics:
+            return normalize_topic(topic)
+        return topic
 
     def subscribe(self, topic: str, callback: Callable[[Event], None]) -> None:
-        """Subscribe to a topic with a sync callback."""
+        """Subscribe to a topic with a sync callback.
+
+        Topic is normalized to the v1.0 standard namespace automatically.
+        """
         if not callable(callback):
             raise TypeError(f"Handler must be callable, got {type(callback).__name__}")
         if not isinstance(topic, str):
             raise TypeError(f"Topic must be str, got {type(topic).__name__}")
         if not topic:
             raise ValueError("Topic cannot be empty")
+        topic = self._norm(topic)
         if topic not in self._subscribers:
             self._subscribers[topic] = []
         self._subscribers[topic].append(callback)
@@ -116,19 +133,27 @@ class EventBus:
     def subscribe_async(
         self, topic: str, callback: Callable[[Event], Coroutine]
     ) -> None:
-        """Subscribe to a topic with an async callback."""
+        """Subscribe to a topic with an async callback.
+
+        Topic is normalized to the v1.0 standard namespace automatically.
+        """
         if not callable(callback):
             raise TypeError(f"Handler must be callable, got {type(callback).__name__}")
         if not isinstance(topic, str):
             raise TypeError(f"Topic must be str, got {type(topic).__name__}")
         if not topic:
             raise ValueError("Topic cannot be empty")
+        topic = self._norm(topic)
         if topic not in self._async_subscribers:
             self._async_subscribers[topic] = []
         self._async_subscribers[topic].append(callback)
 
     def unsubscribe(self, topic: str, callback: Callable) -> None:
-        """Unsubscribe a callback from a topic."""
+        """Unsubscribe a callback from a topic.
+
+        Topic is normalized before lookup.
+        """
+        topic = self._norm(topic)
         if topic in self._subscribers and callback in self._subscribers[topic]:
             self._subscribers[topic].remove(callback)
         if topic in self._async_subscribers and callback in self._async_subscribers[topic]:
@@ -154,7 +179,13 @@ class EventBus:
 
         Sync subscribers are called immediately.
         Async subscribers are scheduled on the event loop.
+        Topic matching uses the v1.0 standard namespace internally,
+        but the event.topic is preserved as-is for backward compatibility.
         """
+        # Use normalized topic for subscriber matching, but preserve original
+        # event.topic so existing tests and consumers are not broken.
+        norm_topic = self._norm(event.topic)
+
         # CRITICAL FIX: auto-inject trace_id for distributed tracing if missing.
         # Derive from payload request_id/correlation_id/episode_id first so the
         # entire pipeline shares one trace_id.
@@ -174,7 +205,7 @@ class EventBus:
 
         # Call sync subscribers (exact + wildcard match)
         for topic_pattern, callbacks in self._subscribers.items():
-            if not self._topic_matches(topic_pattern, event.topic):
+            if not self._topic_matches(topic_pattern, norm_topic):
                 continue
             for callback in callbacks:
                 try:
@@ -184,7 +215,7 @@ class EventBus:
 
         # Schedule async subscribers (exact + wildcard match)
         for topic_pattern, callbacks in self._async_subscribers.items():
-            if not self._topic_matches(topic_pattern, event.topic):
+            if not self._topic_matches(topic_pattern, norm_topic):
                 continue
             for callback in callbacks:
                 try:

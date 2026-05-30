@@ -65,9 +65,10 @@ class TestFullPipeline:
     def test_event_bus_has_subscribers(self, runtime):
         """EventBus must have subscribers for internal coordination."""
         subs = runtime.event_bus._subscribers
-        assert "safety.violation" in subs
-        assert "agent.command" in subs
-        assert "agent.capability.request" in subs
+        # Topics are normalized to rosclaw.* namespace
+        assert "rosclaw.safety.violation" in subs
+        assert "rosclaw.agent.command" in subs
+        assert "rosclaw.agent.capability.request" in subs
 
     def test_provider_registry_has_providers(self, runtime):
         """ProviderRegistry must have registered providers."""
