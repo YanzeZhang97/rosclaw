@@ -46,6 +46,13 @@ fi
 # 2. Create virtual environment
 echo ""
 echo "[2/7] Creating virtual environment..."
+
+# Detect if existing venv is owned by a different user (e.g. Docker root)
+if [[ -d "$VENV_DIR" ]] && [[ ! -w "$VENV_DIR/bin/python" ]]; then
+    echo "  venv exists but not writable (different owner), using alternate path..."
+    VENV_DIR="${PROJECT_ROOT}/venv2"
+fi
+
 VENV_VALID=true
 if [[ -d "$VENV_DIR" ]]; then
     if [[ ! -f "$VENV_DIR/bin/pip" ]]; then

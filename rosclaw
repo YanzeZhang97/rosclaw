@@ -1,0 +1,4 @@
+#!/bin/bash
+# ROSClaw wrapper — auto-activates venv
+source "/home/dell/rosclaw-v1.0/venv2/bin/activate"
+exec rosclaw "$@"
