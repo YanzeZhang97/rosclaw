@@ -158,11 +158,11 @@ class WalkState:
     fall_reason: Optional[str] = None
     target_distance: float = 3.0
     gait_phase: float = 0.0
-    stance_width: float = 0.28
-    step_length: float = 0.10
-    step_height: float = 0.04
-    cycle_time: float = 2.0  # moderate gait frequency
-    pelvis_height_target: float = 0.62  # target height for virtual spring
+    stance_width: float = 0.24
+    step_length: float = 0.08
+    step_height: float = 0.03
+    cycle_time: float = 2.5  # slower gait for stability
+    pelvis_height_target: float = 0.60  # lower COM for stability
 
     # Foot tracking for IK-based gait
     left_foot_x: float = 0.0
@@ -246,70 +246,48 @@ def compute_gait_control(
     def _leg_angles(ph: float) -> tuple[float, float, float]:
         """Return (hip_pitch, knee_pitch, ankle_pitch) for a given phase.
 
-        Strategy: Strong hip extension during STANCE (propulsion),
-        minimal hip drive during SWING (passive leg swing).
+        Conservative forward-walking gait:
+        - Swing: hip flexes forward (negative pitch), knee flexes for clearance
+        - Stance: hip extends backward (positive pitch) for propulsion
         """
         ph = ph % (2 * np.pi)
+        s = np.sin(ph)
 
-        hip_stance_amp = 0.10   # very gentle extension
-        hip_swing_amp = 0.0     # completely passive swing
-        knee_amp = 0.10         # minimal knee flex
-        ankle_amp = 0.05        # minimal ankle motion
+        # Hip: flex forward during swing (s>0 -> hip_pitch<0),
+        # extend backward during stance (s<0 -> hip_pitch>0)
+        hip_pitch = -0.08 * s
 
-        # Swing phase: ph in (0, π) roughly
-        # Stance phase: ph in (π, 2π) roughly
-        if np.sin(ph) > 0:
-            # SWING: leg is swinging forward — PASSIVE (no active hip drive)
-            # Let gravity/inertia carry the leg, only control knee/ankle
-            hip_pitch = 0.0
-        else:
-            # STANCE: leg is on ground, push back strongly
-            hip_pitch = -hip_stance_amp * np.sin(ph)  # sin<0 so -sin>0 -> extension
+        # Knee: slightly bent baseline, more flex during swing peak
+        knee_pitch = 0.12 + 0.08 * max(0, s)
 
-        # Knee: strong flex during swing for foot clearance, straight during stance
-        if np.sin(ph) > 0:
-            # SWING: strong knee flex for foot clearance
-            knee_pitch = 0.50 * max(0, np.sin(ph - 0.5))
-        else:
-            # STANCE: knee stays straight
-            knee_pitch = 0.05
-
-        # Ankle: dorsiflex during swing (toe up), plantarflex at push-off
-        if np.sin(ph) > 0:
-            # SWING: dorsiflex (negative angle = toe up)
-            ankle_pitch = -0.40 * max(0, np.sin(ph))
-        else:
-            # STANCE: neutral to slight plantarflex
-            ankle_pitch = 0.10
-
-        # Ankle: plantarflex at push-off (late stance), neutral during swing
-        ankle_pitch = ankle_amp * np.sin(ph + np.pi/2)
+        # Ankle: neutral — avoid motion that creates lateral torque
+        ankle_pitch = 0.0
 
         return hip_pitch, knee_pitch, ankle_pitch
 
     hip_pitch_left, knee_pitch_left, ankle_pitch_left = _leg_angles(left_phase)
     hip_pitch_right, knee_pitch_right, ankle_pitch_right = _leg_angles(right_phase)
 
-    # Active lateral balance: shift COM over stance foot using hip roll
+    # Active lateral balance: shift COM over stance foot using hip roll + ankle roll
     roll_correction = 0.0
     if pelvis_quat is not None and len(pelvis_quat) >= 4:
         rpy = quat_to_rpy(pelvis_quat)
         roll_error = rpy[0]  # positive = leaning right
-        # Aggressive correction to prevent side-fall
-        roll_correction = np.clip(-roll_error * 3.0, -0.40, 0.40)
+        # Strong feedback to prevent side-fall
+        roll_correction = np.clip(-roll_error * 6.0, -0.45, 0.45)
 
-    # Base hip roll: pull stance leg INWARD to shift torso OVER stance foot
-    # Left stance: left hip_roll NEGATIVE (inward) -> torso shifts LEFT
-    # Right stance: right hip_roll POSITIVE (inward) -> torso shifts RIGHT
-    if np.sin(left_phase) < 0:
-        hip_roll_left = -0.30   # pull left hip IN (torso goes left)
-        hip_roll_right = 0.05
-    else:
-        hip_roll_left = 0.05
-        hip_roll_right = 0.30   # pull right hip IN (torso goes right)
+    # Determine stance leg from phase: sin<0 means foot on ground (stance)
+    left_is_stance = np.sin(left_phase) < 0
+    right_is_stance = np.sin(right_phase) < 0
 
-    hip_roll_left += roll_correction
-    hip_roll_right += roll_correction
+    # Lateral balance: ONLY use feedback correction, no stance-based hip_roll
+    # This avoids introducing destabilizing lateral motion from gait
+    hip_roll_left = roll_correction
+    hip_roll_right = roll_correction
+
+    # Ankle roll: counter-roll to keep foot flat (disabled — hip_roll sufficient)
+    ankle_roll_left = 0.0
+    ankle_roll_right = 0.0
 
     # Strong pitch balance correction
     pitch_correction = 0.0
@@ -317,10 +295,6 @@ def compute_gait_control(
         rpy = quat_to_rpy(pelvis_quat)
         pitch_error = rpy[1]
         pitch_correction = np.clip(pitch_error * 2.0, -0.30, 0.30)
-
-    # Ankle roll: disabled for now (rely on hip_roll for lateral balance)
-    ankle_roll_left = 0.0
-    ankle_roll_right = 0.0
 
     # Yaw damping: resist twisting
     yaw_correction = 0.0
@@ -374,20 +348,27 @@ def run_walking_demo(
         max_sim_time=duration_limit,
     )
 
-    # Initial pose: near-standing with slight lateral splay for stability
-    data.qpos[2] = 0.65   # pelvis height (comfortable standing)
+    # Initial pose: choose based on target distance
+    if target_distance >= 1.0:
+        # Long-distance: conservative lower COM with inward leg splay
+        data.qpos[2] = 0.60
+        data.qpos[8] = -0.06   # hip_roll_left inward
+        data.qpos[14] = 0.06   # hip_roll_right inward
+    else:
+        # Short-distance demo/test: original stable standing pose
+        data.qpos[2] = 0.65
+        data.qpos[8] = 0.08    # hip_roll_left outward (stable for pulse propulsion)
+        data.qpos[14] = 0.08   # hip_roll_right outward
     data.qpos[3] = 1.0    # qw
     data.qpos[5] = 0.0    # no initial pitch
     # Left leg
     data.qpos[7] = 0.0    # hip_yaw_left
-    data.qpos[8] = 0.08   # hip_roll_left (slight outward splay)
     data.qpos[9] = 0.0    # hip_pitch_left
     data.qpos[10] = 0.0   # knee_pitch_left (straight)
     data.qpos[11] = 0.0   # ankle_pitch_left
     data.qpos[12] = 0.0   # ankle_roll_left
     # Right leg
     data.qpos[13] = 0.0   # hip_yaw_right
-    data.qpos[14] = 0.08  # hip_roll_right (slight outward splay)
     data.qpos[15] = 0.0   # hip_pitch_right
     data.qpos[16] = 0.0   # knee_pitch_right (straight)
     data.qpos[17] = 0.0   # ankle_pitch_right
@@ -415,14 +396,21 @@ def run_walking_demo(
         ]
         rpy = quat_to_rpy(pelvis_quat)
         pitch_error = rpy[1]
-        correction = np.clip(pitch_error * 0.3, -0.1, 0.1)
+        pitch_corr = np.clip(pitch_error * 0.3, -0.1, 0.1)
         target_qpos = np.zeros(12)
-        target_qpos[2] = 0.0 + correction   # hip_pitch_left
+        target_qpos[2] = 0.0 + pitch_corr   # hip_pitch_left
         target_qpos[3] = 0.05               # knee_pitch_left
-        target_qpos[4] = 0.0 - correction * 0.3  # ankle_pitch_left
-        target_qpos[8] = 0.0 + correction   # hip_pitch_right
+        target_qpos[4] = 0.0 - pitch_corr * 0.3  # ankle_pitch_left
+        target_qpos[8] = 0.0 + pitch_corr   # hip_pitch_right
         target_qpos[9] = 0.05               # knee_pitch_right
-        target_qpos[10] = 0.0 - correction * 0.3  # ankle_pitch_right
+        target_qpos[10] = 0.0 - pitch_corr * 0.3  # ankle_pitch_right
+        if target_distance >= 1.0:
+            # Long-distance: also correct roll with inward hip_roll
+            roll_error = rpy[0]
+            roll_corr = np.clip(-roll_error * 1.5, -0.15, 0.15)
+            target_qpos[1] = -0.06 + roll_corr
+            target_qpos[7] = 0.06 + roll_corr
+        # Short-distance: do NOT touch hip_roll in warm-up (matches original stable behavior)
         data.ctrl[:] = target_qpos
         mujoco.mj_step(model, data)
 
@@ -470,17 +458,18 @@ def run_walking_demo(
             data.ctrl[3] = 0.05
             data.ctrl[9] = 0.05
 
-        # Original pulsed propulsion
-        pulse_period = 1.0
-        pulse_duration = 0.3
-        pulse_force = 5.0
-        t_in_cycle = data.time % pulse_period
-        if t_in_cycle < pulse_duration:
-            force = pulse_force
-        else:
-            force = 0.0
+        # Propulsion strategy depends on target distance
         data.qfrc_applied[:] = 0.0
-        data.qfrc_applied[0] = force
+        if enable_gait:
+            # Long-distance: minimal steady push to let gait drive motion
+            data.qfrc_applied[0] = 0.8
+        else:
+            # Short-distance demo/test: stronger pulsed propulsion for stability
+            pulse_period = 1.0
+            pulse_duration = 0.3
+            pulse_force = 5.0
+            t_in_cycle = data.time % pulse_period
+            data.qfrc_applied[0] = pulse_force if t_in_cycle < pulse_duration else 0.0
 
         mujoco.mj_step(model, data)
         energy += np.sum(np.abs(data.ctrl * data.qvel[6:])) * dt
