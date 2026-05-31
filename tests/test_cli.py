@@ -187,3 +187,74 @@ class TestLogs:
                 os.environ["HOME"] = old_home
             else:
                 os.environ.pop("HOME", None)
+
+
+class TestRobotList:
+    def test_robot_list(self, capsys):
+        from rosclaw.cli import main
+        sys.argv = ["rosclaw", "robot", "list"]
+        assert main() == 0
+        captured = capsys.readouterr()
+        assert "Robot Registry" in captured.out or "No robots found" in captured.out
+
+
+class TestRobotInspect:
+    def test_robot_inspect_found(self, capsys):
+        from rosclaw.cli import main
+        sys.argv = ["rosclaw", "robot", "inspect", "ur5e"]
+        code = main()
+        captured = capsys.readouterr()
+        assert "Robot Profile" in captured.out or "not found" in captured.out
+
+    def test_robot_inspect_not_found(self, capsys):
+        from rosclaw.cli import main
+        sys.argv = ["rosclaw", "robot", "inspect", "nonexistent_robot_xyz"]
+        code = main()
+        captured = capsys.readouterr()
+        assert "not found" in captured.out or code == 1
+
+
+class TestRobotValidate:
+    def test_robot_validate_found(self, capsys):
+        from rosclaw.cli import main
+        sys.argv = ["rosclaw", "robot", "validate", "ur5e"]
+        code = main()
+        captured = capsys.readouterr()
+        assert "Validation Result" in captured.out or "not found" in captured.out
+
+    def test_robot_validate_not_found(self, capsys):
+        from rosclaw.cli import main
+        sys.argv = ["rosclaw", "robot", "validate", "nonexistent_robot_xyz"]
+        code = main()
+        captured = capsys.readouterr()
+        assert "not found" in captured.out or code == 1
+
+
+class TestPracticeCommands:
+    def test_practice_list_empty(self, capsys):
+        from rosclaw.cli import main
+        sys.argv = ["rosclaw", "practice", "list"]
+        assert main() == 0
+        captured = capsys.readouterr()
+        assert "No practice episodes" in captured.out or "Episodes" in captured.out
+
+    def test_practice_show_not_found(self, capsys):
+        from rosclaw.cli import main
+        sys.argv = ["rosclaw", "practice", "show", "ep_nonexistent"]
+        code = main()
+        captured = capsys.readouterr()
+        assert "not found" in captured.out or code == 1
+
+    def test_practice_replay_not_found(self, capsys):
+        from rosclaw.cli import main
+        sys.argv = ["rosclaw", "practice", "replay", "ep_nonexistent"]
+        code = main()
+        captured = capsys.readouterr()
+        assert "not found" in captured.out or code == 1
+
+    def test_practice_export_not_found(self, capsys):
+        from rosclaw.cli import main
+        sys.argv = ["rosclaw", "practice", "export", "ep_nonexistent", "--format", "json"]
+        code = main()
+        captured = capsys.readouterr()
+        assert "not found" in captured.out or code == 1
