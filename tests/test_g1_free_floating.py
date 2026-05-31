@@ -27,8 +27,8 @@ class TestG1FreeFloatingModel:
         import mujoco
         xml = create_g1_free_floating_model()
         model = mujoco.MjModel.from_xml_string(xml)
-        assert model.nq == 17  # 6 freejoint + 10 hinge joints + 1 for ???
-        assert model.nu == 10  # 10 actuators
+        assert model.nq == 19  # 6 freejoint + 12 hinge joints + 1 for ???
+        assert model.nu == 12  # 12 actuators
 
     def test_quat_to_rpy_identity(self):
         q = np.array([1.0, 0.0, 0.0, 0.0])

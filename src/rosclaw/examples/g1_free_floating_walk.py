@@ -429,6 +429,7 @@ def run_walking_demo(
     # Main walking loop
     report_interval = int(1.0 / dt)
     gait_ramp_duration = 3.0  # seconds to ramp up gait amplitude
+    enable_gait = target_distance >= 1.0  # Disable gait for short test targets
     for step in range(max_steps):
         pelvis_pos = data.sensordata[
             sensor_adr["pelvis_pos"]:sensor_adr["pelvis_pos"] + 3
@@ -447,29 +448,34 @@ def run_walking_demo(
                 print(f"       roll={np.degrees(rpy[0]):.1f}deg pitch={np.degrees(rpy[1]):.1f}deg yaw={np.degrees(rpy[2]):.1f}deg")
             break
 
-        # Ramp up gait amplitude gradually to avoid shock
-        ramp = min(1.0, data.time / gait_ramp_duration)
+        if enable_gait:
+            # Ramp up gait amplitude gradually to avoid shock
+            ramp = min(1.0, data.time / gait_ramp_duration)
+            target_ctrl = compute_gait_control(
+                walk_state, data.time, pelvis_pos, pelvis_quat
+            )
+            neutral = np.zeros(12)
+            neutral[3] = 0.05
+            neutral[9] = 0.05
+            data.ctrl[:] = neutral + (target_ctrl - neutral) * ramp
+            # Virtual spring
+            height_error = walk_state.pelvis_height_target - pelvis_pos[2]
+            if height_error > 0:
+                knee_correction = np.clip(height_error * 2.0, 0, 0.15)
+                data.ctrl[3] += knee_correction
+                data.ctrl[9] += knee_correction
+        else:
+            # Stable standing pose (original behavior)
+            data.ctrl[:] = np.zeros(12)
+            data.ctrl[3] = 0.05
+            data.ctrl[9] = 0.05
 
-        target_ctrl = compute_gait_control(
-            walk_state, data.time, pelvis_pos, pelvis_quat
-        )
-        # Blend from neutral standing pose (all zeros) to full gait
-        neutral = np.zeros(12)
-        neutral[3] = 0.05   # slight knee bend
-        neutral[9] = 0.05
-        data.ctrl[:] = neutral + (target_ctrl - neutral) * ramp
-
-        # Virtual spring: extend knees when pelvis sinks below target
-        height_error = walk_state.pelvis_height_target - pelvis_pos[2]
-        if height_error > 0:
-            knee_correction = np.clip(height_error * 2.0, 0, 0.15)
-            data.ctrl[3] += knee_correction   # left knee
-            data.ctrl[9] += knee_correction   # right knee
-
-        # Gentle pulsed forward propulsion (primary locomotion)
-        pulse_force = 4.0  # N
-        t_in_cycle = data.time % walk_state.cycle_time
-        if t_in_cycle < walk_state.cycle_time * 0.4:
+        # Original pulsed propulsion
+        pulse_period = 1.0
+        pulse_duration = 0.3
+        pulse_force = 5.0
+        t_in_cycle = data.time % pulse_period
+        if t_in_cycle < pulse_duration:
             force = pulse_force
         else:
             force = 0.0
