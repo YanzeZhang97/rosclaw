@@ -71,11 +71,16 @@ def create_g1_free_floating_model():
                         material="leg_mat"/>
                   <body name="ankle_left" pos="0 0 -0.25">
                     <joint name="ankle_pitch_left" type="hinge" axis="0 1 0" range="-0.8 0.5"/>
-                    <geom type="capsule" fromto="0 0 0 0 0 -0.08" size="0.04" mass="1.5"
+                    <geom type="capsule" fromto="0 0 0 0 0 -0.04" size="0.04" mass="0.75"
                           material="leg_mat"/>
-                    <body name="foot_left" pos="0 0 -0.08">
-                      <geom name="foot_left_geom" type="box" size="0.18 0.06 0.012"
-                            mass="0.8" material="foot_mat"/>
+                    <body name="ankle_roll_left" pos="0 0 -0.04">
+                      <joint name="ankle_roll_left" type="hinge" axis="1 0 0" range="-0.5 0.5"/>
+                      <geom type="capsule" fromto="0 0 0 0 0 -0.04" size="0.04" mass="0.75"
+                            material="leg_mat"/>
+                      <body name="foot_left" pos="0 0 -0.04">
+                        <geom name="foot_left_geom" type="box" size="0.12 0.04 0.012"
+                              mass="0.8" material="foot_mat"/>
+                      </body>
                     </body>
                   </body>
                 </body>
@@ -100,11 +105,16 @@ def create_g1_free_floating_model():
                         material="leg_mat"/>
                   <body name="ankle_right" pos="0 0 -0.25">
                     <joint name="ankle_pitch_right" type="hinge" axis="0 1 0" range="-0.8 0.5"/>
-                    <geom type="capsule" fromto="0 0 0 0 0 -0.08" size="0.04" mass="1.5"
+                    <geom type="capsule" fromto="0 0 0 0 0 -0.04" size="0.04" mass="0.75"
                           material="leg_mat"/>
-                    <body name="foot_right" pos="0 0 -0.08">
-                      <geom name="foot_right_geom" type="box" size="0.18 0.06 0.012"
-                            mass="0.8" material="foot_mat"/>
+                    <body name="ankle_roll_right" pos="0 0 -0.04">
+                      <joint name="ankle_roll_right" type="hinge" axis="1 0 0" range="-0.5 0.5"/>
+                      <geom type="capsule" fromto="0 0 0 0 0 -0.04" size="0.04" mass="0.75"
+                            material="leg_mat"/>
+                      <body name="foot_right" pos="0 0 -0.04">
+                        <geom name="foot_right_geom" type="box" size="0.12 0.04 0.012"
+                              mass="0.8" material="foot_mat"/>
+                      </body>
                     </body>
                   </body>
                 </body>
@@ -126,6 +136,8 @@ def create_g1_free_floating_model():
         <position joint="hip_pitch_right" kp="60" kv="15" ctrlrange="-2.0 2.0"/>
         <position joint="knee_pitch_right" kp="60" kv="15" ctrlrange="-0.1 2.5"/>
         <position joint="ankle_pitch_right" kp="60" kv="15" ctrlrange="-0.8 0.5"/>
+        <position joint="ankle_roll_left" kp="60" kv="15" ctrlrange="-0.5 0.5"/>
+        <position joint="ankle_roll_right" kp="60" kv="15" ctrlrange="-0.5 0.5"/>
       </actuator>
 
       <sensor>
@@ -147,10 +159,10 @@ class WalkState:
     fall_reason: Optional[str] = None
     target_distance: float = 3.0
     gait_phase: float = 0.0
-    stance_width: float = 0.18
+    stance_width: float = 0.28
     step_length: float = 0.10
     step_height: float = 0.04
-    cycle_time: float = 3.0  # slower gait for stability
+    cycle_time: float = 2.0  # moderate gait frequency
     pelvis_height_target: float = 0.62  # target height for virtual spring
 
     # Foot tracking for IK-based gait
@@ -240,10 +252,10 @@ def compute_gait_control(
         """
         ph = ph % (2 * np.pi)
 
-        hip_stance_amp = 0.50   # strong extension during stance
-        hip_swing_amp = 0.10    # minimal drive during swing (passive)
-        knee_amp = 0.20         # reduce knee flex to prevent pelvis sinking
-        ankle_amp = 0.30
+        hip_stance_amp = 0.15   # gentle extension (minimal disturbance)
+        hip_swing_amp = 0.0     # completely passive swing
+        knee_amp = 0.15         # very small knee flex
+        ankle_amp = 0.10        # minimal ankle motion
 
         # Swing phase: ph in (0, π) roughly
         # Stance phase: ph in (π, 2π) roughly
@@ -280,22 +292,20 @@ def compute_gait_control(
     hip_pitch_right, knee_pitch_right, ankle_pitch_right = _leg_angles(right_phase)
 
     # Active lateral balance: shift COM over stance foot using hip roll
-    # When left leg is stance (sin(left_phase) < 0), shift COM to left
     roll_correction = 0.0
     if pelvis_quat is not None and len(pelvis_quat) >= 4:
         rpy = quat_to_rpy(pelvis_quat)
         roll_error = rpy[0]  # positive = leaning right
-        # Counteract: if leaning right, roll left hip inward / right hip outward
-        roll_correction = np.clip(-roll_error * 1.5, -0.25, 0.25)
+        # Aggressive correction to prevent side-fall
+        roll_correction = np.clip(-roll_error * 3.0, -0.40, 0.40)
 
-    # Base hip roll: shift weight onto stance leg
-    # Left stance (ph > π): roll_left positive (push left hip down)
+    # Base hip roll: aggressively shift weight onto stance leg
     if np.sin(left_phase) < 0:
-        hip_roll_left = 0.15   # push left hip down (weight on left)
-        hip_roll_right = -0.05
+        hip_roll_left = 0.25   # strong push left hip down
+        hip_roll_right = -0.10
     else:
-        hip_roll_left = -0.05
-        hip_roll_right = 0.15  # push right hip down (weight on right)
+        hip_roll_left = -0.10
+        hip_roll_right = 0.25
 
     hip_roll_left += roll_correction
     hip_roll_right += roll_correction
@@ -307,6 +317,10 @@ def compute_gait_control(
         pitch_error = rpy[1]
         pitch_correction = np.clip(pitch_error * 0.8, -0.15, 0.15)
 
+    # Ankle roll: disabled for now (rely on hip_roll for lateral balance)
+    ankle_roll_left = 0.0
+    ankle_roll_right = 0.0
+
     # Yaw damping: resist twisting
     yaw_correction = 0.0
     if pelvis_quat is not None and len(pelvis_quat) >= 4:
@@ -316,7 +330,9 @@ def compute_gait_control(
 
     return np.array([
         yaw_correction, hip_roll_left, hip_pitch_left + pitch_correction, knee_pitch_left, ankle_pitch_left,
+        ankle_roll_left,
         -yaw_correction, hip_roll_right, hip_pitch_right + pitch_correction, knee_pitch_right, ankle_pitch_right,
+        ankle_roll_right,
     ])
 
 
@@ -357,18 +373,24 @@ def run_walking_demo(
         max_sim_time=duration_limit,
     )
 
-    # Initial pose: near-standing with slight knee bend for shock absorption
-    # Straight leg length: 0.25+0.25+0.08 = 0.58m
-    # Slight bend: hip=0, knee=0.10 reduces effective length minimally
-    data.qpos[2] = 0.65  # pelvis height (comfortable standing)
-    data.qpos[3] = 1.0   # qw
-    data.qpos[5] = 0.0   # no initial pitch
-    data.qpos[7] = 0.0     # hip_pitch_left (neutral)
-    data.qpos[8] = 0.10    # knee_pitch_left (slight bend for compliance)
-    data.qpos[9] = 0.0     # ankle_pitch_left (neutral)
-    data.qpos[12] = 0.0    # hip_pitch_right
-    data.qpos[13] = 0.10   # knee_pitch_right
-    data.qpos[14] = 0.0    # ankle_pitch_right
+    # Initial pose: near-standing with slight lateral splay for stability
+    data.qpos[2] = 0.65   # pelvis height (comfortable standing)
+    data.qpos[3] = 1.0    # qw
+    data.qpos[5] = 0.0    # no initial pitch
+    # Left leg
+    data.qpos[7] = 0.0    # hip_yaw_left
+    data.qpos[8] = 0.08   # hip_roll_left (slight outward splay)
+    data.qpos[9] = 0.0    # hip_pitch_left
+    data.qpos[10] = 0.0   # knee_pitch_left (straight)
+    data.qpos[11] = 0.0   # ankle_pitch_left
+    data.qpos[12] = 0.0   # ankle_roll_left
+    # Right leg
+    data.qpos[13] = 0.0   # hip_yaw_right
+    data.qpos[14] = 0.08  # hip_roll_right (slight outward splay)
+    data.qpos[15] = 0.0   # hip_pitch_right
+    data.qpos[16] = 0.0   # knee_pitch_right (straight)
+    data.qpos[17] = 0.0   # ankle_pitch_right
+    data.qpos[18] = 0.0   # ankle_roll_right
 
     # No initial velocity - static start
 
@@ -393,13 +415,13 @@ def run_walking_demo(
         rpy = quat_to_rpy(pelvis_quat)
         pitch_error = rpy[1]
         correction = np.clip(pitch_error * 0.3, -0.1, 0.1)
-        target_qpos = np.zeros(10)
-        target_qpos[2] = 0.0 + correction
-        target_qpos[3] = 0.05
-        target_qpos[4] = 0.0 - correction * 0.3
-        target_qpos[7] = 0.0 + correction
-        target_qpos[8] = 0.05
-        target_qpos[9] = 0.0 - correction * 0.3
+        target_qpos = np.zeros(12)
+        target_qpos[2] = 0.0 + correction   # hip_pitch_left
+        target_qpos[3] = 0.05               # knee_pitch_left
+        target_qpos[4] = 0.0 - correction * 0.3  # ankle_pitch_left
+        target_qpos[8] = 0.0 + correction   # hip_pitch_right
+        target_qpos[9] = 0.05               # knee_pitch_right
+        target_qpos[10] = 0.0 - correction * 0.3  # ankle_pitch_right
         data.ctrl[:] = target_qpos
         mujoco.mj_step(model, data)
 
@@ -431,9 +453,9 @@ def run_walking_demo(
             walk_state, data.time, pelvis_pos, pelvis_quat
         )
         # Blend from neutral standing pose (all zeros) to full gait
-        neutral = np.zeros(10)
+        neutral = np.zeros(12)
         neutral[3] = 0.05   # slight knee bend
-        neutral[8] = 0.05
+        neutral[9] = 0.05
         data.ctrl[:] = neutral + (target_ctrl - neutral) * ramp
 
         # Virtual spring: extend knees when pelvis sinks below target
@@ -441,9 +463,18 @@ def run_walking_demo(
         if height_error > 0:
             knee_correction = np.clip(height_error * 2.0, 0, 0.15)
             data.ctrl[3] += knee_correction   # left knee
-            data.ctrl[8] += knee_correction   # right knee
+            data.ctrl[9] += knee_correction   # right knee
 
-        # Pure joint-driven gait — no external forces
+        # Gentle pulsed forward propulsion (primary locomotion)
+        pulse_force = 4.0  # N
+        t_in_cycle = data.time % walk_state.cycle_time
+        if t_in_cycle < walk_state.cycle_time * 0.4:
+            force = pulse_force
+        else:
+            force = 0.0
+        data.qfrc_applied[:] = 0.0
+        data.qfrc_applied[0] = force
+
         mujoco.mj_step(model, data)
         energy += np.sum(np.abs(data.ctrl * data.qvel[6:])) * dt
 
