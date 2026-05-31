@@ -5,6 +5,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+try:
+    import PIL
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
 from rosclaw.provider.builtins.vlm import MockVLMProvider, _ArtifactRef, _resolve_artifact
 from rosclaw.provider.core.manifest import ProviderManifest
 from rosclaw.provider.core.request import ProviderRequest
@@ -142,6 +148,7 @@ class TestDetectByColor:
             # Path doesn't exist so falls back before trying PIL
             assert result["method"] in ("synthetic_fallback", "synthetic_no_pil")
 
+    @pytest.mark.skipif(not HAS_PIL, reason="PIL not installed")
     def test_pil_exception(self, provider, tmp_path):
         # Create an actual file so PIL is attempted, then mock it
         img_path = tmp_path / "fake.png"
