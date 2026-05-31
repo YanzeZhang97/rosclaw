@@ -317,6 +317,7 @@ def test_provider_loader_custom_class_valid(monkeypatch):
     # Allow test to run when tests module is importable OR when running directly
     try:
         import tests
+        import tests.test_provider_loader  # noqa: F401
     except ImportError:
         pytest.skip("tests module not importable")
     # Temporarily allow tests. prefix for provider class loading
