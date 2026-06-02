@@ -1560,7 +1560,7 @@ def cmd_runtime_backends(_args: argparse.Namespace) -> int:
 
 def cmd_forge_validate(args: argparse.Namespace) -> int:
     """Validate a Forge bundle."""
-    from rosclaw.forge.bundle import BundleCompiler
+    from rosclaw.forge.bundle_compiler import BundleCompiler
 
     bundle_path = Path(args.bundle_path)
     if not bundle_path.exists():
@@ -1568,32 +1568,50 @@ def cmd_forge_validate(args: argparse.Namespace) -> int:
         return 1
 
     print(f"[ROSClaw] Validating bundle: {bundle_path}")
-    try:
-        compiler = BundleCompiler()
-        result = compiler.validate_bundle(bundle_path)
-        print("=" * 60)
-        print("Forge Bundle Validation")
-        print("=" * 60)
-        print(f"Valid:      {result.get('valid', False)}")
-        print(f"Files:      {result.get('file_count', 0)}")
-        if result.get("errors"):
-            print("Errors:")
-            for e in result["errors"]:
-                print(f"  🚫 {e}")
-        if result.get("warnings"):
-            print("Warnings:")
-            for w in result["warnings"]:
-                print(f"  ⚠️  {w}")
-        print("=" * 60)
-        return 0 if result.get("valid") else 1
-    except Exception as exc:
-        print(f"[ROSClaw] ❌ Validation error: {exc}")
-        return 1
+
+    # Check required files exist
+    required_files = ["robot.eurdf.yaml", "safety.yaml", "capabilities.yaml"]
+    errors = []
+    warnings = []
+    file_count = 0
+
+    for f in bundle_path.iterdir():
+        if f.is_file():
+            file_count += 1
+
+    for req in required_files:
+        if not (bundle_path / req).exists():
+            errors.append(f"Missing required file: {req}")
+
+    # Optional files
+    optional = ["semantic.yaml", "benchmark.yaml", "robot.urdf", "robot.mjcf.xml"]
+    for opt in optional:
+        if not (bundle_path / opt).exists():
+            warnings.append(f"Missing optional file: {opt}")
+
+    valid = len(errors) == 0
+
+    print("=" * 60)
+    print("Forge Bundle Validation")
+    print("=" * 60)
+    print(f"Bundle:     {bundle_path.name}")
+    print(f"Valid:      {'✅ YES' if valid else '❌ NO'}")
+    print(f"Files:      {file_count}")
+    if errors:
+        print("Errors:")
+        for e in errors:
+            print(f"  🚫 {e}")
+    if warnings:
+        print("Warnings:")
+        for w in warnings:
+            print(f"  ⚠️  {w}")
+    print("=" * 60)
+    return 0 if valid else 1
 
 
 def cmd_forge_install(args: argparse.Namespace) -> int:
     """Install a Forge bundle to staging or production."""
-    from rosclaw.forge.bundle import BundleCompiler
+    from rosclaw.forge.bundle_compiler import BundleCompiler
 
     bundle_path = Path(args.bundle_path)
     if not bundle_path.exists():
