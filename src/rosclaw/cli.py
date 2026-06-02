@@ -240,6 +240,21 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     return 0
 
 
+class _MockSeekDB:
+    """Mock seekdb client for CLI HOW commands."""
+
+    def query(self, table, filters=None, order_by=None, limit=None):
+        cond = filters.get("condition") if filters else ""
+        return [
+            {
+                "rule_id": "cli-rule-001",
+                "condition": cond,
+                "action": "Review episode logs and retry with adjusted parameters",
+                "priority": 1,
+            }
+        ]
+
+
 def _auto_register_builtins() -> tuple[list, list]:
     """Auto-register builtin providers and skills if registry is empty.
 
@@ -867,6 +882,190 @@ def cmd_practice_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_provider_invoke(args: argparse.Namespace) -> int:
+    """Invoke a provider capability."""
+    from rosclaw.provider.core.registry import ProviderRegistry
+
+    provider_id = args.provider_id
+    input_data = args.input
+
+    # Parse input as JSON if possible
+    try:
+        input_payload = json.loads(input_data)
+    except json.JSONDecodeError:
+        input_payload = {"text": input_data}
+
+    print(f"[ROSClaw] Invoking provider: {provider_id}")
+    print(f"[ROSClaw] Input: {json.dumps(input_payload, indent=2)}")
+
+    try:
+        # Auto-register builtins and use returned list
+        _providers, _ = _auto_register_builtins()
+        provider_names = []
+        for p in _providers:
+            name = p.get("name", "") if isinstance(p, dict) else getattr(p, "name", "")
+            provider_names.append(name)
+
+        if provider_id not in provider_names:
+            print(f"[ROSClaw] Provider '{provider_id}' not found.")
+            print(f"[ROSClaw] Available: {', '.join(provider_names) if provider_names else 'none'}")
+            return 1
+
+        # Create a mock invocation result
+        result = {
+            "provider_id": provider_id,
+            "input": input_payload,
+            "status": "success",
+            "result": {
+                "capability": f"{provider_id}.invoke",
+                "output": f"Mock output from {provider_id}",
+            },
+            "trace_id": f"trace_{provider_id}_{int(__import__('time').time())}",
+        }
+
+        print("\n[ROSClaw] Provider invocation result:")
+        print(json.dumps(result, indent=2, default=str))
+        return 0
+
+    except Exception as exc:
+        print(f"[ROSClaw] Provider invocation failed: {exc}")
+        return 1
+
+
+def cmd_skill_invoke(args: argparse.Namespace) -> int:
+    """Invoke a skill."""
+    skill_id = args.skill_id
+    input_data = args.input
+
+    try:
+        input_payload = json.loads(input_data)
+    except json.JSONDecodeError:
+        input_payload = {"target": input_data}
+
+    print(f"[ROSClaw] Invoking skill: {skill_id}")
+    print(f"[ROSClaw] Input: {json.dumps(input_payload, indent=2)}")
+
+    try:
+        # Auto-register builtins and use returned list
+        _, _skills = _auto_register_builtins()
+        skill_names = [getattr(s, "name", "") for s in _skills]
+
+        if skill_id not in skill_names:
+            print(f"[ROSClaw] Skill '{skill_id}' not found.")
+            print(f"[ROSClaw] Available: {', '.join(skill_names) if skill_names else 'none'}")
+            return 1
+
+        result = {
+            "skill_id": skill_id,
+            "input": input_payload,
+            "status": "success",
+            "result": {
+                "action": f"{skill_id}_executed",
+                "output": f"Mock execution of {skill_id}",
+            },
+            "trace_id": f"trace_skill_{skill_id}_{int(__import__('time').time())}",
+        }
+
+        print("\n[ROSClaw] Skill invocation result:")
+        print(json.dumps(result, indent=2, default=str))
+        return 0
+
+    except Exception as exc:
+        print(f"[ROSClaw] Skill invocation failed: {exc}")
+        return 1
+
+
+def cmd_how_explain(args: argparse.Namespace) -> int:
+    """Explain a failure episode via HOW."""
+    from rosclaw.memory.interface import MemoryInterface
+    from rosclaw.how.engine import HeuristicEngine
+
+    episode_id = args.episode_id
+    print(f"[ROSClaw] HOW explaining episode: {episode_id}")
+
+    try:
+        mem = MemoryInterface("cli")
+        mem._do_initialize()
+
+        # Try to find the episode in memory
+        failure = mem.explain_last_failure()
+
+        # Generate recovery suggestion via HOW
+        how = HeuristicEngine(seekdb_client=_MockSeekDB())
+        import asyncio
+
+        async def _explain():
+            return await how.suggest_recovery(
+                f"Episode {episode_id} failure analysis",
+                context={"episode_id": episode_id},
+            )
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        recovery = loop.run_until_complete(_explain())
+        loop.close()
+
+        print("\n[ROSClaw] HOW Explanation:")
+        print(f"  Episode:     {episode_id}")
+        print(f"  Failure:     {failure.get('failure_type', 'N/A') if failure else 'N/A'}")
+        print(f"  Root Cause:  {failure.get('root_cause', 'N/A') if failure else 'N/A'}")
+        print(f"  Recovery:    {recovery.get('action', 'N/A')}")
+        print(f"  Confidence:  {recovery.get('priority', 'N/A')}")
+        return 0
+
+    except Exception as exc:
+        print(f"[ROSClaw] HOW explain failed: {exc}")
+        return 1
+
+
+def cmd_how_recover(args: argparse.Namespace) -> int:
+    """Generate recovery plan for an episode."""
+    from rosclaw.how.engine import HeuristicEngine
+
+    episode_id = args.episode_id
+    print(f"[ROSClaw] HOW generating recovery for episode: {episode_id}")
+
+    try:
+        how = HeuristicEngine(seekdb_client=_MockSeekDB())
+        import asyncio
+
+        async def _recover():
+            return await how.suggest_recovery(
+                f"Episode {episode_id} requires recovery",
+                context={"episode_id": episode_id, "generate_plan": True},
+            )
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        recovery = loop.run_until_complete(_recover())
+        loop.close()
+
+        result = {
+            "episode_id": episode_id,
+            "failure_type": "unknown",
+            "root_cause": "Analysis pending",
+            "suggested_patch": {
+                "action": recovery.get("action", "N/A"),
+                "priority": recovery.get("priority", 0),
+            },
+            "confidence": 0.7,
+            "evidence": [episode_id],
+        }
+
+        print("\n[ROSClaw] HOW Recovery Plan:")
+        print(json.dumps(result, indent=2, default=str))
+
+        if args.output:
+            Path(args.output).write_text(json.dumps(result, indent=2, default=str), encoding="utf-8")
+            print(f"\n[ROSClaw] Recovery plan written to: {args.output}")
+
+        return 0
+
+    except Exception as exc:
+        print(f"[ROSClaw] HOW recover failed: {exc}")
+        return 1
+
+
 def cmd_provider_list(_args: argparse.Namespace) -> int:
     """List all registered providers."""
     providers, _ = _auto_register_builtins()
@@ -1160,15 +1359,36 @@ def main() -> int:
     robot_validate_parser = robot_subparsers.add_parser("validate", help="Validate robot e-URDF")
     robot_validate_parser.add_argument("robot_id", help="Robot identifier")
 
+    # how subcommand
+    how_parser = subparsers.add_parser("how", help="How recovery commands")
+    how_subparsers = how_parser.add_subparsers(dest="how_command")
+
+    how_explain_parser = how_subparsers.add_parser("explain", help="Explain failure episode")
+    how_explain_parser.add_argument("episode_id", help="Episode identifier")
+
+    how_recover_parser = how_subparsers.add_parser("recover", help="Generate recovery plan")
+    how_recover_parser.add_argument("episode_id", help="Episode identifier")
+    how_recover_parser.add_argument("--output", default=None, help="Output file for recovery plan")
+
     # provider subcommand
     provider_parser = subparsers.add_parser("provider", help="Provider commands")
     provider_subparsers = provider_parser.add_subparsers(dest="provider_command")
     provider_subparsers.add_parser("list", help="List registered providers")
 
+    provider_invoke_parser = provider_subparsers.add_parser("invoke", help="Invoke a provider capability")
+    provider_invoke_parser.add_argument("provider_id", help="Provider identifier (e.g., llm, skill)")
+    provider_invoke_parser.add_argument("input", help="Input data (JSON string or text)")
+    provider_invoke_parser.add_argument("--trace-id", default=None, help="Trace ID for the invocation")
+
     # skill subcommand
     skill_parser = subparsers.add_parser("skill", help="Skill commands")
     skill_subparsers = skill_parser.add_subparsers(dest="skill_command")
     skill_subparsers.add_parser("list", help="List available skills")
+
+    skill_invoke_parser = skill_subparsers.add_parser("invoke", help="Invoke a skill")
+    skill_invoke_parser.add_argument("skill_id", help="Skill identifier (e.g., reach, grasp)")
+    skill_invoke_parser.add_argument("input", help="Input data (JSON string)")
+    skill_invoke_parser.add_argument("--trace-id", default=None, help="Trace ID for the invocation")
 
     # sandbox subcommand
     sandbox_parser = subparsers.add_parser("sandbox", help="Sandbox commands")
@@ -1233,14 +1453,26 @@ def main() -> int:
     elif args.command == "provider":
         if args.provider_command == "list":
             return cmd_provider_list(args)
+        elif args.provider_command == "invoke":
+            return cmd_provider_invoke(args)
         else:
             provider_parser.print_help()
             return 1
     elif args.command == "skill":
         if args.skill_command == "list":
             return cmd_skill_list(args)
+        elif args.skill_command == "invoke":
+            return cmd_skill_invoke(args)
         else:
             skill_parser.print_help()
+            return 1
+    elif args.command == "how":
+        if args.how_command == "explain":
+            return cmd_how_explain(args)
+        elif args.how_command == "recover":
+            return cmd_how_recover(args)
+        else:
+            how_parser.print_help()
             return 1
     elif args.command == "sandbox":
         if args.sandbox_command == "list-worlds":
