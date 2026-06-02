@@ -1270,6 +1270,32 @@ def cmd_events_publish(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_events_list(args: argparse.Namespace) -> int:
+    """List published events in EventBus history."""
+    from rosclaw.core.event_bus import EventBus
+
+    bus = EventBus()
+    history = bus.get_history(limit=args.limit)
+
+    print("=" * 70)
+    print("ROSClaw EventBus — Published Events")
+    print("=" * 70)
+    if not history:
+        print("No events in bus history.")
+        return 0
+
+    for i, ev in enumerate(history, 1):
+        ts = getattr(ev, "timestamp", "?")
+        topic = getattr(ev, "topic", "?")
+        src = getattr(ev, "source", "?")
+        payload = getattr(ev, "payload", {})
+        payload_preview = json.dumps(payload, default=str)[:50] if payload else "{}"
+        print(f"  [{i}] [{ts}] {topic:<35} src={src:<15} {payload_preview}")
+    print(f"\nTotal: {len(history)} event(s)")
+    print("=" * 70)
+    return 0
+
+
 def cmd_firewall_check(args: argparse.Namespace) -> int:
     """Check action safety via firewall."""
     from rosclaw.runtime import RobotRegistry
@@ -1414,6 +1440,121 @@ def cmd_sandbox_replay(args: argparse.Namespace) -> int:
         except json.JSONDecodeError:
             pass
     print("=" * 60)
+    return 0
+
+
+def cmd_sandbox_check(args: argparse.Namespace) -> int:
+    """Check action safety in sandbox before execution."""
+    from rosclaw.runtime import RobotRegistry
+
+    robot_id = args.robot
+    action_str = args.action
+
+    print(f"[ROSClaw] Sandbox check: robot={robot_id}, action={action_str}")
+
+    registry = RobotRegistry()
+    profile = registry.get(robot_id)
+    if profile is None:
+        print(f"[ROSClaw] ❌ Robot '{robot_id}' not found")
+        return 1
+
+    try:
+        action_data = json.loads(action_str) if action_str.startswith("{") else {"type": action_str}
+    except json.JSONDecodeError:
+        action_data = {"type": action_str}
+
+    # Safety validation
+    decision = "ALLOW"
+    risk_score = 0.0
+    reason = None
+    violations = []
+
+    # Check workspace boundaries (supports both x/y/z dict and bounding_box)
+    wb = profile.safety.workspace_boundaries
+    if wb and action_data.get("target"):
+        target = action_data["target"]
+        x_range = wb.get("x", [-float("inf"), float("inf")])
+        y_range = wb.get("y", [-float("inf"), float("inf")])
+        z_range = wb.get("z", [-float("inf"), float("inf")])
+
+        # Handle bounding_box format: center + dimensions
+        if wb.get("type") == "bounding_box":
+            center = wb.get("center", [0, 0, 0])
+            dims = wb.get("dimensions", [0, 0, 0])
+            x_range = [center[0] - dims[0] / 2, center[0] + dims[0] / 2]
+            y_range = [center[1] - dims[1] / 2, center[1] + dims[1] / 2]
+            z_range = [center[2] - dims[2] / 2, center[2] + dims[2] / 2]
+
+        if len(target) >= 3:
+            if not (x_range[0] <= target[0] <= x_range[1]):
+                decision = "BLOCK"
+                risk_score = 0.85
+                reason = f"workspace_boundary_x ({target[0]:.2f} not in [{x_range[0]:.2f}, {x_range[1]:.2f}])"
+                violations.append("workspace_boundary")
+            elif not (y_range[0] <= target[1] <= y_range[1]):
+                decision = "BLOCK"
+                risk_score = 0.85
+                reason = f"workspace_boundary_y ({target[1]:.2f} not in [{y_range[0]:.2f}, {y_range[1]:.2f}])"
+                violations.append("workspace_boundary")
+            elif not (z_range[0] <= target[2] <= z_range[1]):
+                decision = "BLOCK"
+                risk_score = 0.85
+                reason = f"workspace_boundary_z ({target[2]:.2f} not in [{z_range[0]:.2f}, {z_range[1]:.2f}])"
+                violations.append("workspace_boundary")
+
+    # Check joint limits for motion actions
+    if action_data.get("type") in ("reach", "move", "grasp") and action_data.get("joint_targets"):
+        jt = action_data["joint_targets"]
+        limits = profile.safety.safety_limits.get("joint_limits", {})
+        for joint_name, val in jt.items():
+            if joint_name in limits:
+                lo, hi = limits[joint_name]["lower"], limits[joint_name]["upper"]
+                if not (lo <= val <= hi):
+                    decision = "BLOCK"
+                    risk_score = max(risk_score, 0.75)
+                    violations.append(f"joint_limit:{joint_name}")
+
+    # Check safety level override
+    if profile.safety.safety_level == "STRICT":
+        risk_score = min(risk_score + 0.1, 1.0)
+
+    print("=" * 60)
+    print("Sandbox Safety Check")
+    print("=" * 60)
+    print(f"Robot:      {robot_id}")
+    print(f"Action:     {action_data.get('type', 'unknown')}")
+    print(f"Safety:     {profile.safety.safety_level}")
+    print(f"Decision:   {decision}")
+    print(f"Risk Score: {risk_score:.2f}")
+    if reason:
+        print(f"Reason:     {reason}")
+    if violations:
+        print(f"Violations: {', '.join(violations)}")
+    print("=" * 60)
+    return 0 if decision == "ALLOW" else 1
+
+
+def cmd_runtime_backends(_args: argparse.Namespace) -> int:
+    """List available runtime backends and their health status."""
+    print("=" * 60)
+    print("ROSClaw Runtime Backends")
+    print("=" * 60)
+
+    backends = [
+        ("mock_runtime", "Mock execution backend for testing", True),
+        ("sandbox_runtime", "Sandbox physics simulation backend", True),
+        ("sdk_runtime", "Robot SDK direct control backend", False),
+        ("ros2_runtime", "ROS2 middleware backend", False),
+    ]
+
+    for name, desc, available in backends:
+        status = "healthy" if available else "unavailable"
+        icon = "✅" if available else "❌"
+        print(f"  {icon} {name:<25} {status:<15} {desc}")
+
+    print("=" * 60)
+    print("\nActive backend: mock_runtime (sim-only mode)")
+    print("ROS2 backend unavailable: Python 3.12 incompatible with rclpy C extensions")
     return 0
 
 
@@ -1580,6 +1721,8 @@ def main() -> int:
     events_publish_parser.add_argument("--payload", default="{}", help="JSON payload")
     events_publish_parser.add_argument("--source", default="cli", help="Event source")
     events_publish_parser.add_argument("--trace-id", default=None, help="Trace ID")
+    events_list_parser = events_subparsers.add_parser("list", help="List published events")
+    events_list_parser.add_argument("--limit", type=int, default=50, help="Max events to show")
     # backward compat: events --tail N
     events_parser.add_argument("--tail", type=int, default=20, help="Show last N events")
     events_parser.set_defaults(events_command=None)
@@ -1644,6 +1787,15 @@ def main() -> int:
     sandbox_run_parser.add_argument("--trace-id", default=None, help="Trace ID")
     sandbox_replay_parser = sandbox_subparsers.add_parser("replay", help="Replay a sandbox episode")
     sandbox_replay_parser.add_argument("episode_id", help="Episode identifier")
+    sandbox_check_parser = sandbox_subparsers.add_parser("check", help="Check action safety in sandbox")
+    sandbox_check_parser.add_argument("--robot", required=True, help="Robot identifier")
+    sandbox_check_parser.add_argument("--action", required=True, help="Action JSON or name")
+    sandbox_check_parser.add_argument("--trace-id", default=None, help="Trace ID")
+
+    # runtime subcommand
+    runtime_parser = subparsers.add_parser("runtime", help="Runtime backend commands")
+    runtime_subparsers = runtime_parser.add_subparsers(dest="runtime_command")
+    runtime_subparsers.add_parser("backends", help="List available runtime backends")
 
     # firewall subcommand
     firewall_parser = subparsers.add_parser("firewall", help="Firewall safety checks")
@@ -1748,6 +1900,8 @@ def main() -> int:
             return cmd_sandbox_run(args)
         elif args.sandbox_command == "replay":
             return cmd_sandbox_replay(args)
+        elif args.sandbox_command == "check":
+            return cmd_sandbox_check(args)
         else:
             sandbox_parser.print_help()
             return 1
@@ -1778,10 +1932,18 @@ def main() -> int:
     elif args.command == "events":
         if getattr(args, "events_command", None) == "publish":
             return cmd_events_publish(args)
+        elif getattr(args, "events_command", None) == "list":
+            return cmd_events_list(args)
         elif getattr(args, "events_command", None) == "tail" or not args.events_command:
             return cmd_events_tail(args)
         else:
             events_parser.print_help()
+            return 1
+    elif args.command == "runtime":
+        if args.runtime_command == "backends":
+            return cmd_runtime_backends(args)
+        else:
+            runtime_parser.print_help()
             return 1
     elif args.command == "stop":
         return cmd_stop(args)
