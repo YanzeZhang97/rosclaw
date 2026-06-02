@@ -95,7 +95,9 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
+addopts = "-p no:launch-testing-ros -p no:launch-testing -p no:ament-pep257 -p no:ament-lint -p no:ament-copyright -p no:ament-flake8 -p no:ament-xmllint"

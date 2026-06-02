@@ -5,14 +5,17 @@ import os
 import sys
 
 # ------------------------------------------------------------------
-# ROS2 environment auto-detection (Python 3.10 only)
+# ROS2 environment auto-detection (Python 3.10 only, opt-in via env var)
+# ------------------------------------------------------------------
+# NOTE: Auto-injecting ROS2 paths during pytest collection triggers
+# ROS2 pytest plugins (launch-testing-ros, ament-*) that conflict with
+# standard test collection. ROS2 integration tests run in subprocesses
+# via wrapper tests; they do not need this auto-detection.
 # ------------------------------------------------------------------
 
-if sys.version_info[:2] == (3, 10):
+if sys.version_info[:2] == (3, 10) and os.environ.get("ROSCLAW_TEST_ROS2"):
     _ros2_local = "/tmp/ros2-local"
     if os.path.isdir(_ros2_local):
-        # PYTHONPATH: add ROS2 Python packages directly to sys.path
-        # (os.environ changes do not affect a running Python process)
         _ros2_python_paths = [
             "/tmp/ros2-local/opt/ros/humble/local/lib/python3.10/dist-packages",
             "/opt/ros/humble/local/lib/python3.10/dist-packages",
@@ -25,7 +28,6 @@ if sys.version_info[:2] == (3, 10):
         if _new_paths:
             os.environ["PYTHONPATH"] = ":".join(_new_paths + ([_existing] if _existing else []))
 
-        # LD_LIBRARY_PATH: add ROS2 shared libraries
         _ros2_lib_paths = [
             "/tmp/ros2-local/opt/ros/humble/lib",
             "/opt/ros/humble/lib",

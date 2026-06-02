@@ -25,6 +25,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 
@@ -1247,6 +1248,211 @@ def cmd_events_tail(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_events_publish(args: argparse.Namespace) -> int:
+    """Publish an event to EventBus."""
+    from rosclaw.core.event_bus import EventBus, Event
+
+    bus = EventBus()
+    try:
+        payload = json.loads(args.payload) if args.payload else {}
+    except json.JSONDecodeError:
+        print(f"[ROSClaw] ❌ Invalid JSON payload: {args.payload}")
+        return 1
+
+    event = Event(
+        topic=args.topic,
+        payload=payload,
+        source=args.source or "cli",
+        metadata={"trace_id": args.trace_id} if args.trace_id else {},
+    )
+    bus.publish(event)
+    print(f"[ROSClaw] ✅ Published event to '{args.topic}'")
+    return 0
+
+
+def cmd_firewall_check(args: argparse.Namespace) -> int:
+    """Check action safety via firewall."""
+    from rosclaw.runtime import RobotRegistry
+
+    print(f"[ROSClaw] Firewall check: robot={args.robot}, action={args.action}")
+    registry = RobotRegistry()
+    profile = registry.get(args.robot)
+    if profile is None:
+        print(f"[ROSClaw] ❌ Robot '{args.robot}' not found")
+        return 1
+
+    try:
+        action_data = json.loads(args.action) if args.action.startswith("{") else {"type": args.action}
+    except json.JSONDecodeError:
+        action_data = {"type": args.action}
+
+    # Simple safety checks based on e-URDF profile
+    decision = "ALLOW"
+    risk_score = 0.0
+    reason = None
+    violations = []
+
+    # Check workspace boundaries
+    wb = profile.safety.workspace_boundaries
+    if wb and action_data.get("target"):
+        target = action_data["target"]
+        x_range = wb.get("x", [-float("inf"), float("inf")])
+        y_range = wb.get("y", [-float("inf"), float("inf")])
+        z_range = wb.get("z", [-float("inf"), float("inf")])
+        if len(target) >= 3:
+            if not (x_range[0] <= target[0] <= x_range[1]):
+                decision = "BLOCK"
+                risk_score = 0.85
+                reason = f"workspace_boundary_x ({target[0]:.2f} not in [{x_range[0]}, {x_range[1]}])"
+                violations.append("workspace_boundary")
+            elif not (y_range[0] <= target[1] <= y_range[1]):
+                decision = "BLOCK"
+                risk_score = 0.85
+                reason = f"workspace_boundary_y ({target[1]:.2f} not in [{y_range[0]}, {y_range[1]}])"
+                violations.append("workspace_boundary")
+            elif not (z_range[0] <= target[2] <= z_range[1]):
+                decision = "BLOCK"
+                risk_score = 0.85
+                reason = f"workspace_boundary_z ({target[2]:.2f} not in [{z_range[0]}, {z_range[1]}])"
+                violations.append("workspace_boundary")
+
+    # Check safety level override
+    if profile.safety.safety_level == "STRICT":
+        risk_score = min(risk_score + 0.1, 1.0)
+
+    print("=" * 60)
+    print("Firewall Decision")
+    print("=" * 60)
+    print(f"Robot:      {args.robot}")
+    print(f"Safety:     {profile.safety.safety_level}")
+    print(f"Decision:   {decision}")
+    print(f"Risk Score: {risk_score:.2f}")
+    if reason:
+        print(f"Reason:     {reason}")
+    if violations:
+        print(f"Violations: {', '.join(violations)}")
+    print("=" * 60)
+    return 0 if decision == "ALLOW" else 1
+
+
+def cmd_sandbox_run(args: argparse.Namespace) -> int:
+    """Run a sandbox episode."""
+    from rosclaw.sandbox.runtime_adapter import SandboxRuntimeAdapter
+
+    print(f"[ROSClaw] Running sandbox episode: robot={args.robot}, task={args.task}")
+    adapter = SandboxRuntimeAdapter(robot_id=args.robot, backend=args.backend)
+    adapter.initialize()
+    try:
+        result = adapter.run_episode(
+            task=args.task,
+            trace_id=args.trace_id or f"trace_{int(time.time())}",
+        )
+        print("=" * 60)
+        print("Sandbox Episode Result")
+        print("=" * 60)
+        print(f"Episode ID: {result.get('episode_id', 'N/A')}")
+        print(f"Status:     {result.get('status', 'N/A')}")
+        print(f"Steps:      {result.get('steps', 0)}")
+        print(f"Duration:   {result.get('duration_sec', 0):.2f}s")
+        if result.get("artifact_uri"):
+            print(f"Artifact:   {result['artifact_uri']}")
+        print("=" * 60)
+        adapter.stop()
+        return 0 if result.get("status") == "success" else 1
+    except Exception as exc:
+        print(f"[ROSClaw] ❌ Sandbox run error: {exc}")
+        adapter.stop()
+        return 1
+
+
+def cmd_sandbox_replay(args: argparse.Namespace) -> int:
+    """Replay a sandbox episode."""
+    print(f"[ROSClaw] Replaying sandbox episode: {args.episode_id}")
+    artifact_dir = Path("./practice_data") / args.episode_id
+    if not artifact_dir.exists():
+        print(f"[ROSClaw] ⚠️  Episode artifacts not found: {artifact_dir}")
+        return 1
+
+    print("=" * 60)
+    print(f"Sandbox Replay — {args.episode_id}")
+    print("=" * 60)
+    for f in sorted(artifact_dir.glob("*")):
+        print(f"  📄 {f.name}")
+    metadata_file = artifact_dir / "metadata.json"
+    if metadata_file.exists():
+        try:
+            data = json.loads(metadata_file.read_text())
+            print(f"\n  Status:     {data.get('status', 'N/A')}")
+            print(f"  Robot:      {data.get('robot_id', 'N/A')}")
+            print(f"  Task:       {data.get('task', 'N/A')}")
+            print(f"  Duration:   {data.get('duration_sec', 0):.2f}s")
+        except json.JSONDecodeError:
+            pass
+    print("=" * 60)
+    return 0
+
+
+def cmd_forge_validate(args: argparse.Namespace) -> int:
+    """Validate a Forge bundle."""
+    from rosclaw.forge.bundle import BundleCompiler
+
+    bundle_path = Path(args.bundle_path)
+    if not bundle_path.exists():
+        print(f"[ROSClaw] ❌ Bundle path not found: {bundle_path}")
+        return 1
+
+    print(f"[ROSClaw] Validating bundle: {bundle_path}")
+    try:
+        compiler = BundleCompiler()
+        result = compiler.validate_bundle(bundle_path)
+        print("=" * 60)
+        print("Forge Bundle Validation")
+        print("=" * 60)
+        print(f"Valid:      {result.get('valid', False)}")
+        print(f"Files:      {result.get('file_count', 0)}")
+        if result.get("errors"):
+            print("Errors:")
+            for e in result["errors"]:
+                print(f"  🚫 {e}")
+        if result.get("warnings"):
+            print("Warnings:")
+            for w in result["warnings"]:
+                print(f"  ⚠️  {w}")
+        print("=" * 60)
+        return 0 if result.get("valid") else 1
+    except Exception as exc:
+        print(f"[ROSClaw] ❌ Validation error: {exc}")
+        return 1
+
+
+def cmd_forge_install(args: argparse.Namespace) -> int:
+    """Install a Forge bundle to staging or production."""
+    from rosclaw.forge.bundle import BundleCompiler
+
+    bundle_path = Path(args.bundle_path)
+    if not bundle_path.exists():
+        print(f"[ROSClaw] ❌ Bundle path not found: {bundle_path}")
+        return 1
+
+    target = "staging" if args.staging else "production"
+    print(f"[ROSClaw] Installing bundle to {target}: {bundle_path}")
+    try:
+        compiler = BundleCompiler()
+        result = compiler.install_bundle(bundle_path, staging=args.staging)
+        print("=" * 60)
+        print(f"Forge Bundle Install ({target})")
+        print("=" * 60)
+        print(f"Status:     {result.get('status', 'N/A')}")
+        print(f"Location:   {result.get('install_path', 'N/A')}")
+        if result.get("tools_added"):
+            print(f"Tools:      {', '.join(result['tools_added'])}")
+        print("=" * 60)
+        return 0 if result.get("status") == "installed" else 1
+    except Exception as exc:
+        print(f"[ROSClaw] ❌ Install error: {exc}")
+        return 1
+
+
 def cmd_stop(_args: argparse.Namespace) -> int:
     """Stop ROSClaw runtime."""
     import signal
@@ -1341,7 +1547,17 @@ def main() -> int:
 
     # events
     events_parser = subparsers.add_parser("events", help="EventBus commands")
+    events_subparsers = events_parser.add_subparsers(dest="events_command")
+    events_tail_parser = events_subparsers.add_parser("tail", help="Tail EventBus events")
+    events_tail_parser.add_argument("--tail", type=int, default=20, help="Show last N events")
+    events_publish_parser = events_subparsers.add_parser("publish", help="Publish an event")
+    events_publish_parser.add_argument("topic", help="Event topic")
+    events_publish_parser.add_argument("--payload", default="{}", help="JSON payload")
+    events_publish_parser.add_argument("--source", default="cli", help="Event source")
+    events_publish_parser.add_argument("--trace-id", default=None, help="Trace ID")
+    # backward compat: events --tail N
     events_parser.add_argument("--tail", type=int, default=20, help="Show last N events")
+    events_parser.set_defaults(events_command=None)
 
     # robot subcommand
     robot_parser = subparsers.add_parser("robot", help="Robot registry commands")
@@ -1396,6 +1612,30 @@ def main() -> int:
     sandbox_subparsers.add_parser("list-worlds", help="List available sandbox worlds")
     sandbox_validate_parser = sandbox_subparsers.add_parser("validate", help="Validate robot in sandbox")
     sandbox_validate_parser.add_argument("robot_id", help="Robot identifier")
+    sandbox_run_parser = sandbox_subparsers.add_parser("run", help="Run a sandbox episode")
+    sandbox_run_parser.add_argument("--robot", required=True, help="Robot identifier")
+    sandbox_run_parser.add_argument("--task", required=True, help="Task name")
+    sandbox_run_parser.add_argument("--backend", default="mujoco", help="Sandbox backend")
+    sandbox_run_parser.add_argument("--trace-id", default=None, help="Trace ID")
+    sandbox_replay_parser = sandbox_subparsers.add_parser("replay", help="Replay a sandbox episode")
+    sandbox_replay_parser.add_argument("episode_id", help="Episode identifier")
+
+    # firewall subcommand
+    firewall_parser = subparsers.add_parser("firewall", help="Firewall safety checks")
+    firewall_subparsers = firewall_parser.add_subparsers(dest="firewall_command")
+    firewall_check_parser = firewall_subparsers.add_parser("check", help="Check action safety")
+    firewall_check_parser.add_argument("--robot", required=True, help="Robot identifier")
+    firewall_check_parser.add_argument("--action", required=True, help="Action JSON or name")
+    firewall_check_parser.add_argument("--trace-id", default=None, help="Trace ID")
+
+    # forge subcommand
+    forge_parser = subparsers.add_parser("forge", help="Forge bundle commands")
+    forge_subparsers = forge_parser.add_subparsers(dest="forge_command")
+    forge_validate_parser = forge_subparsers.add_parser("validate", help="Validate a bundle")
+    forge_validate_parser.add_argument("bundle_path", help="Path to bundle directory")
+    forge_install_parser = forge_subparsers.add_parser("install", help="Install a bundle")
+    forge_install_parser.add_argument("bundle_path", help="Path to bundle directory")
+    forge_install_parser.add_argument("--staging", action="store_true", help="Install to staging")
 
     # memory subcommand
     memory_parser = subparsers.add_parser("memory", help="Memory commands")
@@ -1479,8 +1719,26 @@ def main() -> int:
             return cmd_sandbox_list_worlds(args)
         elif args.sandbox_command == "validate":
             return cmd_sandbox_validate(args)
+        elif args.sandbox_command == "run":
+            return cmd_sandbox_run(args)
+        elif args.sandbox_command == "replay":
+            return cmd_sandbox_replay(args)
         else:
             sandbox_parser.print_help()
+            return 1
+    elif args.command == "firewall":
+        if args.firewall_command == "check":
+            return cmd_firewall_check(args)
+        else:
+            firewall_parser.print_help()
+            return 1
+    elif args.command == "forge":
+        if args.forge_command == "validate":
+            return cmd_forge_validate(args)
+        elif args.forge_command == "install":
+            return cmd_forge_install(args)
+        else:
+            forge_parser.print_help()
             return 1
     elif args.command == "memory":
         if args.memory_command == "status":
@@ -1493,7 +1751,13 @@ def main() -> int:
             memory_parser.print_help()
             return 1
     elif args.command == "events":
-        return cmd_events_tail(args)
+        if getattr(args, "events_command", None) == "publish":
+            return cmd_events_publish(args)
+        elif getattr(args, "events_command", None) == "tail" or not args.events_command:
+            return cmd_events_tail(args)
+        else:
+            events_parser.print_help()
+            return 1
     elif args.command == "stop":
         return cmd_stop(args)
     elif args.command == "restart":
