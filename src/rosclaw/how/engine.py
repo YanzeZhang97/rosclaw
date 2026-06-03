@@ -4,19 +4,61 @@ The engine provides:
   * suggest_recovery()  — lookup heuristic_rules table (<10ms)
   * record_outcome()    — update rule efficacy counters
   * seed_defaults()     — populate initial safety rules
+  * decide_recovery()   — v1.5 InterventionRequest → InterventionDecision +
+                          rule_id (so outcome tracking covers v1.5 too)
 
 Design:
   - Pure rule-based, zero LLM calls in the hot path.
-  - Condition matching: exact -> substring -> keyword overlap.
+  - Condition matching: exact → v1.0 substring → v1.5 SAFETY_TAXONOMY
+    fallback → knowledge analogy. The taxonomy ships as the fallback so
+    hand-tuned v1.0 remediations (e.g. "compliant mode", "exponential
+    backoff") still win when both could match. ``tax_<symptom>`` IDs
+    never collide with v1.0 ``rule_<n>_<slug>`` IDs.
   - Outcome tracking: success_count / failure_count / priority.
 """
 from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Optional
+from typing import Any, Final, Optional
+
+from .v15 import (
+    SAFETY_TAXONOMY,
+    InterventionDecision,
+    InterventionRequest,
+    compose,
+    decide_strategy,
+    diagnose,
+    diagnose_safety,
+    is_blocking,
+)
 
 logger = logging.getLogger("rosclaw.how.engine")
+
+# Rule-ID prefix for SAFETY_TAXONOMY-derived rules. Distinct prefix so the
+# v1.0 rule_id namespace (``rule_<n>_<slug>``) never collides.
+_TAXONOMY_RULE_PREFIX: Final[str] = "tax_"
+
+# S0 (info) → 0 … S4 (emergency stop) → 4. Hoisted to module level so the
+# dict is built once at import time, not per-call.
+_SEVERITY_PRIORITY: Final[dict[str, int]] = {
+    "S0": 0, "S1": 1, "S2": 2, "S3": 3, "S4": 4,
+}
+
+
+def _taxonomy_rule_id(symptom: str) -> str:
+    """Stable rule id for a taxonomy symptom (e.g. ``tax_Collision_Risk``)."""
+    return f"{_TAXONOMY_RULE_PREFIX}{symptom}"
+
+
+def _severity_priority(severity: str) -> int:
+    """Map S0-S4 to a comparable int. S4 (emergency) has the highest priority."""
+    return _SEVERITY_PRIORITY.get(severity, 0)
+
+
+def _format_taxonomy_action(symptom: str, severity: str, strategy: str) -> str:
+    """Human-readable action text for a taxonomy-derived rule."""
+    return f"[{severity}/{strategy}] inject {symptom} guard (v1.5 taxonomy)"
 
 
 class HeuristicEngine:
@@ -47,7 +89,15 @@ class HeuristicEngine:
         """Warm the rule cache from SeekDB and subscribe to failure events."""
         try:
             rows = self._seekdb.query(self._table, limit=1_000)
-            self._rule_cache = {str(r.get("id", "")): dict(r) for r in rows if r.get("id")}
+            warmed = {str(r.get("id", "")): dict(r) for r in rows if r.get("id")}
+            # Preserve any lazily-seeded taxonomy rows that haven't been
+            # flushed to seekdb yet (best-effort persistence). Without
+            # this merge, a re-initialize() would silently drop the
+            # cached counters built up via `_taxonomy_rule`.
+            for rid, row in self._rule_cache.items():
+                if rid.startswith(_TAXONOMY_RULE_PREFIX) and rid not in warmed:
+                    warmed[rid] = row
+            self._rule_cache = warmed
             self._cache_valid = True
             logger.info("HeuristicEngine warmed %d rules", len(self._rule_cache))
         except Exception as exc:  # noqa: BLE001
@@ -102,17 +152,35 @@ class HeuristicEngine:
         if not error_log:
             return None
 
-        # 1. Exact match
+        # 1. Exact match (v1.0 rules in seekdb / cache)
         result = self._query_exact(error_log)
         if result:
             return self._format(result)
 
-        # 2. Substring match
+        # 2. Substring match against v1.0 cached rules. We try this BEFORE
+        #    the taxonomy because the v1.0 rule library carries
+        #    hand-written remediations ("Switch to compliant mode and back
+        #    off 5cm") that are more actionable than the taxonomy's
+        #    generic "[S2/SAFETY] inject Workspace_Boundary guard"
+        #    template. Taxonomy is the fallback for symptoms v1.0 doesn't
+        #    cover.
         result = self._query_substring(error_log)
         if result:
             return self._format(result)
 
-        # 3. Knowledge fallback (optional)
+        # 3. v1.5 SAFETY_TAXONOMY lookup — extended S0-S4 vocabulary that
+        #    covers physical-AI failure modes (collision, self-collision,
+        #    OOM, NaN, …) the v1.0 rule list doesn't. When a symptom
+        #    matches we return a synthetic rule keyed by ``tax_<symptom>``
+        #    so ``record_outcome`` can track efficacy the same way as
+        #    v1.0 rules.
+        symptom, severity, strategy = diagnose_safety(error_log)
+        if symptom is not None:
+            tax_rule = self._taxonomy_rule(symptom, severity, strategy)
+            if tax_rule is not None:
+                return self._format(tax_rule)
+
+        # 4. Knowledge fallback (optional)
         if self._knowledge:
             return await self._knowledge_fallback(error_log, context)
 
@@ -202,6 +270,42 @@ class HeuristicEngine:
                 inserted += 1
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Seed rule %s failed: %s", rid, exc)
+
+        # Append the v1.5 SAFETY_TAXONOMY rows so they show up in
+        # ``list_rules`` / dashboards and ``record_outcome`` can attribute
+        # successes to them. Action text is the SAFETY snippet's first line,
+        # priority is the severity ordinal (S0=0 … S4=4).
+        for symptom, entry in SAFETY_TAXONOMY.items():
+            rid = _taxonomy_rule_id(symptom)
+            severity = str(entry.get("severity", "S0"))
+            strategy = str(entry.get("strategy", "NOOP"))
+            condition = symptom.replace("_", " ").lower()
+            action = _format_taxonomy_action(symptom, severity, strategy)
+            priority = _severity_priority(severity)
+            try:
+                self._seekdb.insert(self._table, {
+                    "id": rid,
+                    "condition": condition,
+                    "action": action,
+                    "priority": priority,
+                    "success_count": 0,
+                    "failure_count": 0,
+                })
+                self._rule_cache[rid] = {
+                    "id": rid,
+                    "condition": condition,
+                    "action": action,
+                    "priority": priority,
+                    "success_count": 0,
+                    "failure_count": 0,
+                    "severity": severity,
+                    "strategy": strategy,
+                    "source_taxonomy": True,
+                }
+                inserted += 1
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Seed taxonomy rule %s failed: %s", rid, exc)
+
         self._cache_valid = True
         logger.info("HeuristicEngine seeded %d default rules", inserted)
         return inserted
@@ -209,9 +313,18 @@ class HeuristicEngine:
     # ── internals ────────────────────────────────────────────────────────
 
     def _query_exact(self, error_log: str) -> Optional[dict[str, Any]]:
-        """Exact condition match."""
+        """Exact condition match.
+
+        Taxonomy rows (id prefix ``tax_``) are skipped here so a bare
+        symptom string like ``"joint limit violation"`` doesn't pre-empt
+        a v1.0 rule whose condition is a substring. The taxonomy has its
+        own match path via ``diagnose_safety`` in ``suggest_recovery``.
+        """
         if self._cache_valid:
             for rule in self._rule_cache.values():
+                rid = str(rule.get("id", ""))
+                if rid.startswith(_TAXONOMY_RULE_PREFIX):
+                    continue
                 if rule.get("condition") == error_log:
                     return rule
         # Fallback to DB
@@ -221,10 +334,22 @@ class HeuristicEngine:
             order_by="-priority",
             limit=1,
         )
-        return dict(rows[0]) if rows else None
+        # Filter out taxonomy hits the DB may surface so the policy still
+        # holds when the cache is cold.
+        for row in rows:
+            rid = str(row.get("id", ""))
+            if rid.startswith(_TAXONOMY_RULE_PREFIX):
+                continue
+            return dict(row)
+        return None
 
     def _query_substring(self, error_log: str) -> Optional[dict[str, Any]]:
-        """Substring match: condition text appears inside error_log."""
+        """Substring match: condition text appears inside error_log.
+
+        Taxonomy rows (id prefix ``tax_``) are skipped here — they have
+        their own match path via ``diagnose_safety`` in ``suggest_recovery``
+        which honors keyword tuples / severity, not lowercase substrings.
+        """
         error_lower = error_log.lower()
         best: Optional[dict[str, Any]] = None
         best_pri = -999
@@ -232,6 +357,10 @@ class HeuristicEngine:
         rules = self._rule_cache.values() if self._cache_valid else self._seekdb.query(self._table, limit=1_000)
 
         for rule in rules:
+            rid = str(rule.get("id", ""))
+            if rid.startswith(_TAXONOMY_RULE_PREFIX):
+                # Reserved for the taxonomy match path
+                continue
             cond = str(rule.get("condition", "")).lower()
             if not cond:
                 continue
@@ -274,6 +403,108 @@ class HeuristicEngine:
             "success_count": int(rule.get("success_count", 0)),
             "failure_count": int(rule.get("failure_count", 0)),
         }
+
+    # ── v1.5 SAFETY_TAXONOMY bridge ──────────────────────────────────────
+
+    def _taxonomy_rule(
+        self,
+        symptom: str,
+        severity: str,
+        strategy: str,
+    ) -> Optional[dict[str, Any]]:
+        """Return (or lazily seed) the cached rule for a taxonomy symptom.
+
+        Allows ``suggest_recovery`` to surface S2/S3/S4 events even before
+        ``seed_defaults`` is called — the row is created on demand and
+        stored in the local cache; the DB row is upserted best-effort so
+        ``record_outcome`` can still find it later.
+        """
+        rid = _taxonomy_rule_id(symptom)
+        cached = self._rule_cache.get(rid)
+        if cached is not None:
+            return cached
+        condition = symptom.replace("_", " ").lower()
+        action = _format_taxonomy_action(symptom, severity, strategy)
+        priority = _severity_priority(severity)
+        row: dict[str, Any] = {
+            "id": rid,
+            "condition": condition,
+            "action": action,
+            "priority": priority,
+            "success_count": 0,
+            "failure_count": 0,
+            "severity": severity,
+            "strategy": strategy,
+            "source_taxonomy": True,
+        }
+        # Persist best-effort so record_outcome can update counters across
+        # restarts. The cache is the source of truth for the hot path.
+        try:
+            self._seekdb.insert(self._table, {
+                k: v for k, v in row.items()
+                if k not in ("severity", "strategy", "source_taxonomy")
+            })
+        except Exception as exc:  # noqa: BLE001 — non-fatal on read path
+            logger.debug("Lazy taxonomy insert failed for %s: %s", rid, exc)
+        self._rule_cache[rid] = row
+        return row
+
+    async def decide_recovery(
+        self,
+        request: InterventionRequest,
+        *,
+        recent_pattern_id: Optional[str] = None,
+    ) -> tuple[InterventionDecision, Optional[str]]:
+        """Run the v1.5 diagnose → policy → composer pipeline.
+
+        Returns ``(decision, rule_id_or_None)``. When the final decision
+        was driven by a safety symptom (``decision.strategy`` is one of
+        SAFETY / STOP_UNSAFE / RESOURCE_REPAIR — see :func:`is_blocking`)
+        AND that symptom has a taxonomy entry, the returned ``rule_id``
+        is ``tax_<symptom>``. Callers pass it to :meth:`record_outcome`
+        to keep efficacy counters.
+
+        For decisions driven by the *optimization* or *feasibility* axis
+        (CATALYST plateau / DIVERSIFY cooldown / FEASIBILITY_REPAIR /
+        STABILIZE / EXPLOIT_BEST / DIAGNOSE / NOOP) the rule_id is
+        ``None`` even if a symptom was *also* detected — crediting a
+        taxonomy rule for an outcome that wasn't its decision would
+        skew the efficacy counters.
+
+        This method is ``async`` purely for caller symmetry with
+        :meth:`suggest_recovery`; the body is pure sync and does not
+        await anything. Future maintainers: do not assume the body
+        contains awaitables.
+        """
+        state = diagnose(request)
+        strategy, _reasons = decide_strategy(
+            request, state, recent_pattern_id=recent_pattern_id,
+        )
+        decision = compose(
+            strategy,
+            state,
+            recent_pattern_id=recent_pattern_id,
+        )
+        rule_id: Optional[str] = None
+        # Attribute the outcome to the taxonomy ONLY when the final
+        # decision was actually a safety-branch outcome — this protects
+        # the counters when cooldown swaps the strategy to DIVERSIFY or
+        # the optimization axis overrides the safety classification
+        # (e.g. an S1 Battery_Low symptom with a plateau-CATALYST
+        # decision should not credit tax_Battery_Low).
+        if (
+            state.safety_symptom
+            and state.safety_symptom in SAFETY_TAXONOMY
+            and is_blocking(decision.strategy)
+        ):
+            entry = SAFETY_TAXONOMY[state.safety_symptom]
+            self._taxonomy_rule(
+                state.safety_symptom,
+                str(entry.get("severity", "S0")),
+                str(entry.get("strategy", "NOOP")),
+            )
+            rule_id = _taxonomy_rule_id(state.safety_symptom)
+        return decision, rule_id
 
     async def generate_recovery_hint(
         self,
