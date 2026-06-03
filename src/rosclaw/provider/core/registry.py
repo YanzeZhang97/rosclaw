@@ -114,10 +114,7 @@ class ProviderRegistry:
     def _load_provider(self, provider: Provider) -> None:
         """Load a provider, handling both sync and async calling contexts."""
         try:
-            # Called from within an async context — schedule deferred load.
-            # The caller must await asyncio.sleep() or similar to let the
-            # task complete before relying on provider._healthy.
-            asyncio.create_task(self._deferred_load(provider))
+            loop = asyncio.get_running_loop()
         except RuntimeError:
             # No running event loop — safe to run synchronously.
             try:
@@ -128,6 +125,11 @@ class ProviderRegistry:
                 provider._healthy = False
                 provider._load_error = str(e)
                 self._publish_health_changed(provider.name, False, f"load_failed: {e}")
+        else:
+            # Called from within an async context — schedule deferred load.
+            # The caller must await asyncio.sleep() or similar to let the
+            # task complete before relying on provider._healthy.
+            loop.create_task(self._deferred_load(provider))
 
     async def _deferred_load(self, provider: Provider) -> None:
         """Async-load a provider from within an existing event loop."""
@@ -147,12 +149,14 @@ class ProviderRegistry:
         provider = self._providers.pop(name, None)
         if provider is not None:
             try:
-                asyncio.create_task(provider.unload())
+                loop = asyncio.get_running_loop()
             except RuntimeError:
                 try:
                     asyncio.run(provider.unload())
                 except Exception:
                     pass
+            else:
+                loop.create_task(provider.unload())
         self._factories.pop(name, None)
         self._manifests.pop(name, None)
         self._health.pop(name, None)

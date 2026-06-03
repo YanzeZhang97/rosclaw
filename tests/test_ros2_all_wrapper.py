@@ -17,6 +17,8 @@ import sys
 
 import pytest
 
+from tests._ros2_env import ros2_available
+
 
 # ROS2 environment paths
 _ROS2_PYTHONPATH = (
@@ -43,7 +45,10 @@ def _build_env():
     return env
 
 
-@pytest.mark.skipif(sys.version_info[:2] != (3, 10), reason="Requires Python 3.10")
+@pytest.mark.skipif(
+    sys.version_info[:2] != (3, 10) or not ros2_available(),
+    reason="Requires Python 3.10 and ROS2 environment",
+)
 def test_ros2_driver_unit():
     """Run test_ros2_driver_ros2.py in subprocess."""
     result = subprocess.run(
@@ -60,7 +65,10 @@ def test_ros2_driver_unit():
     assert result.returncode == 0, f"ROS2 driver tests failed:\n{result.stdout}\n{result.stderr}"
 
 
-@pytest.mark.skipif(sys.version_info[:2] != (3, 10), reason="Requires Python 3.10")
+@pytest.mark.skipif(
+    sys.version_info[:2] != (3, 10) or not ros2_available(),
+    reason="Requires Python 3.10 and ROS2 environment",
+)
 def test_ros2_ur5_server_unit():
     """Run test_ur5_server_ros2.py in subprocess."""
     result = subprocess.run(
@@ -78,7 +86,10 @@ def test_ros2_ur5_server_unit():
     assert "52 passed" in result.stdout or "passed" in result.stdout
 
 
-@pytest.mark.skipif(sys.version_info[:2] != (3, 10), reason="Requires Python 3.10")
+@pytest.mark.skipif(
+    sys.version_info[:2] != (3, 10) or not ros2_available(),
+    reason="Requires Python 3.10 and ROS2 environment",
+)
 def test_ros2_mcp_drivers_init():
     """Run test_mcp_drivers_init_ros2.py in subprocess."""
     result = subprocess.run(

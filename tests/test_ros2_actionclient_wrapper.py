@@ -6,8 +6,13 @@ import sys
 
 import pytest
 
+from tests._ros2_env import ros2_available
 
-@pytest.mark.skipif(sys.version_info[:2] != (3, 10), reason="Requires Python 3.10")
+
+@pytest.mark.skipif(
+    sys.version_info[:2] != (3, 10) or not ros2_available(),
+    reason="Requires Python 3.10 and ROS2 environment",
+)
 def test_ros2_actionclient_integration():
     """Run ActionClient integration tests in subprocess."""
     existing_pp = os.environ.get("PYTHONPATH", "")

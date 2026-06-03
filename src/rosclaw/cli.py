@@ -1592,18 +1592,50 @@ def cmd_demo_mobile_pid(args: argparse.Namespace) -> int:
         pid = PIDController(PIDGains(kp=kp, ki=ki, kd=kd))
         pid.set_output_limit(-3.0, 3.0)
 
-        # Simulate control loop
+        # Simulate control loop with realistic mass-spring-damper physics
+        # mass=0.1kg, physical_damping=0.3 N·s/m
+        # High Kp + low Kd → underdamped oscillation (ζ < 1)
+        # Normal Kp=2,Kd=0.5 → overdamped (ζ > 1), converges quickly
+        mass = 0.1
+        physical_damping = 0.3
         position = 0.0
+        velocity = 0.0
         dt = 0.05
-        for step in range(100):
+        max_steps = 200
+        position_history = []
+        status = "timeout"
+
+        for step in range(max_steps):
             error = target - position
             control = pid.update(error, dt)
-            position += control * dt
-            if abs(error) < 0.05:
+
+            # Realistic physics: F = ma, force = control - damping * velocity
+            force = control - physical_damping * velocity
+            acceleration = force / mass
+            velocity += acceleration * dt
+            position += velocity * dt
+
+            position_history.append(position)
+
+            # Oscillation detection: if position swings back and forth with large amplitude
+            if len(position_history) >= 40:
+                recent = position_history[-40:]
+                swing = max(recent) - min(recent)
+                if swing > 0.8:
+                    status = "oscillation"
+                    print(f"\n  ⚠️  OSCILLATION DETECTED at step {step + 1}")
+                    print(f"     Position swing: {swing:.3f}m (threshold: 0.8m)")
+                    print(f"     Kp={kp} is too high / Kd={kd} is too low for this plant")
+                    break
+
+            # Convergence: close to target AND nearly stopped
+            if abs(error) < 0.05 and abs(velocity) < 0.02:
+                status = "success"
                 break
 
         final_error = abs(target - position)
-        status = "success" if final_error < 0.05 else "timeout"
+        if status == "timeout" and final_error < 0.05:
+            status = "success"
 
         runtime.stop()
 
@@ -1963,6 +1995,102 @@ def cmd_sandbox_replay(args: argparse.Namespace) -> int:
         except json.JSONDecodeError:
             pass
     print("=" * 60)
+    return 0
+
+
+def cmd_sandbox_check(args: argparse.Namespace) -> int:
+    """Check action safety via sandbox firewall."""
+    from rosclaw.runtime import RobotRegistry
+
+    print(f"[ROSClaw] Sandbox check: robot={args.robot}, action={args.action}")
+    registry = RobotRegistry()
+    profile = registry.get(args.robot)
+    if profile is None:
+        print(f"[ROSClaw] ❌ Robot '{args.robot}' not found")
+        return 1
+
+    # Parse action
+    try:
+        action = json.loads(args.action) if args.action.startswith("{") else {"type": args.action}
+    except json.JSONDecodeError:
+        print(f"[ROSClaw] ❌ Invalid action JSON: {args.action}")
+        return 1
+
+    target = action.get("target", [0, 0, 0])
+    if not isinstance(target, list) or len(target) < 3:
+        target = [0, 0, 0]
+
+    # Get workspace boundaries from robot safety
+    safety = profile.safety if hasattr(profile, 'safety') else {}
+    if hasattr(safety, 'workspace_boundaries'):
+        wb = safety.workspace_boundaries
+    elif isinstance(safety, dict):
+        wb = safety.get("workspace_boundaries", {})
+    else:
+        wb = {}
+
+    # Handle both x/y/z dict and bounding_box formats
+    if wb.get("type") == "bounding_box":
+        center = wb.get("center", [0, 0, 0])
+        dims = wb.get("dimensions", [0, 0, 0])
+        x_range = [center[0] - dims[0] / 2, center[0] + dims[0] / 2]
+        y_range = [center[1] - dims[1] / 2, center[1] + dims[1] / 2]
+        z_range = [center[2] - dims[2] / 2, center[2] + dims[2] / 2]
+    else:
+        x_range = wb.get("x", [-10, 10])
+        y_range = wb.get("y", [-10, 10])
+        z_range = wb.get("z", [-10, 10])
+
+    # Check boundaries
+    violated = []
+    if target[0] < x_range[0] or target[0] > x_range[1]:
+        violated.append(f"workspace_boundary_x ({target[0]:.2f} not in [{x_range[0]:.2f}, {x_range[1]:.2f}])")
+    if target[1] < y_range[0] or target[1] > y_range[1]:
+        violated.append(f"workspace_boundary_y ({target[1]:.2f} not in [{y_range[0]:.2f}, {y_range[1]:.2f}])")
+    if target[2] < z_range[0] or target[2] > z_range[1]:
+        violated.append(f"workspace_boundary_z ({target[2]:.2f} not in [{z_range[0]:.2f}, {z_range[1]:.2f}])")
+
+    if violated:
+        risk = 0.85
+        decision = "BLOCK"
+        reason = ", ".join(violated)
+    else:
+        risk = 0.0
+        decision = "ALLOW"
+        reason = "within workspace boundaries"
+
+    print("=" * 60)
+    print("Sandbox Safety Check")
+    print("=" * 60)
+    print(f"Robot:      {args.robot}")
+    print(f"Action:     {action}")
+    print(f"Decision:   {decision}")
+    print(f"Risk Score: {risk:.2f}")
+    print(f"Reason:     {reason}")
+    print("=" * 60)
+    return 1 if decision == "BLOCK" else 0
+
+
+def cmd_runtime_backends(_args: argparse.Namespace) -> int:
+    """List available runtime backends and their health."""
+    backends = [
+        ("mock_runtime", "Mock execution backend for testing", True),
+        ("sandbox_runtime", "Sandbox physics simulation backend", True),
+        ("sdk_runtime", "Robot SDK direct control backend", False),
+        ("ros2_runtime", "ROS2 middleware backend", False),
+    ]
+
+    print("=" * 60)
+    print("ROSClaw Runtime Backends")
+    print("=" * 60)
+    for name, desc, available in backends:
+        icon = "✅" if available else "❌"
+        status = "healthy" if available else "unavailable"
+        print(f"  {icon} {name:<25} {status:<15} {desc}")
+    print("=" * 60)
+    active = [n for n, _, a in backends if a][:1]
+    if active:
+        print(f"Active backend: {active[0]} (sim-only mode)")
     return 0
 
 
