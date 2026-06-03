@@ -44,7 +44,7 @@ from .intervention import (
     SafetyContext,
     SafetySeverity,
     SafetyState,
-    StrategyV15,
+    InterventionStrategy,
     TaskContext,
     compose,
     decide_strategy,
@@ -77,7 +77,7 @@ __all__ = [
     "SafetyContext",
     "SafetySeverity",
     "SafetyState",
-    "StrategyV15",
+    "InterventionStrategy",
     "TaskContext",
     # intervention ops
     "SAFETY_TAXONOMY",

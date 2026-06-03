@@ -12,7 +12,7 @@ Public surface (re-exported from ``rosclaw.how``):
 * ``InterventionDecision``      — strategy + snippet + sandbox checks.
 * ``RuntimeState``              — diagnoser output.
 * ``diagnose``                  — request → state.
-* ``decide_strategy``           — state → ``StrategyV15``.
+* ``decide_strategy``           — state → ``InterventionStrategy``.
 * ``compose``                   — strategy + state → decision.
 * ``diagnose_safety``           — extended safety taxonomy (S0-S4).
 * ``SAFETY_TAXONOMY``           — canonical 15-symptom dict.
@@ -47,7 +47,7 @@ from .schemas import (
     SafetyContext,
     SafetySeverity,
     SafetyState,
-    StrategyV15,
+    InterventionStrategy,
     TaskContext,
     decision_as_v1_response,
     from_v1_prompt_build,
@@ -75,7 +75,7 @@ __all__ = [
     "SafetyContext",
     "SafetySeverity",
     "SafetyState",
-    "StrategyV15",
+    "InterventionStrategy",
     "TaskContext",
     "compose",
     "decide_strategy",

@@ -50,13 +50,13 @@ SafetyState = Literal[
 
 SafetySeverity = Literal["S0", "S1", "S2", "S3", "S4"]
 
-# v1 + v1.5 union. v1 callers only ever see the first three.
-StrategyV15 = Literal[
-    # v1 strategies (preserved for backward compat)
+# The full strategy set surfaced by decide_strategy(). The first three
+# ("SAFETY" / "FREE_EXPLORATION" / "CATALYST") are also surfaced via the
+# legacy /wiki/v1/prompt/build response for backward compat.
+InterventionStrategy = Literal[
     "SAFETY",
     "FREE_EXPLORATION",
     "CATALYST",
-    # v1.5 strategies
     "NOOP",
     "DIAGNOSE",
     "FEASIBILITY_REPAIR",
@@ -157,7 +157,7 @@ class InterventionDecision(BaseModel):
     intervention back to a strategy and (when applicable) a pattern.
     """
 
-    strategy: StrategyV15
+    strategy: InterventionStrategy
     runtime_state: RuntimeState
     snippet: str = ""
     injected: bool = False
@@ -271,7 +271,7 @@ __all__ = [
     "SafetyContext",
     "SafetySeverity",
     "SafetyState",
-    "StrategyV15",
+    "InterventionStrategy",
     "TaskContext",
     "decision_as_v1_response",
     "from_v1_prompt_build",

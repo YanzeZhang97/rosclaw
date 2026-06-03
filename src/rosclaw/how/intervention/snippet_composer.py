@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 from typing import Any, Final
 
-from .schemas import InterventionDecision, RuntimeState, StrategyV15
+from .schemas import InterventionDecision, InterventionStrategy, RuntimeState
 
 # In rosclaw-how the cap came from settings.max_injection_tokens (default 400).
 # In the monorepo there is no FastAPI settings layer to wire to, so we inline
@@ -351,7 +351,7 @@ def _compose_escalate() -> dict[str, str]:
 
 
 def compose(
-    strategy: StrategyV15,
+    strategy: InterventionStrategy,
     state: RuntimeState,
     *,
     matched: dict[str, Any] | None = None,

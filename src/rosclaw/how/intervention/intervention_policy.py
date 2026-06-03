@@ -1,11 +1,11 @@
-"""rosclaw_how.intervention_policy — v1.5 state → strategy decision.
+"""rosclaw_how.intervention_policy — state → strategy decision.
 
 Inputs (pure data):
 
 * ``RuntimeState`` from ``runtime_diagnoser.diagnose``.
 * ``AgentContext.recent_pattern_ids`` from the request (cooldown signal).
 
-Output: a v1.5 ``StrategyV15`` plus a list of human-readable reasons
+Output: an ``InterventionStrategy`` plus a list of human-readable reasons
 the operator can read off the dashboard.
 
 The decision tree is **deterministic** and **pure**: same input →
@@ -24,8 +24,8 @@ from .safety_router import is_blocking
 from .schemas import (
     AgentContext,
     InterventionRequest,
+    InterventionStrategy,
     RuntimeState,
-    StrategyV15,
 )
 
 # How many recent injections to consider for the cooldown swap.
@@ -44,8 +44,8 @@ def decide_strategy(
     state: RuntimeState,
     *,
     recent_pattern_id: str | None = None,
-) -> tuple[StrategyV15, list[str]]:
-    """Map ``RuntimeState`` → ``StrategyV15`` with cooldown awareness.
+) -> tuple[InterventionStrategy, list[str]]:
+    """Map ``RuntimeState`` → ``InterventionStrategy`` with cooldown awareness.
 
     ``recent_pattern_id`` is the pattern the router is *about to*
     inject; if the same pattern is in the agent's ``recent_pattern_ids``
