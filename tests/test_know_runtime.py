@@ -1,14 +1,14 @@
-"""Integration tests for v1.5 KnowledgeBatchEngine + task_pack_adapter.
+"""Integration tests for rosclaw.know runtime adapters.
 
-These tests cover the new modules introduced when ``rosclaw_know``
-v1.5 was wired into the runtime:
+These tests cover the runtime-side modules that wrap the
+:mod:`rosclaw_know` compiler:
 
   - ``rosclaw.know.batch_engine.KnowledgeBatchEngine``
   - ``rosclaw.know.assets_loader.AssetsLoader``
   - ``rosclaw.know.task_pack_adapter.task_pack_for``
 
 Each test runs without pulling in the full runtime stack, so they
-exercise the v1.5 boundary in isolation.
+exercise the rosclaw-know boundary in isolation.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ import pytest
 # Guard the entire module behind the rosclaw-know availability check;
 # CI environments without the package should skip cleanly instead of
 # erroring at import time.
-_v15 = pytest.importorskip("rosclaw_know", reason="rosclaw-know v1.5 not installed")
+_rosclaw_know = pytest.importorskip("rosclaw_know", reason="rosclaw-know not installed")
 
 
 from rosclaw.core.event_bus import Event, EventBus  # noqa: E402
@@ -120,7 +120,7 @@ class TestBatchEngineLifecycle:
         eng = KnowledgeBatchEngine(_FakeRuntime(bus), assets_path=tmp_path / "ka")
         eng._do_initialize()
         eng._do_start()
-        # 5 v1.5 topics + bookkeeping
+        # 5 batch topics + bookkeeping
         for topic in KnowledgeBatchEngine.SUBSCRIPTIONS:
             assert bus.subscriber_count(topic) >= 1, f"missing subscriber on {topic}"
 
@@ -130,13 +130,13 @@ class TestBatchEngineLifecycle:
 
 @pytest.mark.skipif(
     not (ASSETS_DIR / "bridge_index.json").exists(),
-    reason="v1.5 assets not provisioned in data/knowledge_assets/",
+    reason="knowledge assets not provisioned in data/knowledge_assets/",
 )
 class TestEventTriggersReweight:
     """Synthetic ``rosclaw.sandbox.episode.failed`` → reweight chain."""
 
     def test_synthetic_collision_episode_updates_metrics(self, tmp_path: Path):
-        # Stage the v1.5 assets in a tmp dir so the test doesn't mutate
+        # Stage the knowledge assets in a tmp dir so the test doesn't mutate
         # the canonical files under data/knowledge_assets/.
         staged = tmp_path / "ka"
         staged.mkdir()
@@ -245,7 +245,7 @@ class TestAssetsLoader:
     def test_reload_on_event(self, tmp_path: Path):
         from rosclaw.know.assets_loader import AssetsLoader
 
-        # Minimal v1.5-style bridge_index.json (rebuilt below per test).
+        # Minimal bridge_index.json (rebuilt below per test).
         (tmp_path / "bridge_index.json").write_text(json.dumps({"version": "v2", "clusters": []}))
 
         bus = EventBus()
@@ -268,3 +268,85 @@ class TestAssetsLoader:
         # Reload count may or may not have advanced depending on
         # whether there's a KI to refresh.
         assert loader._reload_count >= baseline
+
+
+# ── integration: MCP tool registration ───────────────────────────────────
+
+
+class TestMCPKnowledgeTools:
+    """The two MCP tools introduced for rosclaw-know:
+    ``rosclaw_task_pack`` and ``rosclaw_match_symptom``.
+    """
+
+    def _hub(self, *, with_provider: bool = False, with_runtime_knowledge: bool = False):
+        from rosclaw.agent_runtime.mcp_hub import MCPHub
+        bus = EventBus()
+        runtime: Any | None = None
+        if with_provider or with_runtime_knowledge:
+            class _RT:
+                capability_router = object() if with_provider else None
+                knowledge = None
+            runtime = _RT()
+            if with_runtime_knowledge:
+                from rosclaw.know.interface import KnowledgeInterface
+                ki = KnowledgeInterface(
+                    robot_id="mcp_test",
+                    assets_path="/tmp/rosclaw_test_mcp_no_assets",
+                )
+                ki._do_initialize()
+                runtime.knowledge = ki
+        hub = MCPHub(bus, runtime=runtime)
+        hub._do_initialize()
+        return hub
+
+    def test_tools_registered_in_low_level_mode(self):
+        hub = self._hub()
+        assert "rosclaw_task_pack" in hub._tools
+        assert "rosclaw_match_symptom" in hub._tools
+
+    def test_tools_registered_in_semantic_mode(self):
+        hub = self._hub(with_provider=True)
+        assert "rosclaw_task_pack" in hub._tools
+        assert "rosclaw_match_symptom" in hub._tools
+
+    def test_task_pack_requires_task_id(self):
+        import asyncio
+        hub = self._hub()
+        result = asyncio.run(hub.handle_tool_call("rosclaw_task_pack", {}))
+        assert result["status"] == "error"
+        assert "task_id" in result["error"]
+
+    def test_task_pack_returns_pack_for_real_task(self):
+        import asyncio
+        hub = self._hub()
+        # Use a task_id known to exist in the catalog if assets are
+        # provisioned.  Otherwise the adapter returns an empty pack
+        # with warnings — also a valid response.
+        result = asyncio.run(hub.handle_tool_call(
+            "rosclaw_task_pack",
+            {"task_id": "task_robotics_pid_tuning"},
+        ))
+        assert result["status"] == "ok"
+        assert "task_pack" in result
+
+    def test_match_symptom_requires_runtime(self):
+        import asyncio
+        hub = self._hub()  # no runtime
+        result = asyncio.run(hub.handle_tool_call(
+            "rosclaw_match_symptom",
+            {"error_signature": "PID windup"},
+        ))
+        assert result["status"] == "error"
+        assert "Runtime" in result["error"]
+
+    def test_match_symptom_returns_ok_with_knowledge(self):
+        import asyncio
+        hub = self._hub(with_runtime_knowledge=True)
+        result = asyncio.run(hub.handle_tool_call(
+            "rosclaw_match_symptom",
+            {"error_signature": "torque saturation actuator wind-up"},
+        ))
+        assert result["status"] == "ok"
+        # `matched` may be True or False depending on assets;
+        # the contract is just the envelope.
+        assert "matched" in result

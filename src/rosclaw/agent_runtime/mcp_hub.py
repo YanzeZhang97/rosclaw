@@ -155,6 +155,7 @@ class MCPHub(LifecycleMixin):
         self._register_query_knowledge_tool()
         self._register_get_safety_heuristic_tool()
         self._register_get_recovery_strategy_tool()
+        self._register_knowledge_compiler_tools()
 
     def _register_observe_scene_tool(self) -> None:
         self._tools["observe_scene"] = {
@@ -251,6 +252,7 @@ class MCPHub(LifecycleMixin):
         self._register_query_world_objects_tool()
         self._register_get_scene_graph_tool()
         self._register_cognitive_search_tool()
+        self._register_knowledge_compiler_tools()
 
     def _register_move_tool(self) -> None:
         self._tools["move_joints"] = {
@@ -386,6 +388,66 @@ class MCPHub(LifecycleMixin):
             },
         }
 
+    # -- rosclaw-know (compiled knowledge) tools --
+    def _register_knowledge_compiler_tools(self) -> None:
+        """Register tools backed by the rosclaw-know compiled catalog."""
+        # Idempotent: both _register_semantic_tools and _register_low_level_tools
+        # call us, so guard against double registration.
+        if "rosclaw_task_pack" in self._tools:
+            return
+        self._register_rosclaw_task_pack_tool()
+        self._register_rosclaw_match_symptom_tool()
+
+    def _register_rosclaw_task_pack_tool(self) -> None:
+        self._tools["rosclaw_task_pack"] = {
+            "name": "rosclaw_task_pack",
+            "description": (
+                "Get the pre-flight knowledge pack for a task: known failure modes, "
+                "fix patterns, anti-patterns, and expected signals. Pull this BEFORE "
+                "selecting a provider so the agent reasons against compiled knowledge "
+                "rather than learning the same lessons twice."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "Task identifier from the compiled TaskCard catalog (e.g. 'task_robotics_pid_tuning').",
+                    },
+                    "embodiment_id": {
+                        "type": "string",
+                        "description": "Optional robot/embodiment identifier — reserved for embodiment-aware ranking.",
+                    },
+                    "top_k_patterns": {
+                        "type": "integer",
+                        "description": "Maximum number of fix patterns to return.",
+                        "default": 5,
+                    },
+                },
+                "required": ["task_id"],
+            },
+        }
+
+    def _register_rosclaw_match_symptom_tool(self) -> None:
+        self._tools["rosclaw_match_symptom"] = {
+            "name": "rosclaw_match_symptom",
+            "description": (
+                "Match an error signature or runtime symptom against the compiled "
+                "FailureMode catalog. Returns the best-fitting pattern with its fix "
+                "recipe and anti-pattern, or null when no candidate clears the threshold."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "error_signature": {
+                        "type": "string",
+                        "description": "Free-text symptom or error log line to match (e.g. 'PID integral wind-up').",
+                    },
+                },
+                "required": ["error_signature"],
+            },
+        }
+
     def _register_query_world_objects_tool(self) -> None:
         self._tools["query_world_objects"] = {
             "name": "query_world_objects",
@@ -480,6 +542,12 @@ class MCPHub(LifecycleMixin):
         # Heuristic recovery tool (HOW)
         elif name == "get_recovery_strategy":
             return await self._handle_get_recovery_strategy(arguments)
+
+        # rosclaw-know compiled-knowledge tools
+        elif name == "rosclaw_task_pack":
+            return self._handle_rosclaw_task_pack(arguments)
+        elif name == "rosclaw_match_symptom":
+            return self._handle_rosclaw_match_symptom(arguments)
 
         else:
             return {"error": f"Unknown tool: {name}"}
@@ -977,6 +1045,61 @@ class MCPHub(LifecycleMixin):
             "status": "ok",
             "condition": condition,
             "safety_rule": rule,
+        }
+
+    def _handle_rosclaw_task_pack(self, arguments: dict) -> dict:
+        """Handle rosclaw_task_pack tool call."""
+        task_id = arguments.get("task_id", "")
+        if not task_id:
+            return {"status": "error", "error": "task_id is required"}
+
+        embodiment_id = arguments.get("embodiment_id") or None
+        top_k = int(arguments.get("top_k_patterns", 5) or 5)
+
+        try:
+            from rosclaw.know.task_pack_adapter import task_pack_for
+        except ImportError as exc:
+            return {
+                "status": "error",
+                "error": f"task_pack_adapter unavailable: {exc}",
+            }
+
+        try:
+            pack = task_pack_for(
+                task_id,
+                embodiment_id=embodiment_id,
+                top_k_patterns=top_k,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "status": "error",
+                "error": f"task_pack build failed: {exc}",
+            }
+
+        return {"status": "ok", "task_pack": pack}
+
+    def _handle_rosclaw_match_symptom(self, arguments: dict) -> dict:
+        """Handle rosclaw_match_symptom tool call."""
+        if self.runtime is None:
+            return {"status": "error", "error": "Runtime not available"}
+
+        knowledge = getattr(self.runtime, "knowledge", None)
+        if knowledge is None:
+            return {"status": "error", "error": "Knowledge module not available"}
+
+        signature = arguments.get("error_signature", "")
+        if not signature:
+            return {"status": "error", "error": "error_signature is required"}
+
+        try:
+            match = knowledge.match_symptom(signature)
+        except Exception as exc:  # noqa: BLE001
+            return {"status": "error", "error": f"match_symptom failed: {exc}"}
+
+        return {
+            "status": "ok",
+            "matched": match is not None,
+            "result": match,
         }
 
     @staticmethod

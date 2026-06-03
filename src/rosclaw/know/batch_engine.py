@@ -36,10 +36,10 @@ try:
     from rosclaw_know.sim_ingest import reweight_bridge_from_robot_events
     from rosclaw_know.sim_ingest.event_schema import EVENT_TYPES, RobotEvent
 
-    _V15_AVAILABLE = True
+    _KNOW_AVAILABLE = True
 except ImportError as exc:
-    logger.info("rosclaw-know v1.5 not available (%s); batch engine inert", exc)
-    _V15_AVAILABLE = False
+    logger.info("rosclaw-know not available (%s); batch engine inert", exc)
+    _KNOW_AVAILABLE = False
 
 
 # Map of runtime failure_type / signature strings → canonical event_type.
@@ -67,7 +67,7 @@ def _infer_event_type(payload: dict[str, Any]) -> str:
     Returns ``"controller_error"`` (a safe catch-all) when no signal
     matches.  Guarded against the rosclaw_know import failing.
     """
-    if not _V15_AVAILABLE:
+    if not _KNOW_AVAILABLE:
         return "controller_error"
     raw = (
         payload.get("event_type")
@@ -91,7 +91,7 @@ def _payload_to_robot_events(
     summary event).  A future revision can split into per-violation
     events when the runtime emits the per-violation envelope.
     """
-    if not _V15_AVAILABLE or not isinstance(payload, dict):
+    if not _KNOW_AVAILABLE or not isinstance(payload, dict):
         return []
     import time
 
@@ -162,7 +162,7 @@ class KnowledgeBatchEngine(LifecycleMixin):
     # -- lifecycle ------------------------------------------------------
 
     def _do_initialize(self) -> None:
-        if not _V15_AVAILABLE:
+        if not _KNOW_AVAILABLE:
             logger.info(
                 "[KnowBatch] rosclaw-know not installed; "
                 "batch engine is inert.  install with: pip install rosclaw-know"
@@ -175,7 +175,7 @@ class KnowledgeBatchEngine(LifecycleMixin):
         )
 
     def _do_start(self) -> None:
-        if not _V15_AVAILABLE:
+        if not _KNOW_AVAILABLE:
             return
         bus = self.runtime.event_bus if hasattr(self.runtime, "event_bus") else None
         if bus is None:
@@ -245,12 +245,12 @@ class KnowledgeBatchEngine(LifecycleMixin):
 
     @property
     def is_active(self) -> bool:
-        return _V15_AVAILABLE
+        return _KNOW_AVAILABLE
 
     @property
     def stats(self) -> dict[str, Any]:
         return {
-            "active": _V15_AVAILABLE,
+            "active": _KNOW_AVAILABLE,
             "batches_processed": self._batches_processed,
             "last_summary": dict(self._last_summary),
             "bridge_path": str(self.bridge_path),

@@ -14,7 +14,7 @@ class TestKnowHowRuntimeE2E:
 
     @pytest.fixture
     def runtime(self, tmp_path, monkeypatch):
-        # v1.5 isolation: chdir to tmp_path so the Runtime's KI sees an
+        # Isolation: chdir to tmp_path so the Runtime's KI sees an
         # empty ``data/knowledge_assets/`` directory and falls back to
         # the curated baseline patterns this test was written against.
         monkeypatch.chdir(tmp_path)

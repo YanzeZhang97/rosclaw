@@ -107,8 +107,8 @@ class Runtime(LifecycleMixin):
         self._swarm: Optional[Any] = None
         self._skill_manager: Optional[Any] = None
         self._knowledge: Optional[Any] = None
-        self._knowledge_batch: Optional[Any] = None  # v1.5 — KnowledgeBatchEngine
-        self._knowledge_assets: Optional[Any] = None  # v1.5 — AssetsLoader
+        self._knowledge_batch: Optional[Any] = None
+        self._knowledge_assets: Optional[Any] = None
         self._how: Optional[Any] = None
         self._e_urdf: Optional[Any] = None
         self._robot_profile: Optional[Any] = None
@@ -290,7 +290,7 @@ class Runtime(LifecycleMixin):
                 if seekdb is not None:
                     seed_knowledge_graph(seekdb)
 
-                # v1.5: spawn KnowledgeBatchEngine + AssetsLoader.  Both
+                # Spawn KnowledgeBatchEngine + AssetsLoader.  Both
                 # are inert when rosclaw-know is not installed; failures
                 # here MUST NOT kill the runtime — the query side keeps
                 # working with its hard-coded fallback patterns.

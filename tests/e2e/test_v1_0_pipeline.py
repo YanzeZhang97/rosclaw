@@ -16,7 +16,11 @@ from rosclaw.core.runtime import Runtime, RuntimeConfig
 
 
 @pytest.fixture
-def runtime():
+def runtime(tmp_path, monkeypatch):
+    # Isolation: chdir to tmp_path so the Runtime's KI sees an empty
+    # ``data/knowledge_assets/`` directory and falls back to the curated
+    # baseline patterns this test was written against.
+    monkeypatch.chdir(tmp_path)
     config = RuntimeConfig(
         robot_id="e2e_test_bot",
         enable_memory=True,

@@ -17,11 +17,11 @@ from rosclaw.know.graph import count_knowledge_facts
 from rosclaw.memory.seekdb_client import SeekDBMemoryClient
 
 
-# v1.5 isolation: these tests pin the curated-baseline contract, so
-# they MUST not pick up the v1.5 catalog in ``data/knowledge_assets/``.
+# Isolation: these tests pin the curated-baseline contract, so they
+# MUST not pick up the compiled catalog in ``data/knowledge_assets/``.
 # Pointing at a nonexistent path makes KnowledgeInterface skip the
 # bridge_index load and serve only the curated fallback patterns.
-_BASELINE_ASSETS = "/tmp/rosclaw_test_baseline_no_v15_assets"
+_BASELINE_ASSETS = "/tmp/rosclaw_test_baseline_no_compiled_assets"
 
 
 class TestKnowledgeInterface:

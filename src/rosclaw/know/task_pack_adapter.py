@@ -22,10 +22,10 @@ try:
     from rosclaw_know.schemas import TaskPackQuery
     from rosclaw_know.task_pack_builder import TaskCardNotFoundError, build_task_pack
 
-    _V15_AVAILABLE = True
+    _KNOW_AVAILABLE = True
 except ImportError as exc:  # rosclaw_know not installed
-    logger.info("rosclaw-know v1.5 not available (%s); task packs disabled", exc)
-    _V15_AVAILABLE = False
+    logger.info("rosclaw-know not available (%s); task packs disabled", exc)
+    _KNOW_AVAILABLE = False
 
 
 _assets_cache: dict[str, Any] | None = None
@@ -42,7 +42,7 @@ def _empty_pack() -> dict[str, Any]:
         "fix_patterns": [],
         "anti_patterns": [],
         "expected_signals": [],
-        "warnings": ["rosclaw-know not installed"] if not _V15_AVAILABLE else [],
+        "warnings": ["rosclaw-know not installed"] if not _KNOW_AVAILABLE else [],
         "token_estimate": 0,
     }
 
@@ -50,7 +50,7 @@ def _empty_pack() -> dict[str, Any]:
 def _load(assets_dir: Path) -> dict[str, Any] | None:
     """Cached asset loader.  Reloads only when ``assets_dir`` changes."""
     global _assets_cache, _assets_cache_dir
-    if not _V15_AVAILABLE:
+    if not _KNOW_AVAILABLE:
         return None
     if _assets_cache_dir != assets_dir or _assets_cache is None:
         assets = load_task_pack_assets(assets_dir)
@@ -88,7 +88,7 @@ def task_pack_for(
     runs ``build_task_pack``.  No network.  Safe to call from any
     runtime hot path (~ ms range).
     """
-    if not _V15_AVAILABLE:
+    if not _KNOW_AVAILABLE:
         return _empty_pack()
 
     assets_dir = Path(assets_dir)
