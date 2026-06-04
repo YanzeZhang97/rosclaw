@@ -4,71 +4,151 @@
 
 **The Open Infrastructure for Physical Intelligence**
 
-*Grounding AGI into the Physical World.*
+*Grounding AI Agents into the Physical World.*
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python)](https://www.python.org/)
 [![ROS 2](https://img.shields.io/badge/ROS_2-Humble_|_Jazzy-FF3E00?logo=ros)](https://docs.ros.org/)
-[![Simulation](https://img.shields.io/badge/Digital_Twin-MuJoCo-black?logo=mujoco)](https://mujoco.org/)
+[![Simulation](https://img.shields.io/badge/Simulation-MuJoCo_|_Isaac--Sim-black?logo=mujoco)](https://mujoco.org/)
 [![MCP](https://img.shields.io/badge/Protocol-MCP_Ready-8A2BE2)](https://modelcontextprotocol.io/)
+[![Status](https://img.shields.io/badge/Release-v1.0-purple)](https://github.com/ros-claw/rosclaw/releases)
 
-[English](README.md) • [中文](README.zh.md) • [Architecture](#-architecture) • [Quick Start](#-quick-start)
+[English](README.md) • [中文](README.zh.md) • [Architecture](#architecture) • [Quick Start](#-quick-start) • [Docs](docs/)
 
 <br/>
 
-> *"Teach Once, Embody Anywhere. Share Skills, Shape Reality."*
+> **Teach Once. Embody Anywhere. Evolve Continuously.**
 
 </div>
 
-<br/>
+---
 
-> **⚠️ WARNING: THIS VERSION IS UNDER ACTIVE DEVELOPMENT AND HAS NOT BEEN OFFICIALLY RELEASED.**
->
-> This is a pre-release development build of ROSClaw v1.0. APIs, schemas, and module interfaces are subject to change without notice. Do NOT use this version in production environments. The official v1.0 release will be announced after all integration gates pass.
->
-> ---
->
-> **Project Status: V1.0 — Grounding Runtime (Pre-Release)**
->
-> ROSClaw is **NOT** just another agent framework, nor is it a simple LLM-to-ROS API wrapper. It is the **foundational infrastructure** designed to solve the ultimate bottleneck of AGI: **The Physical Grounding Problem.**
->
-> We provide the definitive Runtime Environment that transforms abstract token-generation into safe, deterministic, and self-evolving physical interactions.
+## What is ROSClaw?
 
-## The Vision: Beyond Agent Frameworks
+ROSClaw is **not** another chatbot framework. It is **not** a thin LLM-to-ROS wrapper. It is **not** a collection of random robotics tools.
 
-If OpenClaw gave AI agents the ability to reason, **ROSClaw gives them gravity.**
+ROSClaw is an **open infrastructure layer for Physical Intelligence**: a runtime that connects AI agents, robot embodiments, simulation sandboxes, skill systems, multimodal providers, physical memory, and self-evolution loops into one coherent operating layer.
 
-In the history of artificial intelligence, the **"Symbol Grounding Problem"** is the biggest obstacle on the road to AGI. A large language model knows the word "apple," but it does not know the weight of an apple, its texture, or the sound it makes when it falls to the ground.
+It is designed for the next generation of embodied agents that must not only reason, but also **act safely, remember physically, recover from failure, and improve over time**.
 
-**The entire purpose of ROSClaw is to solve the Grounding problem for large models in the three-dimensional universe.**
-
-We are building an **Open Ecosystem for Physical Skills**. If a developer in Tokyo teaches a robotic arm the "precision screwdriving" skill via ROSClaw, a factory worker in Berlin can instantly download that skill and deploy it on a completely different humanoid robot — **no re-programming required**.
-
-> **The future we imagine**: A skill marketplace where physical intelligence flows as freely as software — teach once, embody everywhere.
+```
+┌──────────────────────────────────────────────────────────────┐
+│           External Cognitive Brains                          │
+│     OpenClaw / Claude / GPT / Qwen / Custom Agents           │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ MCP / SDK / AgentContext
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│           ROSClaw Runtime                                    │
+│  AgentContext │ TaskContext │ SkillContext │ Trace           │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+│   Provider    │   │   Sandbox     │   │    Darwin     │
+│  Capability   │   │  e-URDF /     │   │  Benchmark /  │
+│   Router      │   │  MuJoCo /     │   │  Regression / │
+│               │   │  Firewall     │   │  Evaluation   │
+└───────┬───────┘   └───────┬───────┘   └───────────────┘
+        │                   │
+        └───────────┬───────┘
+                    ▼
+┌──────────────────────────────────────────────────────────────┐
+│           Physical World / Simulator                         │
+│        UR5e / G1 / Go2 / RealSense / IoT / MuJoCo            │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│           Practice Capture                                   │
+│   Unified Timeline / MCAP / JSONL / Video / Events           │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│           SeekDB Knowledge Plane                             │
+│  Robot │ Skill │ Provider │ Episode │ Failure │ Evidence    │
+└───────────────┬────────────────────────────┬─────────────────┘
+                │                            │
+                ▼                            ▼
+┌───────────────────────┐      ┌───────────────────────────────┐
+│     Memory            │      │         Know                  │
+│  Spatiotemporal       │      │  Physical-AI Knowledge        │
+│  Failure / Success    │      │  Compiler                     │
+│  Pattern / Causal     │      │  TaskCard / Pattern / Evidence│
+└───────────┬───────────┘      └───────────────┬───────────────┘
+            │                                  │
+            └──────────────┬───────────────────┘
+                           │
+                           ▼
+            ┌──────────────────────────────┐
+            │      How  ←→  Auto           │
+            │  Runtime Intervention        │
+            │  Self-Evolution Control      │
+            │  Proposal / Patch / Champion │
+            └──────────────┬───────────────┘
+                           │
+                           ▼
+                 ┌─────────────────┐
+                 │  Skill Registry │
+                 │  Versioned /    │
+                 │  Champion /     │
+                 │  Rollback-safe  │
+                 └─────────────────┘
+```
 
 ---
 
-## Architecture of Grounding
+## Why ROSClaw?
 
-ROSClaw operates through an interconnected suite of deterministic engines, unified by an **Event Bus** that ensures complete module decoupling:
+Large language models can plan, write code, and reason over symbols. But physical intelligence requires more than tokens.
 
-### 1. e-URDF (Physical Grounding)
-The "Device Tree" of Physical AI. Defines the absolute kinematic and dynamic limits of any robotic embodiment. Every robot carries its **Physical DNA** — mass, limits, sensors, safety envelopes.
+A physical agent must understand:
 
-### 2. Digital Twin Firewall (Action Grounding)
-A MuJoCo-powered digital twin that intercepts, simulates, and aligns LLM hallucinations with Newtonian physics *before* execution. Every motion is validated in simulation; if collision or torque overload is predicted, the action is blocked and the Agent self-corrects.
+- What body it has;
+- What sensors and actuators it owns;
+- What actions are safe;
+- What happened during execution;
+- Why a skill failed;
+- How to recover;
+- How to improve the skill without breaking safety.
 
-### 3. Praxis Capture (Timeline Grounding)
-High-frequency MCAP recorders that bind 1000Hz sensorimotor data with 1Hz LLM Chain-of-Thought on a unified time axis. Event-driven ring buffers achieve 100x storage optimization while keeping 100% of valuable data.
+ROSClaw provides the missing infrastructure between high-level AI agents and the physical world.
 
-### 4. Spatiotemporal Memory (Experience Grounding)
-A SeekDB-backed hippocampus that converts raw physical failures into structured causal graphs. Includes:
-- **World Object Store** with persistent identity and scene graphs
-- **Trajectory Memory** with DTW similarity search
-- **Object Permanence** — occluded objects do not disappear; confidence decays over time until the object is either re-detected or marked missing
-- **Cognitive Search** — semantic + spatial + temporal retrieval across memory atoms
+---
 
-### 5. Swarm Coordination (Collaboration Grounding)
-Multi-robot coordination through the EventBus. Task allocation, role assignment, and DDS-native reflex handshake for physical collaboration.
+## Core Principle
+
+> **Every physical action should be grounded, validated, recorded, remembered, and improved.**
+
+The full closed loop:
+
+```
+Physical Task
+    ↓
+Agent Intent
+    ↓
+Capability Provider
+    ↓
+Sandbox / Firewall Validation
+    ↓
+Runtime Execution
+    ↓
+Praxis Capture
+    ↓
+Spatiotemporal Memory
+    ↓
+Runtime Intervention (How)
+    ↓
+Knowledge Compilation (Know)
+    ↓
+Auto Evolution
+    ↓
+Champion Skill
+    ↓
+Safer Physical Task
+```
 
 ---
 
@@ -88,8 +168,10 @@ graph TD
         FW[Digital Twin Firewall]
         TM[Unified Timeline]
         MEM[Spatiotemporal Memory]
-        SW[Swarm Manager]
         SK[Skill Manager]
+        HO[How Intervention]
+        AU[Auto Evolution]
+        DW[Darwin Evaluator]
     end
 
     subgraph Infra[Infrastructure]
@@ -100,6 +182,7 @@ graph TD
     subgraph HW[Hardware Layer]
         G1[Unitree G1]
         UR5[UR5e Arm]
+        GO[Go2]
         Other[Your Robot]
     end
 
@@ -108,36 +191,209 @@ graph TD
     EB <-->|Validate| FW
     EB <-->|Record| TM
     EB <-->|Store| MEM
-    EB <-->|Coordinate| SW
     EB <-->|Execute| SK
+    EB <-->|Intervene| HO
+    EB <-->|Evolve| AU
+    EB <-->|Evaluate| DW
     FW <-->|Model| EURDF
     MEM <-->|Persist| SKDB
     SK -->|Dispatch| HW
+    AU -->|Promote| SK
+    DW -->|Report| AU
 ```
 
 **Key Insight**: All modules communicate exclusively through the EventBus. No direct module-to-module calls. This ensures complete decoupling and enables any agent to connect without hardware-specific knowledge.
 
 ---
 
+## Key Modules
+
+| Module | Role |
+|--------|------|
+| `rosclaw-runtime` | The lifecycle manager for the whole system. Owns configuration, plugins, health checks, event routing, and runtime orchestration. |
+| `e-urdf-zoo` | The Physical DNA Registry. Defines robot embodiment, kinematics, dynamics, sensors, safety limits, capabilities, and simulation assets. |
+| `rosclaw-provider` | The capability provider layer. Turns LLMs, VLMs, VLAs, VLNs, world models, skill policies, critics, and embeddings into routable physical capabilities. |
+| `rosclaw-sandbox` | The physical simulation, validation, replay, and safety layer. Its `firewall` mode validates actions before execution. |
+| `rosclaw-practice` | The praxis capture engine. Records unified physical timelines with sensorimotor traces, model decisions, tool calls, events, MCAP, and replay artifacts. |
+| `rosclaw-memory` | The spatiotemporal memory system. Stores physical failures, success patterns, scene memory, trajectory memory, and causal experience graphs. |
+| `rosclaw-how` | The runtime intervention controller. Injects minimal, evidence-backed guidance when an agent is stuck, unsafe, or regressing. |
+| `rosclaw-know` | The physical-AI knowledge compiler. Turns papers, code, logs, trajectories, benchmark traces, and failures into structured engineering knowledge. |
+| `rosclaw-auto` | The self-evolution control plane. Generates proposals, patches skills, runs experiments, evaluates candidates, promotes champions, and records dead ends. |
+| `rosclaw-darwin` | The evaluation and evolution arena. Provides benchmark pressure, multi-seed validation, regression tests, and skill evaluation. |
+| `rosclaw-forge` | The embodied asset compiler. Turns SDKs, ROS 2 interfaces, docs, and e-URDF profiles into MCP servers, skills, provider manifests, and asset bundles. |
+| `rosclaw-dashboard` | The observability layer for runtime health, traces, sandbox replay, memory, interventions, and skill evolution. |
+
+---
+
+## What Makes ROSClaw Different?
+
+### 1. Physical Grounding, Not Just Tool Calling
+
+ROSClaw does not expose raw robot APIs directly to an LLM. Every action is grounded through robot embodiment, capability schemas, safety limits, and runtime context.
+
+```
+Token Intent → Capability Request → Safety Validation → Physical Execution
+```
+
+### 2. e-URDF as Physical DNA
+
+ROSClaw treats robot embodiment as a first-class system primitive. An e-URDF profile defines:
+
+- Robot structure;
+- Joints, links, sensors, actuators;
+- Safety envelopes;
+- Tool frames;
+- Workspace limits;
+- Capabilities;
+- Simulation assets;
+- Benchmark metadata.
+
+This allows the same skill to be adapted, validated, and transferred across different robot bodies.
+
+### 3. Sandbox Before Reality
+
+The `rosclaw-sandbox` module provides a simulation-first validation layer. Its firewall mode can block risky actions before they reach hardware.
+
+Possible decisions:
+
+```
+ALLOW
+BLOCK
+MODIFY
+REQUIRE_HUMAN_CONFIRMATION
+```
+
+Example result:
+
+```json
+{
+  "decision": "BLOCK",
+  "risk_score": 0.92,
+  "reason": "Predicted collision between wrist_link and table",
+  "violated_constraints": ["collision", "workspace_boundary"],
+  "replay_id": "sandbox://replays/firewall_00042"
+}
+```
+
+### 4. Practice Capture
+
+ROSClaw records physical execution as structured praxis, not just logs. A single run can include:
+
+- Robot state;
+- Sensor snapshots;
+- Action trace;
+- Provider trace;
+- Sandbox decision;
+- Skill execution;
+- Critic result;
+- MCAP;
+- Replay;
+- Failure report.
+
+### 5. Runtime Intervention
+
+`rosclaw-how` acts as a runtime reflex layer. When an agent is stuck, unsafe, invalid-heavy, or regressing, it can provide minimal, evidence-backed interventions such as:
+
+- Safety constraints;
+- Feasibility repair;
+- Stabilizing hints;
+- Next experiment suggestions;
+- Recovery instructions.
+
+### 6. Self-Evolution
+
+`rosclaw-auto` turns repeated failures into structured improvement cycles:
+
+```
+FailureCase
+    ↓
+Diagnosis
+    ↓
+Hypothesis
+    ↓
+Proposal
+    ↓
+Patch
+    ↓
+Sandbox Experiment
+    ↓
+Darwin Evaluation
+    ↓
+Champion / DeadEnd
+```
+
+A skill is not overwritten blindly. It is **versioned, evaluated, promoted, and rollback-safe**.
+
+Skill promotion pipeline:
+
+```
+pick_cube@v1.0.0  baseline_champion
+    ↓
+pick_cube@candidate_0001  sandbox_passed
+    ↓
+pick_cube@v1.1.0  sim_champion
+    ↓
+pick_cube@v1.1.0  sandbox_champion
+    ↓
+pick_cube@v1.1.0  real_candidate
+    ↓
+pick_cube@v1.1.0  real_champion
+```
+
+---
+
 ## Quick Start
 
-### 1. Install from Source
+### 1. Clone
 
 ```bash
 git clone https://github.com/ros-claw/rosclaw.git
 cd rosclaw
+```
+
+### 2. Install
+
+```bash
 bash scripts/install.sh
 ```
 
-The installer creates a virtual environment, installs dependencies, sets up the e-URDF Zoo, and creates a `rosclaw` wrapper script.
+Or install in editable mode:
 
-### 2. Health Check
+```bash
+pip install -e .
+```
+
+See [INSTALL.md](INSTALL.md) for detailed instructions.
+
+### 3. Check System Health
 
 ```bash
 ./rosclaw doctor
 ```
 
-### 3. Start the Runtime
+Expected output:
+
+```text
+runtime:     HEALTHY
+event_bus:   HEALTHY
+seekdb:      HEALTHY
+provider:    HEALTHY
+sandbox:     HEALTHY
+practice:    HEALTHY
+memory:      HEALTHY
+how:         HEALTHY
+auto:        HEALTHY
+darwin:      HEALTHY
+dashboard:   HEALTHY
+```
+
+### 4. Start ROSClaw Runtime
+
+```bash
+./rosclaw start
+```
+
+Or programmatically:
 
 ```python
 from rosclaw.core import Runtime, RuntimeConfig
@@ -150,6 +406,8 @@ config = RuntimeConfig(
     enable_memory=True,
     enable_practice=True,
     enable_how=True,
+    enable_auto=True,
+    enable_darwin=True,
 )
 
 runtime = Runtime(config)
@@ -157,16 +415,39 @@ runtime.initialize()
 runtime.start()
 ```
 
-### 4. Connect via MCP (Claude Code)
+### 5. Inspect Available Robots
+
+```bash
+./rosclaw robot list
+./rosclaw robot inspect ur5e
+```
+
+### 6. Run a Sandbox Validation
+
+```bash
+./rosclaw sandbox validate ur5e
+./rosclaw sandbox run --robot ur5e --world tabletop --task reach
+```
+
+### 7. Run a Firewall Check
+
+```bash
+./rosclaw firewall check \
+  --robot ur5e \
+  --world tabletop \
+  --action examples/actions/unsafe_reach.json
+```
+
+### 8. Connect an MCP-Compatible Agent
+
+Example Claude Code MCP configuration:
 
 ```json
 {
   "mcpServers": {
     "rosclaw": {
       "command": "python3",
-      "args": [
-        "-m", "rosclaw.mcp.minimal_server"
-      ],
+      "args": ["-m", "rosclaw.mcp.server"],
       "env": {
         "PYTHONPATH": "src"
       }
@@ -175,115 +456,383 @@ runtime.start()
 }
 ```
 
-Exposes 13 tools: `move_joints`, `grasp`, `get_robot_state`, `validate_trajectory`, `emergency_stop`, `query_world_objects`, `get_scene_graph`, `cognitive_search`, `system.list_robots`, `system.run_sandbox_task`, `system.query_practice`, `system.query_memory`.
+Exposes tools such as: `move_joints`, `grasp`, `get_robot_state`, `validate_trajectory`, `emergency_stop`, `query_world_objects`, `get_scene_graph`, `cognitive_search`, `system.list_robots`, `system.run_sandbox_task`, `system.query_practice`, `system.query_memory`.
 
-### 5. Run End-to-End Tests
+---
+
+## Example: A Full Physical Intelligence Loop
 
 ```bash
-PYTHONPATH=src python -m pytest tests/test_e2e_full_pipeline.py -v
+./rosclaw demo tabletop_pick --robot ur5e
 ```
 
-Validates: Runtime init, EventBus routing, Firewall ALLOW/BLOCK, Practice recording, Memory write/search, How recovery, Dashboard health, and MCP Hub closed-loop routing.
+What happens:
+
+```text
+1. Agent receives task: "pick up the red cup"
+2. Provider routes to perception and skill capabilities
+3. Memory retrieves similar grasping experience
+4. Skill provider generates grasp plan
+5. Sandbox validates candidate motion
+6. Runtime executes safe action
+7. Practice records the full physical timeline
+8. Critic evaluates success or failure
+9. Memory stores the result
+10. How generates recovery guidance if needed
+11. Auto proposes a skill improvement after repeated failures
+12. Darwin evaluates the candidate skill
+13. A champion skill is promoted if it passes all gates
+```
+
+---
+
+## Safety Model
+
+ROSClaw follows a strict safety boundary:
+
+> **No model output should directly control a robot.**
+
+All physical execution must pass through:
+
+```
+Provider Schema
+    ↓
+e-URDF Constraints
+    ↓
+Sandbox / Firewall
+    ↓
+Runtime Guard
+    ↓
+Robot Controller
+```
+
+Hard rules:
+
+- VLA outputs are **proposals**, not raw motor commands.
+- World models are **neural previews**, not safety proofs.
+- MCP is an **agent tool interface**, not a real-time control bus.
+- Auto-generated skills must pass **sandbox validation** before execution.
+- Code patches require **human approval** before production use.
+- Safety configuration patches require **human approval**.
+- Every champion skill must be **rollback-safe**.
+
+---
+
+## Skill Evolution
+
+ROSClaw treats skills as versioned physical assets with full lineage tracking.
+
+Promotion is gated by six evaluation gates:
+
+| Gate | Check |
+|------|-------|
+| Success Improvement | Candidate success rate > baseline + threshold |
+| Safety Regression | No increase in collision or safety events |
+| Multi-Seed Validation | Passes on seeds [0, 1, 2, ...] |
+| Sandbox Clearance | Firewall decision == ALLOW |
+| Regression Suite | No degradation on existing tasks |
+| Human Approval | Required for code patches and safety config |
+
+Example CLI:
+
+```bash
+# Run auto evolution experiment
+./rosclaw auto run --task pick_cube --episodes 50
+
+# List current champions
+./rosclaw skill champions list
+
+# Show skill lineage
+./rosclaw skill lineage pick_cube
+
+# Rollback if needed
+./rosclaw skill rollback pick_cube --to v1.0.0
+```
+
+---
+
+## SDK-to-MCP / Asset Forge
+
+ROSClaw includes an embodied asset compiler:
+
+```
+SDK / ROS 2 Interfaces / Docs / e-URDF
+        ↓
+rosclaw-forge
+        ↓
+MCP Server + Skill Manifest + Provider Manifest + Tests + ClawHub Metadata
+```
+
+Example:
+
+```bash
+./rosclaw forge sdk-to-mcp \
+  --robot unitree_go2 \
+  --sdk-docs ./docs/unitree_go2_sdk.md \
+  --eurdf ./e-urdf-zoo/unitree_go2 \
+  --output ./generated/unitree_go2_bundle
+```
+
+Validate generated assets:
+
+```bash
+./rosclaw forge validate ./generated/unitree_go2_bundle
+```
+
+Install to staging:
+
+```bash
+./rosclaw forge install ./generated/unitree_go2_bundle --staging
+```
+
+---
+
+## Repository Structure
+
+```text
+rosclaw/
+├── src/rosclaw/              # Core runtime, schemas, CLI, MCP gateway
+│   ├── core/                 # Runtime, EventBus, lifecycle
+│   ├── schemas/              # Unified canonical dataclasses
+│   ├── provider/             # Capability provider layer
+│   ├── sandbox/              # MuJoCo simulation & firewall
+│   ├── practice/             # Timeline capture & MCAP
+│   ├── memory/               # Spatiotemporal memory
+│   ├── how/                  # Runtime intervention
+│   ├── know/                 # Knowledge compiler
+│   ├── auto/                 # Self-evolution control plane
+│   ├── darwin/               # Benchmark & evaluation arena
+│   ├── forge/                # Asset compiler
+│   ├── dashboard/            # Observability & WebSocket
+│   └── mcp/                  # MCP server implementation
+├── e-urdf-zoo/               # Physical DNA registry
+├── docs/                     # Architecture, RFCs, usage guides
+├── examples/                 # Robot and simulation examples
+├── tutorials/                # Step-by-step tutorials
+├── tests/                    # Unit, integration, E2E, safety tests
+├── benchmarks/               # Benchmark and evaluation tasks
+├── acceptance/               # Release acceptance tests
+├── scripts/                  # Install and utility scripts
+├── rosclaw.yaml              # Default runtime config
+├── docker-compose.yml        # Optional local services
+├── ARCHITECTURE.md           # 14 Engineering Iron Rules
+├── QUICKSTART.md             # Quick start guide
+└── INSTALL.md                # Installation details
+```
+
+---
+
+## Configuration
+
+Example `rosclaw.yaml`:
+
+```yaml
+runtime:
+  robot_id: ur5e
+  safety_level: strict
+
+event_bus:
+  backend: local
+
+knowledge_plane:
+  backend: seekdb
+  path: .rosclaw/seekdb
+
+object_store:
+  backend: local
+  path: .rosclaw/artifacts
+
+sandbox:
+  enabled: true
+  backend: mujoco
+  firewall_mode: true
+
+provider:
+  enabled: true
+
+practice:
+  enabled: true
+  mcap: true
+
+memory:
+  enabled: true
+
+how:
+  enabled: true
+  cooldown_window: 3
+  evidence_trace_enabled: true
+
+auto:
+  enabled: true
+  allow_code_patch: false
+  require_human_approval: true
+  trigger_failure_threshold: 3
+
+darwin:
+  enabled: true
+  seeds: [0, 1, 2]
+  episodes: 50
+  metrics: [success_rate, collision_rate, completion_time]
+```
 
 ---
 
 ## Roadmap
 
-| Sprint | Focus | Status |
-|--------|-------|--------|
-| **0** | Architecture Freeze (RFC-0001) | Done |
-| **1** | Physical Foundation (e-URDF, CLI, MCP) | Done |
-| **2** | Grounding Runtime (Event Bus, Agent Runtime) | Done |
-| **3** | Action Grounding (Firewall, MuJoCo) | Done |
-| **4** | Praxis Capture (Timeline, MCAP) | Done |
-| **5** | Spatiotemporal Memory (SeekDB, Object Permanence) | Done |
-| **6** | Knowledge & Recovery (How, Know) | Done |
-| **7** | Evolution Loop (Flywheel, Auto) | Planned |
-| **8** | Swarm Intelligence (DDS Reflex) | Planned |
-| **9** | Darwin Arena (Evaluation) | Planned |
+### ROSClaw v1.0 (Current)
+
+- [x] Runtime and plugin architecture
+- [x] e-URDF physical embodiment registry
+- [x] MCP-compatible agent runtime
+- [x] Capability provider layer
+- [x] MuJoCo sandbox and firewall mode
+- [x] Practice timeline capture (MCAP / JSONL)
+- [x] SeekDB-backed spatiotemporal memory
+- [x] How runtime intervention (v1.5)
+- [x] Know physical-AI knowledge compiler
+- [x] Auto self-evolution control plane
+- [x] Darwin benchmark & evaluation arena
+- [x] Skill Registry with champion/lineage/rollback
+- [x] Forge SDK-to-MCP asset compiler
+- [x] Dashboard observability (WebSocket + HTTP API)
+- [x] End-to-end physical intelligence demos
+- [x] Unified schema package (`rosclaw.schemas`)
+- [x] ARCHITECTURE.md — 14 Engineering Iron Rules
+
+### Next
+
+- [ ] Isaac Sim backend
+- [ ] Multi-robot collaborative sandbox
+- [ ] Advanced DDS reflex handshake
+- [ ] LeRobot / RLDS dataset export
+- [ ] OpenVLA and Cosmos provider integration
+- [ ] Darwin benchmark leaderboard
+- [ ] ClawHub skill and provider marketplace
+- [ ] Real-world long-horizon inspection demos
 
 ---
 
-## Validation
+## Use Cases
 
-ROSClaw v1.0 has passed comprehensive end-to-end validation (~95/100).
+### Robotics Research
 
-| Dimension | Status |
-|-----------|--------|
-| Install & Boot | 8/10 |
-| Claude Code MCP Integration | 15/15 |
-| Runtime / EventBus Architecture | 15/15 |
-| Sandbox / Firewall | 15/15 |
-| Provider / Skill | 10/10 |
-| Practice / Replay | 15/15 |
-| Memory / How | 10/10 |
-| Dashboard / Observability | 8/5 |
-| Forge / sdk_to_mcp | 5/5 |
+- Embodied agent evaluation
+- Skill learning and refinement
+- Simulation-to-real validation
+- Multi-modal robot memory
+- Benchmark-driven evolution
 
-**Test suite**: 11 end-to-end tests covering the full closed-loop pipeline (Runtime → Task → Practice → Memory → Dashboard → Stop). All passing.
+### Industrial Robotics
 
-Run: `PYTHONPATH=src python -m pytest tests/test_e2e_full_pipeline.py -v`
+- Robot skill packaging and versioning
+- Safe LLM-to-robot execution
+- Digital twin pre-validation
+- Inspection and manipulation workflows
+- Failure replay and root-cause analysis
+
+### Agent Infrastructure
+
+- MCP-compatible physical tools
+- Capability routing and abstraction
+- Agent safety guardrails
+- Runtime intervention
+- Self-improving skill systems
 
 ---
 
-## Safety Architecture
+## Development
 
-### Digital Twin Firewall
+Run tests:
 
-Every motion is validated in MuJoCo before physical execution:
-
-```python
-from rosclaw.core import Runtime, RuntimeConfig
-
-config = RuntimeConfig(
-    robot_model_path="ur5e.xml",
-    safety_level="STRICT",
-)
-runtime = Runtime(config)
-runtime.initialize()
+```bash
+PYTHONPATH=src pytest tests -v
 ```
 
-### Validation Layers
+Run end-to-end pipeline:
 
-- **e-URDF Soft Limits**: Joint position, velocity, torque envelopes
-- **MuJoCo Collision**: Self-collision and environment collision detection
-- **Semantic Safety**: Keepout zones, workspace boundaries, smoothness checks
+```bash
+PYTHONPATH=src pytest tests/test_e2e_full_pipeline.py -v
+```
+
+Run architecture checks:
+
+```bash
+./rosclaw doctor --architecture
+```
 
 ---
 
-## The Grounding Closed Loop
+## Contributing
 
-```text
-Physical World
-        ↓
-e-URDF DNA (Physical Grounding)
-        ↓
-Agent Runtime (LLM/MCP)
-        ↓
-Firewall (Action Grounding)
-        ↓
-Practice (Timeline Grounding)
-        ↓
-SeekDB (Knowledge Plane)
-        ↓
-Memory (Experience Grounding)
-        ↓
-How / Auto (Skill Grounding)
-        ↓
-Flywheel (Evolution Grounding)
-        ↓
-Swarm (Collaboration Grounding)
-        ↓
-Darwin (Evaluation Grounding)
-        ↓
-Physical World
+ROSClaw welcomes contributors building the open infrastructure for Physical Intelligence.
+
+Good first contribution areas:
+
+- e-URDF profiles for new robots;
+- MCP servers for robot SDKs;
+- Capability providers for perception, action, navigation, and verification;
+- Sandbox tasks and worlds;
+- Skill packages;
+- Benchmark tasks;
+- Documentation and tutorials.
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a pull request.
+
+---
+
+## Safety Notice
+
+ROSClaw is research infrastructure for physical AI and embodied agents.
+
+Always test in simulation before running on real hardware. Use emergency stop systems, workspace boundaries, safety-rated controllers, and human supervision when deploying to physical robots.
+
+**ROSClaw does not replace certified industrial safety systems.**
+
+---
+
+## Citation
+
+If you use ROSClaw in your research, please consider citing:
+
+```bibtex
+@software{rosclaw2026,
+  title  = {ROSClaw: Open Infrastructure for Physical Intelligence},
+  author = {ROSClaw Contributors},
+  year   = {2026},
+  url    = {https://github.com/ros-claw/rosclaw}
+}
 ```
 
-**Our Mission**: Transform physical interactions into structured experiences, experiences into memory, memory into skills, and skills into evolution.
+If you use the Genesis simulator with ROSClaw, please also cite:
+
+```bibtex
+@article{genesis2026,
+  title   = {Genesis: A Generative Physics Engine for General Purpose Robotics},
+  author  = {Genesis Authors},
+  journal = {arXiv preprint},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2604.04664}
+}
+```
+
+---
+
+## License
+
+This project is released under the MIT License. See [LICENSE](LICENSE).
+
+---
+
+## Links
+
+- **Website**: [https://www.rosclaw.io/](https://www.rosclaw.io/)
+- **GitHub**: [https://github.com/ros-claw/rosclaw](https://github.com/ros-claw/rosclaw)
+- **Documentation**: [docs/](docs/)
+- **Quick Start**: [QUICKSTART.md](QUICKSTART.md)
+- **Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ---
 
 <div align="center">
-  <b>Grounding AGI into the Physical World.</b><br>
-  <a href="https://rosclaw.io">rosclaw.io</a>
+  <b>ROSClaw — Grounding AI into the Physical World.</b>
 </div>
