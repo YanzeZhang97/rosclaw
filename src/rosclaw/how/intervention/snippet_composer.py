@@ -363,6 +363,9 @@ def compose(
     it's only used by CATALYST. The composer never queries the router
     itself — keeping I/O at the api boundary."""
     max_chars = _DEFAULT_MAX_INJECTION_TOKENS * 4
+    import uuid
+
+    injection_id = f"inj_{uuid.uuid4().hex[:8]}"
 
     if strategy in ("NOOP", "FREE_EXPLORATION"):
         return InterventionDecision(
@@ -371,6 +374,7 @@ def compose(
             snippet="",
             injected=False,
             reason="; ".join(state.reasons) if state.reasons else None,
+            injection_id=injection_id,
         )
 
     pieces: dict[str, str]
@@ -417,6 +421,7 @@ def compose(
         symptom=state.safety_symptom,
         requires_sandbox_validation=requires_sandbox,
         sandbox_checks=sandbox_checks,
+        injection_id=injection_id,
     )
 
 

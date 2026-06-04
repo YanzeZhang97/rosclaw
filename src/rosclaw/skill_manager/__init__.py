@@ -1,11 +1,11 @@
-"""ROSClaw Skill Manager - Skill Grounding Engine
+"""Skill Manager — registration, execution, versioning, and championing."""
+from .registry import SkillEntry, SkillRegistry
+from .executor import SkillExecutor
+from .loader import SkillLoader
 
-Provides skill registration, loading, and execution framework.
-Skills are reusable robot capabilities learned from demonstration or programmed.
-"""
-
-from rosclaw.skill_manager.registry import SkillRegistry, SkillEntry
-from rosclaw.skill_manager.executor import SkillExecutor
-from rosclaw.skill_manager.loader import SkillLoader
-
-__all__ = ["SkillRegistry", "SkillEntry", "SkillExecutor", "SkillLoader"]
+__all__ = [
+    "SkillEntry",
+    "SkillRegistry",
+    "SkillExecutor",
+    "SkillLoader",
+]

@@ -56,6 +56,11 @@ class DashboardMetrics:
         "rosclaw.dashboard.trace.updated",
         "rosclaw.how.recovery_hint.generated",
         "rosclaw.memory.write.completed",
+        "rosclaw.auto.proposal.created",
+        "rosclaw.auto.champion.promoted",
+        "rosclaw.auto.experiment.completed",
+        "rosclaw.auto.deadend.registered",
+        "rosclaw.how.evidence.generated",
     }
 
     def __init__(self, max_history: int = 1000, max_trace_history: int = 100):
@@ -68,6 +73,11 @@ class DashboardMetrics:
         self._event_counts: dict[str, int] = {}
         self._module_health: dict[str, str] = {}
         self._start_time = time.time()
+        self._auto_proposals: list[dict[str, Any]] = []
+        self._auto_experiments: list[dict[str, Any]] = []
+        self._auto_champions: list[dict[str, Any]] = []
+        self._auto_deadends: list[dict[str, Any]] = []
+        self._evidence_traces: list[dict[str, Any]] = []
 
     # ── Provider metrics ──
 
@@ -150,7 +160,7 @@ class DashboardMetrics:
 
     # ── Event counts ──
 
-    def increment_event(self, topic: str) -> None:
+    def increment_event(self, topic: str, payload: dict[str, Any] | None = None) -> None:
         self._event_counts[topic] = self._event_counts.get(topic, 0) + 1
         # Prevent unbounded dict growth: cap total unique topics.
         if len(self._event_counts) > 200:

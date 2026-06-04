@@ -87,6 +87,11 @@ class DashboardServer:
             "rosclaw.dashboard.trace.updated",
             "rosclaw.how.recovery_hint.generated",
             "rosclaw.memory.write.completed",
+            "rosclaw.auto.proposal.created",
+            "rosclaw.auto.champion.promoted",
+            "rosclaw.auto.experiment.completed",
+            "rosclaw.auto.deadend.registered",
+            "rosclaw.how.evidence.generated",
         ]:
             self._event_bus_subscriptions.append(
                 event_bus.subscribe(topic, self._on_event_bus_message)
@@ -101,7 +106,7 @@ class DashboardServer:
     def _on_event_bus_message(self, event: Any) -> None:
         """Handle incoming EventBus events — update metrics AND broadcast live."""
         topic = getattr(event, "topic", "unknown")
-        self.metrics.increment_event(topic)
+        self.metrics.increment_event(topic, getattr(event, "payload", None))
 
         # Record full traces for dashboard display
         if topic == "rosclaw.dashboard.trace.updated":
@@ -143,6 +148,32 @@ class DashboardServer:
                     "capabilities": len(profile.capability.capabilities),
                 })
         return robots
+
+
+    # ── Auto Evolution API ──
+
+    def get_auto_proposals(self) -> list[dict[str, Any]]:
+        """Return auto proposals from metrics store."""
+        return self.metrics._auto_proposals
+
+    def get_auto_experiments(self) -> list[dict[str, Any]]:
+        """Return auto experiments from metrics store."""
+        return self.metrics._auto_experiments
+
+    def get_auto_champions(self) -> list[dict[str, Any]]:
+        """Return champion skills from metrics store."""
+        return self.metrics._auto_champions
+
+    def get_auto_deadends(self) -> list[dict[str, Any]]:
+        """Return dead ends from metrics store."""
+        return self.metrics._auto_deadends
+
+    def get_evidence_trace(self, injection_id: str) -> dict[str, Any] | None:
+        """Return evidence trace by injection_id."""
+        for ev in self.metrics._evidence_traces:
+            if ev.get("injection_id") == injection_id:
+                return ev
+        return None
 
     # ── Internal broadcast ──
 
