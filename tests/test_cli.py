@@ -268,8 +268,11 @@ class TestDashboard:
         assert "ROSClaw v1.0 Dashboard" in captured.out
         assert code == 0
 
-    def test_dashboard_open(self, capsys):
+    def test_dashboard_open(self, capsys, monkeypatch):
         from rosclaw.cli import main
+        # Stub uvicorn.run so the test doesn't actually start a blocking server.
+        import uvicorn
+        monkeypatch.setattr(uvicorn, "run", lambda *a, **kw: None)
         sys.argv = ["rosclaw", "dashboard", "--open"]
         code = main()
         captured = capsys.readouterr()

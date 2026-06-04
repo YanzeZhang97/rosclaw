@@ -10,6 +10,15 @@ Full pipeline with actual physics:
 import pytest
 
 
+def _cuda_available() -> bool:
+    """Probe CUDA without crashing collection when torch is absent."""
+    try:
+        import torch
+    except ImportError:
+        return False
+    return bool(torch.cuda.is_available())
+
+
 class TestV1_0PhysicalSimulation:
     """End-to-end test with actual MuJoCo physics simulation."""
 
@@ -163,7 +172,7 @@ class TestV1_0PhysicalSimulation:
         print(f"Collision: detected={collision_detected}, contacts={data.ncon}")
 
     @pytest.mark.skipif(
-        not __import__("torch").cuda.is_available(),
+        not _cuda_available(),
         reason="CUDA not available on this machine",
     )
     def test_04_gpu_acceleration_available(self):
