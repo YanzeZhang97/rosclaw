@@ -92,6 +92,11 @@ class MemoryInterface(LifecycleMixin):
         self.event_bus = event_bus
         self._client = seekdb_client or SeekDBMemoryClient()
         self._embodied = embodied_memory
+        # Semantic-search cache: invalidated on any experience mutation
+        import threading
+        self._search_cache_lock = threading.Lock()
+        self._search_cache: dict[str, Any] = {}
+        self._cache_version = 0
 
     def _do_initialize(self) -> None:
         self._client.connect()
@@ -256,6 +261,7 @@ class MemoryInterface(LifecycleMixin):
         }
 
         record_id = self._client.insert("experience_graph", record)
+        self._invalidate_search_cache()
 
         if self.event_bus is not None:
             self.event_bus.publish(Event(
@@ -286,6 +292,124 @@ class MemoryInterface(LifecycleMixin):
         tokens = re.findall(r'[a-z0-9一-鿿]+', text.lower())
         return [t for t in tokens if len(t) >= 2]
 
+    def _invalidate_search_cache(self) -> None:
+        """Bump cache version so the next semantic query rebuilds the index."""
+        with self._search_cache_lock:
+            self._cache_version += 1
+            self._search_cache.clear()
+
+    def _build_search_cache(
+        self,
+        experiences: list[dict],
+        filters: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Pre-build TF-IDF matrix and BM25 index from experiences."""
+        cache: dict[str, Any] = {
+            "version": self._cache_version,
+            "filters": dict(filters),
+            "experiences": experiences,
+        }
+
+        # Build texts and corpus
+        texts: list[str] = []
+        corpus: list[list[str]] = []
+        for exp in experiences:
+            instruction = exp.get("instruction", "")
+            tags = " ".join(exp.get("tags", []))
+            error = exp.get("error_details", "")
+            text = " ".join(p for p in [instruction, tags, error] if p)
+            texts.append(text)
+            corpus.append(self._tokenize(text))
+
+        cache["corpus"] = corpus
+
+        # TF-IDF
+        if _HAS_SKLEARN and texts and any(texts):
+            try:
+                vectorizer = TfidfVectorizer(
+                    tokenizer=self._tokenize,
+                    lowercase=True,
+                    stop_words="english",
+                    min_df=1,
+                    max_df=1.0,
+                )
+                tfidf_matrix = vectorizer.fit_transform(texts)
+                cache["vectorizer"] = vectorizer
+                cache["tfidf_matrix"] = tfidf_matrix
+            except Exception:
+                cache["vectorizer"] = None
+                cache["tfidf_matrix"] = None
+
+        # BM25
+        if _HAS_BM25 and corpus:
+            try:
+                cache["bm25"] = BM25Okapi(corpus)
+            except Exception:
+                cache["bm25"] = None
+
+        return cache
+
+    def _semantic_search_cached(
+        self,
+        query: str,
+        limit: int,
+        cache: dict[str, Any],
+    ) -> list[dict]:
+        """Rank experiences using cached TF-IDF + cosine similarity."""
+        vectorizer = cache.get("vectorizer")
+        tfidf_matrix = cache.get("tfidf_matrix")
+        experiences = cache["experiences"]
+
+        if vectorizer is None or tfidf_matrix is None:
+            return self._keyword_search(
+                experiences, self._tokenize(query), limit
+            )
+
+        try:
+            query_vec = vectorizer.transform([query])
+            similarities = cosine_similarity(query_vec, tfidf_matrix)[0]
+        except Exception:
+            return self._keyword_search(
+                experiences, self._tokenize(query), limit
+            )
+
+        scored = [
+            (sim, exp)
+            for sim, exp in zip(similarities, experiences)
+            if sim > 0
+        ]
+        if not scored:
+            return []
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [exp for _, exp in scored[:limit]]
+
+    def _bm25_search_cached(
+        self,
+        query_tokens: list[str],
+        limit: int,
+        cache: dict[str, Any],
+    ) -> list[dict]:
+        """Rank experiences using cached BM25Okapi."""
+        bm25 = cache.get("bm25")
+        experiences = cache["experiences"]
+
+        if bm25 is None:
+            return self._keyword_search(experiences, query_tokens, limit)
+
+        scores = bm25.get_scores(query_tokens)
+        scored = [
+            (score, exp)
+            for score, exp in zip(scores, experiences)
+            if score > 0
+        ]
+
+        if not scored:
+            return self._keyword_search(experiences, query_tokens, limit)
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [exp for _, exp in scored[:limit]]
+
     def find_similar_experiences(
         self,
         instruction: str,
@@ -296,9 +420,12 @@ class MemoryInterface(LifecycleMixin):
         Find past experiences similar to the given instruction.
 
         Search priority (best available wins):
-          1. TF-IDF + cosine similarity (semantic, via sklearn)
-          2. BM25Okapi ranking (statistical, via rank_bm25)
+          1. TF-IDF + cosine similarity (semantic, via sklearn) — cached
+          2. BM25Okapi ranking (statistical, via rank_bm25) — cached
           3. Keyword set intersection (fallback, always works)
+
+        The TF-IDF/BM25 indexes are lazily built on first query and reused
+        until an experience mutation invalidates the cache.
         """
         filters = {"robot_id": self._robot_id}
         if outcome_filter:
@@ -318,12 +445,22 @@ class MemoryInterface(LifecycleMixin):
         if not query_tokens:
             return []
 
-        # Priority 1: semantic search via TF-IDF
+        # Check / build search cache
+        with self._search_cache_lock:
+            cache = self._search_cache
+            if (
+                cache.get("version") != self._cache_version
+                or cache.get("filters") != filters
+            ):
+                cache = self._build_search_cache(all_experiences, filters)
+                self._search_cache = cache
+
+        # Priority 1: semantic search via TF-IDF (cached)
         if _HAS_SKLEARN:
-            return self._semantic_search(all_experiences, instruction, limit)
-        # Priority 2: BM25
+            return self._semantic_search_cached(instruction, limit, cache)
+        # Priority 2: BM25 (cached)
         if _HAS_BM25:
-            return self._bm25_search(all_experiences, query_tokens, limit)
+            return self._bm25_search_cached(query_tokens, limit, cache)
         # Priority 3: keyword fallback
         return self._keyword_search(all_experiences, query_tokens, limit)
 
@@ -537,7 +674,10 @@ class MemoryInterface(LifecycleMixin):
 
     def delete_experience(self, experience_id: str) -> bool:
         """Delete a single experience by ID."""
-        return self._client.delete("experience_graph", experience_id)
+        result = self._client.delete("experience_graph", experience_id)
+        if result:
+            self._invalidate_search_cache()
+        return result
 
     def forget_old_experiences(
         self,
@@ -581,6 +721,7 @@ class MemoryInterface(LifecycleMixin):
 
         if deleted > 0:
             logger.info("Forgot %d experiences (older than %s days)", deleted, max_age_days)
+            self._invalidate_search_cache()
         return deleted
 
     def enforce_capacity(self, max_experiences: Optional[int] = None) -> int:
@@ -614,6 +755,7 @@ class MemoryInterface(LifecycleMixin):
 
         if evicted > 0:
             logger.info("Evicted %d experiences (capacity: %s)", evicted, max_experiences)
+            self._invalidate_search_cache()
         return evicted
 
     def get_capacity_info(self) -> dict:
