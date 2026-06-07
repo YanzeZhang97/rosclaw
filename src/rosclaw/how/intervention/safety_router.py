@@ -40,79 +40,94 @@ SAFETY_TAXONOMY: Final[dict[str, dict[str, object]]] = {
     "Human_Proximity": {
         "severity": "S4",
         "strategy": "STOP_UNSAFE",
+        "category": "physical_hazard",
         "keywords": ("human proximity", "person detected", "operator nearby"),
     },
     "Emergency_Stop": {
         "severity": "S4",
         "strategy": "STOP_UNSAFE",
+        "category": "physical_hazard",
         "keywords": ("emergency stop", "e-stop", "estop triggered"),
     },
     # ── S3 hazard: physical or safety hazard ──────────────────────────
     "Collision_Risk": {
         "severity": "S3",
         "strategy": "STOP_UNSAFE",
+        "category": "physical_hazard",
         "keywords": ("collision detected", "collision risk", "contact unexpected"),
     },
     "Self_Collision": {
         "severity": "S3",
         "strategy": "STOP_UNSAFE",
+        "category": "physical_hazard",
         "keywords": ("self-collision", "self collision", "link collision"),
     },
     "Torque_Overflow": {
         "severity": "S3",
         "strategy": "SAFETY",
+        "category": "physical_hazard",
         "keywords": ("torque overflow", "exceeded limit", "torque saturation"),
     },
     "Velocity_Divergence": {
         "severity": "S3",
         "strategy": "SAFETY",
+        "category": "physical_hazard",
         "keywords": ("velocity diverg", "velocity explod", "velocity inf"),
     },
     "Fall_Risk": {
         "severity": "S3",
         "strategy": "STOP_UNSAFE",
+        "category": "physical_hazard",
         "keywords": ("imu tilt", "tip-over", "fall detected", "robot fall"),
     },
     # ── S2 constraint violation: safety constraint exceeded ───────────
     "Joint_Limit_Violation": {
         "severity": "S2",
         "strategy": "SAFETY",
+        "category": "physical_hazard",
         "keywords": ("joint limit", "joint range exceeded", "joint position limit"),
     },
     "Workspace_Boundary": {
         "severity": "S2",
         "strategy": "SAFETY",
+        "category": "physical_hazard",
         "keywords": ("workspace bound", "out of workspace", "reach limit"),
     },
     "Numerical_Instability": {
         "severity": "S2",
         "strategy": "STABILIZE",
+        "category": "physical_hazard",
         "keywords": ("nan", "inf detected", "numerical instabil", "numerical error"),
     },
     "Memory_Exhaustion": {
         "severity": "S2",
         "strategy": "RESOURCE_REPAIR",
+        "category": "software_resource",
         "keywords": ("oom", "out of memory", "cuda out of", "cudamalloc"),
     },
     "Thermal_Limit": {
         "severity": "S2",
         "strategy": "SAFETY",
+        "category": "physical_hazard",
         "keywords": ("thermal limit", "overheat", "temperature high"),
     },
     # ── S1 warning: soft / recoverable issue ──────────────────────────
     "Compile_Error": {
         "severity": "S1",
         "strategy": "FEASIBILITY_REPAIR",
+        "category": "software_resource",
         "keywords": ("syntaxerror", "indentationerror", "nameerror", "typeerror", "importerror"),
     },
     "Battery_Low": {
         "severity": "S1",
         "strategy": "NOOP",
+        "category": "physical_hazard",
         "keywords": ("battery low", "low voltage", "battery critical"),
     },
     "Gripper_Overload": {
         "severity": "S1",
         "strategy": "SAFETY",
+        "category": "physical_hazard",
         "keywords": ("gripper overload", "grip force exceed"),
     },
 }
@@ -203,6 +218,38 @@ def is_blocking(strategy: SafetyStrategy) -> bool:
     return strategy in ("SAFETY", "STOP_UNSAFE", "RESOURCE_REPAIR")
 
 
+def symptom_category(symptom: str | None) -> str:
+    """Return the high-level category for a safety symptom.
+
+    Currently two buckets:
+
+    * ``"physical_hazard"`` — physical / control / mechanical signals
+      (Torque_Overflow, Velocity_Divergence, Collision_Risk, etc.). The
+      right runtime response is an imperative halt + cause checklist;
+      the existing safety-strategy templates fit this shape.
+    * ``"software_resource"`` — software-stack resource exhaustion
+      symptoms (Memory_Exhaustion, Compile_Error, …). These should NOT
+      get the imperative halt — they need the same breadth-shaped hint
+      that the CATALYST path produces, because the eval-hint for these
+      tasks usually expects an architectural rewrite (FlashAttention,
+      AES-NI, etc.) and the SAFETY checklist directs the LLM toward a
+      narrow, often-wrong remedy ("sliding window attention" when the
+      real answer is "tiled / online-softmax"). Software-resource hits
+      should fall through to the optimization-state branch and inject
+      a CATALYST snippet only when a curated cluster matches — control
+      beats a misleading narrow snippet.
+
+    Unknown symptoms default to ``"physical_hazard"`` for backward
+    compat with existing dispatch.
+    """
+    if not symptom:
+        return "physical_hazard"
+    entry = SAFETY_TAXONOMY.get(symptom)
+    if not entry:
+        return "physical_hazard"
+    return str(entry.get("category", "physical_hazard"))
+
+
 # ── v1 backward compat ───────────────────────────────────────────────────
 
 
@@ -233,5 +280,6 @@ __all__ = [
     "diagnose_safety",
     "is_blocking",
     "safety_state_from_severity",
+    "symptom_category",
     "v1_safety_keywords",
 ]

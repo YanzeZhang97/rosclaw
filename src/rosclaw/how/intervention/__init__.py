@@ -29,6 +29,7 @@ from .safety_router import (
     SAFETY_TAXONOMY,
     diagnose_safety,
     safety_state_from_severity,
+    symptom_category,
     v1_safety_keywords,
 )
 from .safety_router import (
@@ -90,5 +91,6 @@ __all__ = [
     "normalize_scores",
     "safety_is_blocking",
     "safety_state_from_severity",
+    "symptom_category",
     "v1_safety_keywords",
 ]
