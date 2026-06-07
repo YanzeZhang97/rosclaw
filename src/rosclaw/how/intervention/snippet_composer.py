@@ -152,14 +152,59 @@ def _extract_diff(pattern_md: str, max_lines: int = 12) -> str:
     return "\n".join(lines[:max_lines])
 
 
+def _is_curated_match(matched: dict[str, Any] | None) -> bool:
+    """Return True iff the matched cluster comes from the curated S-grade set.
+
+    Two opt-in signals are accepted (the upstream router may use either
+    convention):
+
+    * ``matched["is_curated"] is True``
+    * ``matched["source"] == "curated"``
+
+    With ``matched`` absent, returns False so callers default to the
+    lightweight / no-injection branch — see the adaptive snippet-mode rule
+    (curated S-grade clusters carry the canonical fix vocabulary and merit
+    the full template; synth clusters narrow the LLM to one technique and
+    do better as lightweight hints).
+    """
+    if not matched:
+        return False
+    if matched.get("is_curated") is True:
+        return True
+    return matched.get("source") == "curated"
+
+
 # ── per-strategy templates ───────────────────────────────────────────────
 
 
-def _compose_catalyst(matched: dict[str, Any] | None, state: RuntimeState) -> dict[str, str]:
-    """Build the structured fields for a CATALYST intervention."""
+def _compose_catalyst(
+    matched: dict[str, Any] | None,
+    state: RuntimeState,
+    *,
+    snippet_mode: str = "adaptive",
+) -> dict[str, str]:
+    """Build the structured fields for a CATALYST intervention.
+
+    ``snippet_mode`` controls how aggressively curated-vocab carriers
+    (Code Target, Patch Sketch) are rendered:
+
+    * ``"full"``        — always include Code Target / Patch Sketch when
+      ``matched`` provides them.
+    * ``"lightweight"`` — always strip Code Target / Patch Sketch (just
+      Diagnosis + Likely Cause + Next Experiment + Expected Signal +
+      Stop Condition).
+    * ``"adaptive"`` (default) — include Code Target / Patch Sketch iff
+      ``matched`` comes from the curated S-grade set. Synth clusters
+      narrow the LLM to one technique at the expense of breadth.
+    """
     analogy = _first_analogy(matched) or {}
     pattern_md = _first_pattern(matched) or ""
     diff = _extract_diff(pattern_md)
+
+    if snippet_mode == "adaptive":
+        effective_full = _is_curated_match(matched)
+    else:
+        effective_full = snippet_mode == "full"
 
     diagnosis = (
         f"Optimization state = {state.optimization_state}; the agent has "
@@ -183,9 +228,9 @@ def _compose_catalyst(matched: dict[str, Any] | None, state: RuntimeState) -> di
     if likely_cause:
         parts.append(f"**Likely Cause:** {_truncate(likely_cause, 300)}")
     parts.append(f"**Next Experiment:** {_truncate(next_experiment, 300)}")
-    if code_target:
+    if effective_full and code_target:
         parts.append(f"**Code Target:** {code_target}")
-    if diff:
+    if effective_full and diff:
         parts.append("**Patch Sketch:**\n```diff\n" + diff + "\n```")
     parts.append(
         "**Expected Verifier Signal:** validity preserved; score moves in "
@@ -356,12 +401,26 @@ def compose(
     *,
     matched: dict[str, Any] | None = None,
     recent_pattern_id: str | None = None,
+    snippet_mode: str = "adaptive",
+    require_curated_match: bool = False,
 ) -> InterventionDecision:
     """Build an ``InterventionDecision`` for the chosen strategy.
 
     ``matched`` is the optional ``SemanticRouter.find_nearest`` output;
     it's only used by CATALYST. The composer never queries the router
-    itself — keeping I/O at the api boundary."""
+    itself — keeping I/O at the api boundary.
+
+    ``snippet_mode`` (``"full"`` / ``"lightweight"`` / ``"adaptive"``) controls
+    how aggressively curated-vocab carriers are rendered in the CATALYST
+    template — see :func:`_compose_catalyst`.
+
+    ``require_curated_match`` is set by the caller when the request was
+    re-routed away from a SAFETY branch (e.g. a ``software_resource``
+    symptom fell through to CATALYST). When ``True`` and ``matched`` is
+    not from the curated S-grade set, the composer emits an empty
+    snippet — the LLM's library knowledge beats an off-topic synth
+    cluster's narrow misdirection.
+    """
     max_chars = _DEFAULT_MAX_INJECTION_TOKENS * 4
     import uuid
 
@@ -377,9 +436,25 @@ def compose(
             injection_id=injection_id,
         )
 
+    # Curated-only quality gate for software-resource fall-through CATALYST.
+    if (
+        strategy == "CATALYST"
+        and require_curated_match
+        and not _is_curated_match(matched)
+    ):
+        return InterventionDecision(
+            strategy=strategy,
+            runtime_state=state,
+            snippet="",
+            injected=False,
+            reason="software_resource fall-through: no curated cluster matched",
+            symptom=state.safety_symptom,
+            injection_id=injection_id,
+        )
+
     pieces: dict[str, str]
     if strategy == "CATALYST":
-        pieces = _compose_catalyst(matched, state)
+        pieces = _compose_catalyst(matched, state, snippet_mode=snippet_mode)
     elif strategy == "SAFETY":
         pieces = _compose_safety(state)
     elif strategy == "STOP_UNSAFE":

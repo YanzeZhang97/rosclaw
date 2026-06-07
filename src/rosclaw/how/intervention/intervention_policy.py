@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from .safety_router import is_blocking
+from .safety_router import is_blocking, symptom_category
 from .schemas import (
     AgentContext,
     InterventionRequest,
@@ -77,24 +77,40 @@ def decide_strategy(
     if state.safety_state == "constraint_violation":
         # The v1.5 safety taxonomy may want resource repair vs stabilize
         # at S2 — but the legacy SAFETY enum is still the right top-level.
-        if state.safety_symptom == "Memory_Exhaustion":
-            reasons.append("S2 memory exhaustion — resource repair")
-            return "RESOURCE_REPAIR", reasons
-        if state.safety_symptom == "Numerical_Instability":
+        if state.safety_symptom and symptom_category(state.safety_symptom) == "software_resource":
+            # Software-resource symptoms (Memory_Exhaustion, …) should NOT
+            # take the imperative-halt SAFETY/RESOURCE_REPAIR template — the
+            # eval-hint for these tasks usually expects an architectural
+            # rewrite (FlashAttention, AES-NI, …) that the SAFETY checklist
+            # directs the LLM away from. Defer to the optimization branch;
+            # the caller is expected to enforce ``require_curated_match`` at
+            # compose time so an off-topic synth cluster cannot mislead.
+            reasons.append(
+                f"S2 {state.safety_symptom} (software_resource) — defer to "
+                "optimization branch (curated-match required at compose)"
+            )
+            # Fall through.
+        elif state.safety_symptom == "Numerical_Instability":
             reasons.append("S2 numerical instability — stabilize")
             return "STABILIZE", reasons
-        reasons.append(f"S2 constraint violation {state.safety_symptom}")
-        return "SAFETY", reasons
+        else:
+            reasons.append(f"S2 constraint violation {state.safety_symptom}")
+            return "SAFETY", reasons
     if state.safety_state == "warning":
-        # S1 warnings: compile errors must take the FEASIBILITY repair
-        # path BEFORE the optimization state machine swallows them
-        # under plateau-CATALYST. Other S1 signals (battery_low /
-        # gripper_overload) fall through to the optimization path; if
-        # the safety_router exposed a strategy, honor it.
-        if state.safety_symptom == "Compile_Error":
-            reasons.append("S1 compile error — feasibility repair")
-            return "FEASIBILITY_REPAIR", reasons
-        if state.safety_symptom == "Gripper_Overload":
+        # S1 warnings: compile errors used to take the FEASIBILITY repair
+        # path BEFORE the optimization state machine swallowed them under
+        # plateau-CATALYST. With the software_resource fall-through they
+        # now defer to optimization too (compile errors are vocabulary
+        # mismatches against the real eval — the LLM's library knowledge
+        # plus a curated cluster, if any, beats the FEASIBILITY_REPAIR
+        # template).
+        if state.safety_symptom and symptom_category(state.safety_symptom) == "software_resource":
+            reasons.append(
+                f"S1 {state.safety_symptom} (software_resource) — defer to "
+                "optimization branch (curated-match required at compose)"
+            )
+            # Fall through.
+        elif state.safety_symptom == "Gripper_Overload":
             reasons.append("S1 gripper overload — safety")
             return "SAFETY", reasons
         # battery_low / unknown S1 → fall through to the optimization path.

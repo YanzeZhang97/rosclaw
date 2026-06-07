@@ -32,6 +32,7 @@ from .intervention import (
     diagnose,
     diagnose_safety,
     is_blocking,
+    symptom_category,
 )
 
 logger = logging.getLogger("rosclaw.how.engine")
@@ -481,10 +482,19 @@ class HeuristicEngine:
         strategy, _reasons = decide_strategy(
             request, state, recent_pattern_id=recent_pattern_id,
         )
+        # Software-resource symptoms (Memory_Exhaustion / Compile_Error) that
+        # fell through the safety dispatch require a curated cluster match
+        # before the composer emits anything — an off-topic synth cluster
+        # would actively mislead the LLM (see safety_router.symptom_category).
+        require_curated_match = (
+            state.safety_symptom is not None
+            and symptom_category(state.safety_symptom) == "software_resource"
+        )
         decision = compose(
             strategy,
             state,
             recent_pattern_id=recent_pattern_id,
+            require_curated_match=require_curated_match,
         )
         rule_id: Optional[str] = None
         # Attribute the outcome to the taxonomy ONLY when the final

@@ -59,7 +59,13 @@ class TestInterventionPureRules:
         assert severity == "S3"
         assert strategy == "STOP_UNSAFE"
 
-    def test_compile_error_routes_to_feasibility_repair(self) -> None:
+    def test_compile_error_falls_through_to_catalyst(self) -> None:
+        """software_resource symptoms (Compile_Error, Memory_Exhaustion) now
+        defer to the optimization branch. The hard FEASIBILITY_REPAIR /
+        RESOURCE_REPAIR template directed the LLM toward narrow imperative
+        checklists; the eval-hint for these tasks expects an architectural
+        rewrite that the LLM's own library knowledge (plus a curated cluster,
+        if any) covers better. See safety_router.symptom_category."""
         req = from_v1_prompt_build(
             "SyntaxError: invalid syntax",
             previous_scores=[0.4, 0.4, 0.4, 0.4],
@@ -67,8 +73,10 @@ class TestInterventionPureRules:
         )
         state = diagnose(req)
         strategy, reasons = decide_strategy(req, state)
-        assert strategy == "FEASIBILITY_REPAIR"
+        assert strategy == "CATALYST"
         assert reasons  # has at least one explanation
+        # software_resource note should appear in the reasons trail.
+        assert any("software_resource" in r for r in reasons)
 
     def test_plateau_default_picks_catalyst(self) -> None:
         req = from_v1_prompt_build(
@@ -185,14 +193,17 @@ class TestDecideRecoveryOutcome:
     async def test_record_outcome_increments_taxonomy_counter(
         self, engine: HeuristicEngine,
     ) -> None:
+        # Use Torque_Overflow (physical_hazard) — Memory_Exhaustion now falls
+        # through to CATALYST (software_resource), which is NOT a blocking
+        # strategy and so doesn't get a tax_ rule_id.
         req = from_v1_prompt_build(
-            "OOM: cuda out of memory",
+            "ERROR: torque exceeded limit on joint 2",
             previous_scores=[0.7, 0.7, 0.7, 0.7],
             current_iteration=6,
         )
         decision, rule_id = await engine.decide_recovery(req)
-        assert decision.strategy == "RESOURCE_REPAIR"
-        assert rule_id == "tax_Memory_Exhaustion"
+        assert decision.strategy == "SAFETY"
+        assert rule_id == "tax_Torque_Overflow"
 
         ok = await engine.record_outcome(rule_id, success=True)
         assert ok is True
@@ -337,18 +348,45 @@ class TestMergeEdgeCases:
         assert rule_id is None
 
     @pytest.mark.asyncio
-    async def test_decide_recovery_attributes_for_resource_repair(
+    async def test_decide_recovery_attributes_for_blocking_safety(
         self, engine: HeuristicEngine,
     ) -> None:
-        """OOM → RESOURCE_REPAIR is a blocking strategy → rule_id present."""
+        """Torque_Overflow → SAFETY is a blocking strategy → rule_id present.
+
+        (Memory_Exhaustion used to land here under RESOURCE_REPAIR, but with
+        the software_resource fall-through it now defers to CATALYST and so
+        no longer attributes to the taxonomy — see
+        :func:`safety_router.symptom_category`.)
+        """
+        req = from_v1_prompt_build(
+            "ERROR: torque overflow detected on joint 3",
+            previous_scores=[0.7, 0.7, 0.7, 0.7],
+            current_iteration=5,
+        )
+        decision, rule_id = await engine.decide_recovery(req)
+        assert decision.strategy == "SAFETY"
+        assert rule_id == "tax_Torque_Overflow"
+
+    @pytest.mark.asyncio
+    async def test_decide_recovery_software_resource_falls_through(
+        self, engine: HeuristicEngine,
+    ) -> None:
+        """OOM (software_resource) → CATALYST with no curated match → empty
+        snippet (the LLM's library knowledge beats an off-topic synth
+        cluster's narrow misdirection)."""
         req = from_v1_prompt_build(
             "OOM: cuda out of memory error",
             previous_scores=[0.7, 0.7, 0.7, 0.7],
             current_iteration=5,
         )
         decision, rule_id = await engine.decide_recovery(req)
-        assert decision.strategy == "RESOURCE_REPAIR"
-        assert rule_id == "tax_Memory_Exhaustion"
+        assert decision.strategy == "CATALYST"
+        # CATALYST is not in is_blocking(), so rule_id is None.
+        assert rule_id is None
+        # require_curated_match + no curated cluster in this in-memory engine
+        # → empty snippet, not injected.
+        assert decision.injected is False
+        assert decision.snippet == ""
 
     @pytest.mark.asyncio
     async def test_minimize_direction_inverts_improvement(
