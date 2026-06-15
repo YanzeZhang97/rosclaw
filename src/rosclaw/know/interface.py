@@ -38,10 +38,18 @@ def _validate_bridge_index(
     This is a soft dependency: if the private ``rosclaw_know`` package is not
     installed, validation is skipped and the runtime keeps working with its
     local bridge loader.
+
+    Local workaround: rosclaw_know 1.0.0 rejects ``schema_version: "2.0"``,
+    but many bundled assets use that string. Normalize it to ``"2"`` before
+    forwarding to the upstream validator until a fixed release is available.
     """
     try:
         from rosclaw_know.bridge_schema import validate_bridge_index  # type: ignore[import-untyped]
-        return validate_bridge_index(data, code_patterns_dir)
+
+        normalized = dict(data)
+        if normalized.get("schema_version") == "2.0":
+            normalized["schema_version"] = "2"
+        return validate_bridge_index(normalized, code_patterns_dir)
     except Exception:  # noqa: BLE001
         return {"ok": True, "errors": [], "warnings": []}
 
