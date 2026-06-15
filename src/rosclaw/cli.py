@@ -257,10 +257,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
     # 1. Python version
     py_version = platform.python_version()
-    py_ok = py_version >= "3.10"
+    py_ok = py_version >= "3.11"
     checks.append(("Python version", py_version, py_ok))
     if not py_ok:
-        issues.append(f"Python {py_version} < 3.10 (recommended)")
+        issues.append(f"Python {py_version} < 3.11 (recommended)")
 
     # 2. Core modules import
     core_modules = [

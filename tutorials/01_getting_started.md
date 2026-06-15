@@ -1,6 +1,6 @@
 # ROSClaw v1.0 — Getting Started
 
-> **Prerequisites**: Python 3.10+, `pip`, and a POSIX shell (Linux/macOS/WSL).
+> **Prerequisites**: Python 3.11+, `pip`, and a POSIX shell (Linux/macOS/WSL).
 > **Time**: ~15 minutes
 
 ---

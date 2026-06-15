@@ -1,10 +1,27 @@
 """CLI report and demo tests."""
+from pathlib import Path
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import pytest
+
+# Resolve the rosclaw_auto checkout relative to this test file so the suite
+# works regardless of where the repository is cloned.
+def _find_rosclaw_auto() -> Path:
+    start = Path(__file__).resolve().parent
+    for parent in [start, *start.parents]:
+        candidate = parent / "rosclaw_auto"
+        if candidate.is_dir():
+            return candidate
+    raise FileNotFoundError(
+        "Could not find rosclaw_auto directory. "
+        "Make sure it exists as a sibling or ancestor of this test file."
+    )
+
+
+AUTO_REPO = _find_rosclaw_auto()
 
 
 class TestCLIReport:
@@ -15,7 +32,7 @@ class TestCLIReport:
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw_auto.cli", "init",
              "--task", "demo_report", "--robot", "panda", "--skill", "pick_v1"],
-            capture_output=True, text=True, cwd="/home/ubuntu/rosclaw/rosclaw_auto",
+            capture_output=True, text=True, cwd=str(AUTO_REPO),
         )
         assert result.returncode == 0
 
@@ -23,7 +40,7 @@ class TestCLIReport:
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw_auto.cli", "report",
              "--task", "demo_report", "--format", "md", "--output", out_path],
-            capture_output=True, text=True, cwd="/home/ubuntu/rosclaw/rosclaw_auto",
+            capture_output=True, text=True, cwd=str(AUTO_REPO),
         )
         assert result.returncode == 0
         assert os.path.exists(out_path)
@@ -38,7 +55,7 @@ class TestCLIReport:
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw_auto.cli", "report",
              "--task", "demo_report", "--format", "json", "--output", out_path],
-            capture_output=True, text=True, cwd="/home/ubuntu/rosclaw/rosclaw_auto",
+            capture_output=True, text=True, cwd=str(AUTO_REPO),
         )
         assert result.returncode == 0
         assert os.path.exists(out_path)
@@ -51,10 +68,10 @@ class TestCLIReport:
     def test_demo_script_runs(self):
         """AUTO-DEMO-001: demo script runs without crash."""
         env = os.environ.copy()
-        env["PYTHONPATH"] = "/home/ubuntu/rosclaw/rosclaw_auto"
+        env["PYTHONPATH"] = str(AUTO_REPO)
         result = subprocess.run(
             [sys.executable, "demo/auto_demo.py"],
-            capture_output=True, text=True, cwd="/home/ubuntu/rosclaw/rosclaw_auto",
+            capture_output=True, text=True, cwd=str(AUTO_REPO),
             env=env,
         )
         assert result.returncode == 0, f"stderr: {result.stderr}"

@@ -6,7 +6,7 @@ Thank you for your interest in contributing to ROSClaw! This document outlines t
 
 ### Prerequisites
 
-- Python >= 3.10
+- Python >= 3.11
 - pip or uv
 - Git
 

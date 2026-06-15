@@ -2,7 +2,7 @@
 
 ## System Requirements
 
-- Python 3.10+
+- Python 3.11+
 - CUDA-capable GPU (optional, for GPU acceleration)
 - Linux (x86_64 or ARM64/aarch64)
 
