@@ -127,6 +127,11 @@ class RecoveryEngine:
         if not failure_type:
             return
 
+        # Forward plateau telemetry when the event carries it, so service-backed
+        # HOW engines can enter CATALYST instead of FREE_EXPLORATION.
+        previous_scores = payload.get("previous_scores")
+        current_iteration = payload.get("current_iteration")
+
         import asyncio
 
         try:
@@ -138,6 +143,9 @@ class RecoveryEngine:
                     "event_payload": payload,
                 },
                 sources=[source],
+                request_id=request_id,
+                previous_scores=previous_scores if isinstance(previous_scores, list) else None,
+                current_iteration=current_iteration if isinstance(current_iteration, int) else None,
             ))
 
             if hint:
@@ -177,12 +185,19 @@ class RecoveryEngine:
         sources: list[str] | None = None,
         event_bus: Any | None = None,
         request_id: str = "",
+        *,
+        previous_scores: list[float] | None = None,
+        current_iteration: int | None = None,
     ) -> dict[str, Any] | None:
         """Build a RecoveryHint dict from failure metadata.
 
         Uses multi-rule matching: ranks all matching rules by confidence
         and returns the best one. If no heuristic rule matches, falls
         back to knowledge analogy.
+
+        ``previous_scores`` and ``current_iteration`` are forwarded to the
+        underlying HOW engine so service-backed routers can enter the
+        CATALYST plateau path instead of defaulting to FREE_EXPLORATION.
 
         Returns:
             {
@@ -201,7 +216,10 @@ class RecoveryEngine:
         srcs = sources or []
 
         # Multi-rule matching: get all matching rules, rank by confidence
-        candidates = await self._find_all_candidates(failure_type, ctx)
+        candidates = await self._find_all_candidates(
+            failure_type, ctx,
+            previous_scores=previous_scores, current_iteration=current_iteration,
+        )
         if not candidates:
             return None
 
@@ -247,6 +265,9 @@ class RecoveryEngine:
         self,
         failure_type: str,
         context: dict[str, Any] | None = None,
+        *,
+        previous_scores: list[float] | None = None,
+        current_iteration: int | None = None,
     ) -> list[dict[str, Any]]:
         """Find all matching rules and rank them by confidence score."""
         if self._how is None:
@@ -255,7 +276,10 @@ class RecoveryEngine:
         candidates: list[dict[str, Any]] = []
 
         try:
-            rule = await self._how.suggest_recovery(failure_type, context=context)
+            rule = await self._how.suggest_recovery(
+                failure_type, context=context,
+                previous_scores=previous_scores, current_iteration=current_iteration,
+            )
             if rule:
                 rule["_confidence"] = self._compute_confidence(rule)
                 candidates.append(rule)

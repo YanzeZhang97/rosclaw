@@ -18,7 +18,9 @@ class FakeHeuristic:
     def __init__(self, rules=None):
         self._rules = rules or []
 
-    async def suggest_recovery(self, failure_type, context=None):
+    async def suggest_recovery(
+        self, failure_type, context=None, *, previous_scores=None, current_iteration=None
+    ):
         for r in self._rules:
             if r.get("condition", "") in failure_type:
                 return r

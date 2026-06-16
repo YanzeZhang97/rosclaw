@@ -138,6 +138,9 @@ class HeuristicEngine:
         self,
         error_log: str,
         context: dict[str, Any] | None = None,
+        *,
+        previous_scores: list[float] | None = None,
+        current_iteration: int | None = None,
     ) -> dict[str, Any] | None:
         """Return the best matching recovery strategy (<10ms when cached).
 
@@ -145,6 +148,10 @@ class HeuristicEngine:
           1. Exact condition match on error_log (fastest)
           2. Substring match: condition text appears inside error_log
           3. Keyword overlap between error_log and condition
+
+        ``previous_scores`` and ``current_iteration`` are accepted for API
+        symmetry with :class:`HowClient` but are ignored by the local
+        heuristic engine — it has no plateau-detection state router.
 
         Returns:
             {"rule_id": str, "condition": str, "action": str,
@@ -520,12 +527,20 @@ class HeuristicEngine:
         self,
         failure_type: str,
         context: dict[str, Any] | None = None,
+        *,
+        previous_scores: list[float] | None = None,
+        current_iteration: int | None = None,
     ) -> dict[str, Any] | None:
         """Generate a recovery hint for a failure type.
 
         This is the canonical API used by Runtime.how.generate_recovery_hint().
+        ``previous_scores`` and ``current_iteration`` are forwarded for
+        compatibility with service-backed engines that route on plateau state.
         """
-        rule = await self.suggest_recovery(failure_type, context)
+        rule = await self.suggest_recovery(
+            failure_type, context,
+            previous_scores=previous_scores, current_iteration=current_iteration,
+        )
         if rule is None:
             return None
         return {
@@ -541,6 +556,9 @@ class HeuristicEngine:
         self,
         failure_type: str,
         context: dict[str, Any] | None = None,
+        *,
+        previous_scores: list[float] | None = None,
+        current_iteration: int | None = None,
     ) -> dict[str, Any] | None:
         """Build a structured retry plan for a failure type.
 
@@ -556,7 +574,10 @@ class HeuristicEngine:
                 "rule_id": str,
             } or None.
         """
-        rule = await self.suggest_recovery(failure_type, context)
+        rule = await self.suggest_recovery(
+            failure_type, context,
+            previous_scores=previous_scores, current_iteration=current_iteration,
+        )
         if rule is None:
             return None
 

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from rosclaw.core.event_bus import Event, EventPriority
 from rosclaw.core.runtime import Runtime, RuntimeConfig
 
 
@@ -102,3 +105,139 @@ class TestRuntimeKnowledgeWiring:
         rt = Runtime(config)
         rt.initialize()
         assert captured["kwargs"].get("use_rosclaw_know_registry") is True
+
+
+class TestRuntimeRecoveryForwardsPlateauTelemetry:
+    """Runtime failure handlers must pass previous_scores/current_iteration to HOW."""
+
+    @pytest.fixture
+    def capture_recovery_call(self, monkeypatch):
+        """Patch RecoveryEngine.generate_recovery_hint to record kwargs."""
+        captured: dict = {}
+
+        class FakeRecoveryEngine:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def generate_recovery_hint(self, *args, **kwargs):
+                captured["args"] = args
+                captured["kwargs"] = kwargs
+                return None
+
+            def format_for_eventbus(self, *args, **kwargs):
+                return {}
+
+        monkeypatch.setattr("rosclaw.how.recovery.RecoveryEngine", FakeRecoveryEngine)
+        return captured
+
+    def _runtime_with_how(self, monkeypatch, fake_how):
+        config = RuntimeConfig(
+            robot_id="test",
+            enable_firewall=False,
+            enable_memory=True,
+            enable_practice=False,
+            enable_skill_manager=False,
+            enable_provider=False,
+            enable_auto=False,
+            seekdb_backend="memory",
+        )
+        monkeypatch.setattr("rosclaw.how.engine.HeuristicEngine", lambda *a, **kw: fake_how)
+        rt = Runtime(config)
+        rt.initialize()
+        return rt
+
+    def test_sandbox_episode_failure_forwards_scores(self, monkeypatch, capture_recovery_call):
+        fake_how = MagicMock()
+        fake_how.suggest_recovery = AsyncMock(return_value=None)
+        fake_how.initialize = AsyncMock(return_value=None)
+        fake_how.seed_defaults = AsyncMock(return_value=0)
+        rt = self._runtime_with_how(monkeypatch, fake_how)
+
+        rt.event_bus.publish(
+            Event(
+                topic="rosclaw.sandbox.episode.failed",
+                payload={
+                    "failure_type": "velocity divergence",
+                    "request_id": "r1",
+                    "previous_scores": [0.5, 0.5, 0.5, 0.5],
+                    "current_iteration": 10,
+                },
+                source="test",
+                priority=EventPriority.HIGH,
+            )
+        )
+
+        kwargs = capture_recovery_call["kwargs"]
+        assert kwargs.get("previous_scores") == [0.5, 0.5, 0.5, 0.5]
+        assert kwargs.get("current_iteration") == 10
+        assert kwargs.get("request_id") == "r1"
+
+    def test_sandbox_action_blocked_forwards_scores(self, monkeypatch, capture_recovery_call):
+        fake_how = MagicMock()
+        fake_how.suggest_recovery = AsyncMock(return_value=None)
+        fake_how.initialize = AsyncMock(return_value=None)
+        fake_how.seed_defaults = AsyncMock(return_value=0)
+        rt = self._runtime_with_how(monkeypatch, fake_how)
+
+        rt.event_bus.publish(
+            Event(
+                topic="rosclaw.sandbox.action.blocked",
+                payload={
+                    "reason": "joint limit exceeded",
+                    "request_id": "r2",
+                    "previous_scores": [0.6, 0.6, 0.55],
+                    "current_iteration": 7,
+                },
+                source="test",
+                priority=EventPriority.HIGH,
+            )
+        )
+
+        kwargs = capture_recovery_call["kwargs"]
+        assert kwargs.get("previous_scores") == [0.6, 0.6, 0.55]
+        assert kwargs.get("current_iteration") == 7
+
+    def test_runtime_execution_failed_forwards_scores(self, monkeypatch, capture_recovery_call):
+        fake_how = MagicMock()
+        fake_how.suggest_recovery = AsyncMock(return_value=None)
+        fake_how.initialize = AsyncMock(return_value=None)
+        fake_how.seed_defaults = AsyncMock(return_value=0)
+        rt = self._runtime_with_how(monkeypatch, fake_how)
+
+        rt.event_bus.publish(
+            Event(
+                topic="rosclaw.runtime.execution.failed",
+                payload={
+                    "error_type": "torque overflow",
+                    "request_id": "r3",
+                    "previous_scores": [0.4, 0.4, 0.4, 0.4],
+                    "current_iteration": 12,
+                },
+                source="test",
+                priority=EventPriority.HIGH,
+            )
+        )
+
+        kwargs = capture_recovery_call["kwargs"]
+        assert kwargs.get("previous_scores") == [0.4, 0.4, 0.4, 0.4]
+        assert kwargs.get("current_iteration") == 12
+
+    def test_missing_scores_defaults_to_none(self, monkeypatch, capture_recovery_call):
+        fake_how = MagicMock()
+        fake_how.suggest_recovery = AsyncMock(return_value=None)
+        fake_how.initialize = AsyncMock(return_value=None)
+        fake_how.seed_defaults = AsyncMock(return_value=0)
+        rt = self._runtime_with_how(monkeypatch, fake_how)
+
+        rt.event_bus.publish(
+            Event(
+                topic="rosclaw.sandbox.episode.failed",
+                payload={"failure_type": "collision detected", "request_id": "r4"},
+                source="test",
+                priority=EventPriority.HIGH,
+            )
+        )
+
+        kwargs = capture_recovery_call["kwargs"]
+        assert kwargs.get("previous_scores") is None
+        assert kwargs.get("current_iteration") is None

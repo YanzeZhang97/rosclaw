@@ -83,20 +83,29 @@ class HowClient:
         self,
         error_log: str,
         context: dict[str, Any] | None = None,
+        *,
+        previous_scores: list[float] | None = None,
+        current_iteration: int | None = None,
     ) -> dict[str, Any] | None:
         """Call ``POST /wiki/v1/prompt/build`` and map to a rule dict.
 
         The returned shape mirrors :meth:`rosclaw.how.engine.HeuristicEngine.suggest_recovery`
         so callers like :class:`rosclaw.how.recovery.RecoveryEngine` can use it
         unchanged.
+
+        ``previous_scores`` and ``current_iteration`` are forwarded to the
+        service's state router so callers can trigger the CATALYST path
+        (score plateau) instead of the default FREE_EXPLORATION path.
         """
         if not error_log:
             return None
 
         body: dict[str, Any] = {
             "error_log": error_log,
-            "previous_scores": [],
+            "previous_scores": previous_scores if previous_scores is not None else [],
         }
+        if current_iteration is not None:
+            body["current_iteration"] = current_iteration
         if context:
             run_id = context.get("request_id") or context.get("episode_id")
             if run_id:
@@ -135,9 +144,17 @@ class HowClient:
         self,
         failure_type: str,
         context: dict[str, Any] | None = None,
+        *,
+        previous_scores: list[float] | None = None,
+        current_iteration: int | None = None,
     ) -> dict[str, Any] | None:
         """Canonical recovery-hint API used by Runtime failure handlers."""
-        rule = await self.suggest_recovery(failure_type, context)
+        rule = await self.suggest_recovery(
+            failure_type,
+            context,
+            previous_scores=previous_scores,
+            current_iteration=current_iteration,
+        )
         if rule is None or not rule.get("injected"):
             return None
         return {
@@ -184,11 +201,19 @@ class HowClient:
         self,
         failure_type: str,
         context: dict[str, Any] | None = None,
+        *,
+        previous_scores: list[float] | None = None,
+        current_iteration: int | None = None,
     ) -> dict[str, Any] | None:
         """Delegate to the local RecoveryEngine using service-provided rule."""
         from rosclaw.how.recovery import RecoveryEngine
 
-        rule = await self.suggest_recovery(failure_type, context)
+        rule = await self.suggest_recovery(
+            failure_type,
+            context,
+            previous_scores=previous_scores,
+            current_iteration=current_iteration,
+        )
         if rule is None:
             return None
         re = RecoveryEngine(self)

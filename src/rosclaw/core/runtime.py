@@ -560,6 +560,9 @@ class Runtime(LifecycleMixin):
                 failure_type,
                 context={"request_id": request_id, "source": "sandbox"},
                 sources=["sandbox_episode"],
+                request_id=request_id,
+                previous_scores=event.payload.get("previous_scores"),
+                current_iteration=event.payload.get("current_iteration"),
             ))
             if hint:
                 payload = re.format_for_eventbus(hint, request_id=request_id)
@@ -587,6 +590,9 @@ class Runtime(LifecycleMixin):
                 failure_type,
                 context={"request_id": request_id, "source": "sandbox"},
                 sources=["sandbox_action"],
+                request_id=request_id,
+                previous_scores=event.payload.get("previous_scores"),
+                current_iteration=event.payload.get("current_iteration"),
             ))
             if hint:
                 payload = re.format_for_eventbus(hint, request_id=request_id)
@@ -614,6 +620,9 @@ class Runtime(LifecycleMixin):
                 failure_type,
                 context={"request_id": request_id, "source": "runtime"},
                 sources=["runtime_execution"],
+                request_id=request_id,
+                previous_scores=event.payload.get("previous_scores"),
+                current_iteration=event.payload.get("current_iteration"),
             ))
             if hint:
                 payload = re.format_for_eventbus(hint, request_id=request_id)
