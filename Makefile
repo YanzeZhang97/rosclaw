@@ -5,12 +5,13 @@ PIP := pip
 SRC := src/rosclaw
 TESTS := tests/
 
-.PHONY: install test lint format clean help
+.PHONY: install test lint format clean help setup
 
 help:
 	@echo "ROSClaw v1.0 - Development Commands"
 	@echo ""
 	@echo "  make install    Install package in editable mode with dev dependencies"
+	@echo "  make setup      One-command developer setup (venv + install + firstboot + doctor)"
 	@echo "  make test       Run the test suite"
 	@echo "  make lint       Run ruff linter"
 	@echo "  make format     Run ruff formatter"
@@ -19,6 +20,9 @@ help:
 
 install:
 	$(PIP) install -e ".[dev]"
+
+setup:
+	bash scripts/dev_bootstrap.sh
 
 test:
 	$(PYTHON) -m pytest $(TESTS) -v

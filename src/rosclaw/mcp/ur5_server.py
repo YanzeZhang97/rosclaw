@@ -80,7 +80,7 @@ try:
     from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
     ROS_IMPORTS_OK = True
 except ImportError as e:
-    print(f"[ERROR] ROS 2 message imports failed: {e}")
+    print(f"[ERROR] ROS 2 message imports failed: {e}", file=sys.stderr)
     ROS_IMPORTS_OK = False
     # Stubs for type annotations when ROS 2 is not installed
 

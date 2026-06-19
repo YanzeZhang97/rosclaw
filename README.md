@@ -344,119 +344,53 @@ pick_cube@v1.1.0  real_champion
 
 ## Quick Start
 
-### 1. Clone
+### 1. Install the ROSClaw CLI
+
+```bash
+curl -sSL https://rosclaw.io/get | bash
+```
+
+This installs the `rosclaw` command and creates a minimal workspace at `~/.rosclaw`.  
+It does **not** start any runtime, connect to robots, or upload data.
+
+### 2. Run First Boot
+
+```bash
+rosclaw firstboot
+```
+
+Follow the interactive wizard (or use `rosclaw firstboot --yes` for CI/servers).  
+This generates your local runtime profile, MCP config, and telemetry preferences.
+
+### 3. Check Health
+
+```bash
+rosclaw doctor
+```
+
+For structured output:
+
+```bash
+rosclaw doctor --full --json
+```
+
+### 4. Run a Local Simulation Demo
+
+```bash
+rosclaw sandbox run --robot sim_ur5e --world tabletop --task reach
+```
+
+### Developer Install
+
+Prefer to hack on ROSClaw itself?
 
 ```bash
 git clone https://github.com/ros-claw/rosclaw.git
 cd rosclaw
+make setup
 ```
 
-### 2. Install
-
-```bash
-bash scripts/install.sh
-```
-
-Or install in editable mode:
-
-```bash
-pip install -e .
-```
-
-See [INSTALL.md](INSTALL.md) for detailed instructions.
-
-### 3. Check System Health
-
-```bash
-./rosclaw doctor
-```
-
-Expected output:
-
-```text
-runtime:     HEALTHY
-event_bus:   HEALTHY
-seekdb:      HEALTHY
-provider:    HEALTHY
-sandbox:     HEALTHY
-practice:    HEALTHY
-memory:      HEALTHY
-how:         HEALTHY
-auto:        HEALTHY
-darwin:      HEALTHY
-dashboard:   HEALTHY
-```
-
-### 4. Start ROSClaw Runtime
-
-```bash
-./rosclaw start
-```
-
-Or programmatically:
-
-```python
-from rosclaw.core import Runtime, RuntimeConfig
-
-config = RuntimeConfig(
-    robot_id="ur5e",
-    robot_zoo_path="./e-urdf-zoo",
-    default_eurdf_robot="ur5e",
-    enable_firewall=True,
-    enable_memory=True,
-    enable_practice=True,
-    enable_how=True,
-    enable_auto=True,
-    enable_darwin=True,
-)
-
-runtime = Runtime(config)
-runtime.initialize()
-runtime.start()
-```
-
-### 5. Inspect Available Robots
-
-```bash
-./rosclaw robot list
-./rosclaw robot inspect ur5e
-```
-
-### 6. Run a Sandbox Validation
-
-```bash
-./rosclaw sandbox validate ur5e
-./rosclaw sandbox run --robot ur5e --world tabletop --task reach
-```
-
-### 7. Run a Firewall Check
-
-```bash
-./rosclaw firewall check \
-  --robot ur5e \
-  --world tabletop \
-  --action examples/actions/unsafe_reach.json
-```
-
-### 8. Connect an MCP-Compatible Agent
-
-Example Claude Code MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "rosclaw": {
-      "command": "python3",
-      "args": ["-m", "rosclaw.mcp.minimal_server"],
-      "env": {
-        "PYTHONPATH": "src"
-      }
-    }
-  }
-}
-```
-
-Exposes tools such as: `move_joints`, `grasp`, `get_robot_state`, `validate_trajectory`, `emergency_stop`, `query_world_objects`, `get_scene_graph`, `cognitive_search`, `system.list_robots`, `system.run_sandbox_task`, `system.query_practice`, `system.query_memory`.
+See [INSTALL.md](INSTALL.md) for detailed installation options.
 
 ---
 

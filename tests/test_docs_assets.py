@@ -47,6 +47,9 @@ def test_referenced_files_exist(md_file: Path) -> None:
         # Skip glob patterns (e.g. test_*.py)
         if "*" in rel_path:
             continue
+        # Skip absolute or user-home paths; these are not project-relative
+        if rel_path.startswith(("~/", "/")):
+            continue
         target = PROJECT_ROOT / rel_path
         if not target.exists():
             missing.append(rel_path)

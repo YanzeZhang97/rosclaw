@@ -1,0 +1,71 @@
+"""Tests for structured doctor JSON output."""
+
+from __future__ import annotations
+
+import json
+import sys
+
+
+class TestDoctorJson:
+    def test_doctor_bootstrap_json_schema(self, tmp_path, monkeypatch, capsys):
+        home = tmp_path / ".rosclaw"
+        monkeypatch.setenv("ROSCLAW_HOME", str(home))
+        from rosclaw.cli import main
+
+        sys.argv = ["rosclaw", "doctor", "--bootstrap", "--json"]
+        code = main()
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+
+        assert "status" in data
+        assert "exit_code" in data
+        assert "checks" in data
+        assert data["exit_code"] == code
+
+        for check in data["checks"]:
+            assert "id" in check
+            assert "name" in check
+            assert "status" in check
+            assert "required" in check
+            assert "message" in check
+            assert "fix" in check
+
+        check_ids = {c["id"] for c in data["checks"]}
+        assert "core.cli" in check_ids
+        assert "core.python" in check_ids
+        assert "core.workspace" in check_ids
+        assert "core.config_dir" in check_ids
+
+    def test_doctor_full_json_contains_optional_checks(self, tmp_path, monkeypatch, capsys):
+        home = tmp_path / ".rosclaw"
+        monkeypatch.setenv("ROSCLAW_HOME", str(home))
+        from rosclaw.cli import main
+
+        sys.argv = ["rosclaw", "doctor", "--full", "--json"]
+        code = main()
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+
+        assert data["exit_code"] == code
+        statuses = {c["status"] for c in data["checks"]}
+        assert statuses.issubset({"PASS", "WARN", "FAIL", "SKIP"})
+
+        check_ids = {c["id"] for c in data["checks"]}
+        assert any("optional." in cid for cid in check_ids)
+
+    def test_doctor_fix_creates_missing_dirs(self, tmp_path, monkeypatch, capsys):
+        home = tmp_path / ".rosclaw"
+        monkeypatch.setenv("ROSCLAW_HOME", str(home))
+        from rosclaw.cli import main
+
+        sys.argv = ["rosclaw", "doctor", "--full", "--fix", "--json"]
+        code = main()
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+
+        assert data["exit_code"] == code
+        config_dir_check = next((c for c in data["checks"] if c["id"] == "core.config_dir"), None)
+        if config_dir_check is not None:
+            assert config_dir_check["status"] == "PASS"
+            assert config_dir_check["message"] == "created"
+        assert (home / "config").exists()
