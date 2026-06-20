@@ -29,6 +29,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 from rosclaw.agent.doctor import add_doctor_parser as _add_agent_doctor_parser
 from rosclaw.agent.init_claude_code import add_init_parser as _add_agent_init_parser
@@ -1288,6 +1289,75 @@ def cmd_skill_invoke(args: argparse.Namespace) -> int:
     except Exception as exc:
         print(f"[ROSClaw] Skill invocation failed: {exc}")
         return 1
+
+def cmd_skill_check(args: argparse.Namespace) -> int:
+    """Check skill availability and body compatibility."""
+    from rosclaw.body.resolver import BodyNotLinkedError, BodyResolver
+
+    skill_id = args.skill_id
+    _, skills = _auto_register_builtins()
+    by_name = {getattr(s, "name", ""): s for s in skills}
+    entry = by_name.get(skill_id)
+
+    if entry is None:
+        available = sorted(by_name.keys())
+        if args.json:
+            print(json.dumps({
+                "skill_id": skill_id,
+                "found": False,
+                "status": "not_found",
+                "available": available,
+            }, indent=2))
+        else:
+            print(f"[ROSClaw] Skill '{skill_id}' not found.")
+            print(f"[ROSClaw] Available: {', '.join(available) if available else 'none'}")
+        return 1
+
+    # Optional body compatibility check (read-only / safe)
+    compatibility: dict[str, Any] | None = None
+    try:
+        resolver = BodyResolver(resolve_home())
+        if resolver.is_linked():
+            result = resolver.check_skill_compatibility(skill_id, getattr(entry, "version", "1.0.0"))
+            compatibility = result.to_dict() if hasattr(result, "to_dict") else {"status": str(result)}
+    except BodyNotLinkedError:
+        pass
+    except Exception as exc:  # noqa: BLE001
+        compatibility = {"status": "error", "reason": str(exc)}
+
+    comp_status = compatibility.get("status", "unknown") if compatibility else "unknown"
+    if comp_status == "blocked":
+        status = "blocked"
+    elif comp_status == "degraded":
+        status = "degraded"
+    else:
+        status = "ok"
+
+    if args.json:
+        print(json.dumps({
+            "skill_id": skill_id,
+            "found": True,
+            "status": status,
+            "skill_type": getattr(entry, "skill_type", "unknown"),
+            "version": getattr(entry, "version", "1.0.0"),
+            "compatibility": compatibility,
+        }, indent=2, default=str))
+    else:
+        print(f"[ROSClaw] Checking skill: {skill_id}")
+        print(f"Skill '{skill_id}' is available (type={entry.skill_type}, version={entry.version})")
+        if compatibility is None:
+            print("Body compatibility: unknown (no body linked)")
+        else:
+            print(f"Body compatibility: {comp_status}")
+            reason = compatibility.get("reason", "")
+            if reason:
+                print(f"  Reason: {reason}")
+            missing = compatibility.get("missing_requirements", [])
+            if missing:
+                print(f"  Missing requirements: {', '.join(missing)}")
+
+    return 1 if status == "blocked" else 0
+
 
 def cmd_skill_champions_list(_args: argparse.Namespace) -> int:
     """List current champion skills."""
@@ -2862,6 +2932,10 @@ def main() -> int:
     skill_subparsers = skill_parser.add_subparsers(dest="skill_command")
     skill_subparsers.add_parser("list", help="List available skills")
 
+    skill_check_parser = skill_subparsers.add_parser("check", help="Check skill availability and body compatibility")
+    skill_check_parser.add_argument("skill_id", help="Skill identifier (e.g., reach, grasp)")
+    skill_check_parser.add_argument("--json", action="store_true", help="Output as JSON")
+
     skill_invoke_parser = skill_subparsers.add_parser("invoke", help="Invoke a skill")
     skill_invoke_parser.add_argument("skill_id", help="Skill identifier (e.g., reach, grasp)")
     skill_invoke_parser.add_argument("input", help="Input data (JSON string)")
@@ -3111,6 +3185,8 @@ def main() -> int:
     elif args.command == "skill":
         if args.skill_command == "list":
             return cmd_skill_list(args)
+        elif args.skill_command == "check":
+            return cmd_skill_check(args)
         elif args.skill_command == "invoke":
             return cmd_skill_invoke(args)
         elif args.skill_command == "champions":
