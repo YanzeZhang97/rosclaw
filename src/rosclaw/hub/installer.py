@@ -437,6 +437,9 @@ class Installer:
         if mcp_server_name is not None:
             with contextlib.suppress(Exception):
                 self._mcp_merger().remove_server(ref)
+        with contextlib.suppress(Exception):
+            self.assets_lock.remove(ref)
+            self.assets_lock.save()
         self.cache.remove_installed(ref)
 
 
