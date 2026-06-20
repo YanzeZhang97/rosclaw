@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from rosclaw.mcp.onboarding.claude_merge import ClaudeMcpMerge
-from rosclaw.mcp.onboarding.health import HealthRunner
+from rosclaw.mcp.onboarding.health import HealthRunner, _run_handshake_stdio
 from rosclaw.mcp.onboarding.schema import HealthCheck, McpManifest
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
+ECHO_SERVER = FIXTURES_DIR / "echo_mcp_server.py"
 
 
 @pytest.fixture
@@ -75,7 +79,7 @@ def test_protocol_check_resolvable_without_full(
     assert "resolvable" in proto.message
 
 
-def test_protocol_full_handshake_success(
+def test_protocol_full_handshake_success_mocked(
     installed_unitree: None,
     health_runner: HealthRunner,
     unitree_manifest: McpManifest,
@@ -95,7 +99,7 @@ def test_protocol_full_handshake_success(
     assert "initialize OK" in proto.message
 
 
-def test_protocol_full_handshake_failure(
+def test_protocol_full_handshake_failure_mocked(
     installed_unitree: None,
     health_runner: HealthRunner,
     unitree_manifest: McpManifest,
@@ -112,6 +116,18 @@ def test_protocol_full_handshake_failure(
     report = health_runner.check(unitree_manifest.server_name, full=True)
     proto = next(c for c in report.checks if c.category == "protocol")
     assert not proto.passed
+
+
+def test_protocol_real_stdio_handshake_success() -> None:
+    """Spawn a real stdio MCP server and verify the handshake path."""
+    ok, message = _run_handshake_stdio(
+        command=sys.executable,
+        args=[str(ECHO_SERVER)],
+        env={},
+        timeout_ms=5000,
+    )
+    assert ok, message
+    assert "initialize OK" in message
 
 
 def test_install_integrity_check_passes(
