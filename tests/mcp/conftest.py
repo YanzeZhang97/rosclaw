@@ -24,7 +24,9 @@ def unitree_manifest_dict() -> dict[str, Any]:
 @pytest.fixture
 def realsense_manifest_dict() -> dict[str, Any]:
     """Golden RealSense D455 manifest as a dict."""
-    return json.loads((FIXTURES_DIR / "manifests" / "realsense-d455.json").read_text(encoding="utf-8"))
+    return json.loads(
+        (FIXTURES_DIR / "manifests" / "realsense-d455.json").read_text(encoding="utf-8")
+    )
 
 
 @pytest.fixture

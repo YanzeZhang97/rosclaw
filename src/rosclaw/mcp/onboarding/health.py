@@ -154,7 +154,8 @@ def _run_handshake_stdio(
     """
     if asyncio.iscoroutinefunction(_handshake_stdio):
         return asyncio.run(_handshake_stdio(command, args, env, timeout_ms))
-    return _handshake_stdio(command, args, env, timeout_ms)
+    # Synchronous test double installed by tests.
+    return _handshake_stdio(command, args, env, timeout_ms)  # type: ignore[return-value]
 
 
 class HealthRunner:
@@ -320,7 +321,7 @@ class HealthRunner:
         # Full protocol handshake.
         env = dict(os.environ)
         env.update({k: os.path.expandvars(v) for k, v in transport.env.items()})
-        timeout = (manifest.health.startup_timeout_ms if manifest.health else 5000)
+        timeout = manifest.health.startup_timeout_ms if manifest.health else 5000
         try:
             passed, message = _run_handshake_stdio(resolved, args, env, timeout)
         except Exception as exc:  # noqa: BLE001

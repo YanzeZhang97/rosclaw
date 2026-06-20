@@ -91,7 +91,9 @@ class PermissionStore:
             "servers": {k: v.to_dict() for k, v in servers.items()},
         }
         tmp = self.path.with_suffix(".yaml.tmp")
-        tmp.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        tmp.write_text(
+            yaml.safe_dump(payload, sort_keys=False, allow_unicode=True), encoding="utf-8"
+        )
         tmp.replace(self.path)
 
     def get(self, server_name: str) -> PermissionState:

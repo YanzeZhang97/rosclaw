@@ -87,7 +87,9 @@ class InstallResult:
             "server_name": self.server_name,
             "manifest_id": self.manifest_id,
             "version": self.version,
-            "runtime_config_path": str(self.runtime_config_path) if self.runtime_config_path else None,
+            "runtime_config_path": str(self.runtime_config_path)
+            if self.runtime_config_path
+            else None,
             "runner_script_path": str(self.runner_script_path) if self.runner_script_path else None,
             "installed_record": self.installed_record.to_dict() if self.installed_record else None,
             "binding_result": self.binding_result.to_dict() if self.binding_result else None,
@@ -105,8 +107,7 @@ class McpInstaller(Protocol):
         manifest: McpManifest,
         artifact: Artifact,
         dry_run: bool = False,
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
 
 class PythonPackageInstaller:
@@ -192,9 +193,7 @@ class DockerInstaller:
                 "dry_run": True,
                 "note": "Docker installer not yet implemented",
             }
-        raise InstallationError(
-            "Docker/OCI artifact installation is not yet implemented"
-        )
+        raise InstallationError("Docker/OCI artifact installation is not yet implemented")
 
 
 class RemoteMcpInstaller:
@@ -213,9 +212,7 @@ class RemoteMcpInstaller:
                 "dry_run": True,
                 "note": "Remote MCP installer not yet implemented",
             }
-        raise InstallationError(
-            "Remote URL artifact installation is not yet implemented"
-        )
+        raise InstallationError("Remote URL artifact installation is not yet implemented")
 
 
 def _select_installer(artifact: Artifact) -> McpInstaller:
@@ -272,13 +269,16 @@ class InstallEngine:
         claude_action = "skip"
         if manifest.body_binding:
             from rosclaw.mcp.onboarding.binding import _build_body_patch
+
             body_patch = _build_body_patch(manifest.body_binding)
         if manifest.claude and manifest.claude.mcp_json:
             claude_action = "merge"
 
         permissions = manifest.permissions or None
         permission_state = (
-            self.permission_store.compute_effective(manifest.server_name, permissions, allow_dangerous=False)
+            self.permission_store.compute_effective(
+                manifest.server_name, permissions, allow_dangerous=False
+            )
             if permissions
             else PermissionState()
         )
@@ -371,7 +371,9 @@ class InstallEngine:
             result.runtime_config_path = runtime_config_path
             result.runner_script_path = self.home / "mcp" / "bin" / "rosclaw-mcp-run"
             result.binding_result = BindingResult(
-                binding_key=manifest.body_binding.binding_key if manifest.body_binding else server_name,
+                binding_key=manifest.body_binding.binding_key
+                if manifest.body_binding
+                else server_name,
                 body_yaml_path=body_yaml_path,
                 patched_paths=list(plan.body_patch.keys()),
             )
@@ -390,13 +392,20 @@ class InstallEngine:
                 artifact_type=artifact.type or "pypi",
                 server_dir="",
                 runtime_config_path=str(result.runtime_config_path),
-                body_binding_key=manifest.body_binding.binding_key if manifest.body_binding else None,
+                body_binding_key=manifest.body_binding.binding_key
+                if manifest.body_binding
+                else None,
                 status="planned",
             )
             return result
 
         # Staged rollback context.
-        staging_dir = self.home / "mcp" / ".staging" / f"{server_name}-{solved.version}-{uuid.uuid4().hex[:8]}"
+        staging_dir = (
+            self.home
+            / "mcp"
+            / ".staging"
+            / f"{server_name}-{solved.version}-{uuid.uuid4().hex[:8]}"
+        )
         rollback = RollbackContext(staging_dir)
 
         try:
@@ -421,7 +430,9 @@ class InstallEngine:
 
             # Artifact installation.
             install_info = installer.install(manifest, artifact, dry_run=False)
-            server_dir = install_info.get("server_dir") or str(self.home / "mcp" / "servers" / server_name)
+            server_dir = install_info.get("server_dir") or str(
+                self.home / "mcp" / "servers" / server_name
+            )
 
             # Runtime runner.
             runtime_path, runner_path = ensure_runner(manifest, self.home)

@@ -14,6 +14,15 @@ from rosclaw.mcp.onboarding.errors import PreflightError
 from rosclaw.mcp.onboarding.schema import InstallDecl, McpManifest
 
 
+def _decode_output(value: bytes | str | None) -> str:
+    """Normalize subprocess output to a string."""
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
 @dataclass
 class PreflightResult:
     """Result of a single preflight check."""
@@ -68,9 +77,7 @@ class PreflightRunner:
                 result = self._execute(check.id, check.command, check.required)
             results.append(result)
             if check.required and not result.passed:
-                raise PreflightError(
-                    f"Preflight check '{check.id}' failed: {result.message}"
-                )
+                raise PreflightError(f"Preflight check '{check.id}' failed: {result.message}")
         return results
 
     def _execute(self, check_id: str, command: str, required: bool) -> PreflightResult:
@@ -88,8 +95,8 @@ class PreflightRunner:
                 id=check_id,
                 command=command,
                 passed=False,
-                stdout=exc.stdout or "",
-                stderr=exc.stderr or "",
+                stdout=_decode_output(exc.stdout),
+                stderr=_decode_output(exc.stderr),
                 message=f"timed out after {self.timeout}s",
                 required=required,
             )

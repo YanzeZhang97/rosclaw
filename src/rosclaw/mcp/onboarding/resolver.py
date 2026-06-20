@@ -195,18 +195,14 @@ class VersionSolver:
 
         candidates.sort(key=lambda x: x[0], reverse=True)
         if not candidates:
-            raise VersionResolutionError(
-                f"No {channel} versions found for {manifest_id}"
-            )
+            raise VersionResolutionError(f"No {channel} versions found for {manifest_id}")
 
         for parsed, _v in candidates:
             manifest = self._fetch(manifest_id, str(parsed))
             if self._is_compatible(manifest.compatibility):
                 return manifest
 
-        raise VersionResolutionError(
-            f"No compatible {channel} version found for {manifest_id}"
-        )
+        raise VersionResolutionError(f"No compatible {channel} version found for {manifest_id}")
 
     def _is_compatible(self, compatibility: CompatibilityDecl | None) -> bool:
         """Check whether the local environment satisfies constraints."""

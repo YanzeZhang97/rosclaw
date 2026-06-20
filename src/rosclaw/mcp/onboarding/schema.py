@@ -25,6 +25,7 @@ def _list(data: list[Any] | None) -> list[Any]:
 
 # ── Publisher ──
 
+
 @dataclass
 class Publisher:
     """Publisher metadata for a Hardware MCP manifest."""
@@ -52,6 +53,7 @@ class Publisher:
 
 
 # ── Artifact ──
+
 
 @dataclass
 class Artifact:
@@ -102,6 +104,7 @@ class Artifact:
 
 
 # ── MCP runtime configuration ──
+
 
 @dataclass
 class McpTransport:
@@ -214,6 +217,7 @@ class McpConfig:
 
 # ── Hardware description ──
 
+
 @dataclass
 class HardwareConnection:
     """Connection options for a hardware device."""
@@ -290,6 +294,7 @@ class Hardware:
 
 # ── e-URDF binding ──
 
+
 @dataclass
 class EurdfProfileRef:
     """Reference to a required e-URDF profile."""
@@ -344,6 +349,7 @@ class EurdfBinding:
 
 # ── body.yaml binding template ──
 
+
 @dataclass
 class BodyBindingTemplate:
     """Template for writing this MCP binding into body.yaml."""
@@ -376,6 +382,7 @@ class BodyBindingTemplate:
 
 
 # ── Permissions ──
+
 
 @dataclass
 class PermissionDecl:
@@ -451,6 +458,7 @@ class Permissions:
 
 
 # ── Install declaration ──
+
 
 @dataclass
 class PreflightCheck:
@@ -547,6 +555,7 @@ class InstallDecl:
 
 # ── Health declaration ──
 
+
 @dataclass
 class HealthCheck:
     """A single health check declaration."""
@@ -593,6 +602,7 @@ class HealthDecl:
 
 # ── Claude Code merge template ──
 
+
 @dataclass
 class ClaudeMcpConfig:
     """Fragment written into the project ``.mcp.json``."""
@@ -619,6 +629,7 @@ class ClaudeMcpConfig:
 
 
 # ── Lifecycle / compatibility / security ──
+
 
 @dataclass
 class LifecycleDecl:
@@ -685,6 +696,7 @@ class SecurityDecl:
 
 # ── Top-level manifest ──
 
+
 @dataclass
 class McpManifest:
     """Complete ROSClaw Hardware MCP manifest."""
@@ -739,7 +751,7 @@ class McpManifest:
         if self.claude and self.claude.mcp_json:
             servers = self.claude.mcp_json.get("mcpServers", {})
             if servers:
-                return next(iter(servers.keys()))
+                return str(next(iter(servers.keys())))
         return self.server_name
 
     def to_dict(self) -> dict[str, Any]:
