@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
+from rosclaw.hub._compat import extractall_tar
 from rosclaw.hub.cache import HubCache
 from rosclaw.hub.client import FakeRegistryClient
 from rosclaw.hub.errors import HubError, HubErrorCode
@@ -339,7 +340,7 @@ class Installer:
         result: InstallResult | None = None
         try:
             with tarfile.open(fileobj=io.BytesIO(bundle_bytes), mode="r:gz") as tar:
-                tar.extractall(path=staging_dir)
+                extractall_tar(tar, staging_dir)
 
             source_dir = staging_dir
             # Some bundles have a single top-level directory; unwrap it.

@@ -15,6 +15,7 @@ from typing import Any, cast
 
 import yaml
 
+from rosclaw.hub._compat import extractall_tar
 from rosclaw.hub.errors import HubError, HubErrorCode
 from rosclaw.hub.refs import AssetRef
 
@@ -236,7 +237,7 @@ class FakeRegistryClient(HubClient):
         extract_dir = local_root / ".tmp" / uuid.uuid4().hex
         try:
             with tarfile.open(bundle_path, "r:gz") as tar:
-                tar.extractall(path=extract_dir)
+                extractall_tar(tar, extract_dir)
 
             manifest_rel = self._manifest_ref_path(manifest)
             manifest_dest = local_root / manifest_rel
