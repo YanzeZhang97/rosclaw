@@ -1,5 +1,5 @@
 """MCP Server modules for ROSClaw."""
 
-from rosclaw.mcp.ur5_server import UR5MCPServer, UR5ROSNode
-
-__all__ = ["UR5MCPServer", "UR5ROSNode"]
+# Keep package imports lazy so CLI startup does not pull ROS 2 dependencies.
+# Consumers should import explicitly, e.g.:
+#   from rosclaw.mcp.ur5_server import UR5MCPServer

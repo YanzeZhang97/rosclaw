@@ -104,13 +104,18 @@ class EpisodeRecorder(LifecycleMixin):
         robot_id: str,
         event_bus: EventBus,
         artifact_base_dir: str = "~/.rosclaw/artifacts",
+        seekdb_bridge: Any | None = None,
+        sense_runtime: Any | None = None,
     ):
         super().__init__()
         self._robot_id = robot_id
         self._event_bus = event_bus
         self._artifact_base = Path(artifact_base_dir).expanduser()
+        self._seekdb_bridge = seekdb_bridge
+        self._sense_runtime = sense_runtime
         self._buffers: dict[str, _EpisodeBuffer] = {}
         self._counter_file = self._artifact_base / "episode_counter.json"
+        self._practice_adapter: Any | None = None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -118,6 +123,13 @@ class EpisodeRecorder(LifecycleMixin):
 
     def _do_initialize(self) -> None:
         self._artifact_base.mkdir(parents=True, exist_ok=True)
+
+        if self._sense_runtime is not None:
+            try:
+                from rosclaw.sense.adapters.practice_writer import PracticeWriterAdapter
+                self._practice_adapter = PracticeWriterAdapter(self._sense_runtime)
+            except Exception:
+                logger.warning("Failed to initialize PracticeWriterAdapter", exc_info=True)
 
         if self._event_bus is None:
             print(f"[EpisodeRecorder] Initialized in read-only mode for {self._robot_id}, "
@@ -202,12 +214,18 @@ class EpisodeRecorder(LifecycleMixin):
             buf.agent_request = payload["agent_request"]
         elif "parameters" in payload:
             buf.agent_request = {"skill_name": payload.get("skill_name"), "parameters": payload.get("parameters")}
-        buf.trajectory.append({
+        entry = {
             "phase": "start",
             "timestamp": time.time(),
             "skill_name": payload.get("skill_name"),
             "parameters": payload.get("parameters"),
-        })
+        }
+        if self._practice_adapter is not None:
+            try:
+                entry = self._practice_adapter.apply(entry)
+            except Exception:
+                logger.warning("PracticeWriterAdapter failed for start entry", exc_info=True)
+        buf.trajectory.append(entry)
         buf.last_event_at = time.time()
 
     def _on_skill_complete(self, event: Event) -> None:
@@ -372,6 +390,21 @@ class EpisodeRecorder(LifecycleMixin):
         if buf is None:
             return
 
+        # Capture end-of-episode body sense when available
+        body_sense_end: dict[str, Any] | None = None
+        if self._practice_adapter is not None:
+            try:
+                end_context = self._practice_adapter.apply({"phase": "end"})
+                body_sense_end = end_context.get("body_sense_end")
+                if body_sense_end is not None:
+                    buf.trajectory.append({
+                        "phase": "end",
+                        "timestamp": time.time(),
+                        "body_sense_end": body_sense_end,
+                    })
+            except Exception:
+                logger.warning("PracticeWriterAdapter failed for end entry", exc_info=True)
+
         # Determine final status
         if buf.runtime_failed:
             status = "FAILED_RUNTIME"
@@ -438,6 +471,7 @@ class EpisodeRecorder(LifecycleMixin):
             "sandbox_block_reason": buf.sandbox_block_reason,
             "runtime_failed": buf.runtime_failed,
             "runtime_error": buf.runtime_error,
+            "body_sense_end": body_sense_end,
             "praxis_event": {
                 "event_id": praxis_event.event_id,
                 "event_type": praxis_event.event_type,
@@ -517,6 +551,19 @@ class EpisodeRecorder(LifecycleMixin):
                 "agent_request": agent_request,
                 "timestamp": time.time(),
             }, f, indent=2, default=str)
+
+        # Optionally forward the event to SeekDB (rosclaw_practice bridge).
+        # Failures are logged but never block local artifact persistence or
+        # the downstream praxis.recorded notification.
+        if self._seekdb_bridge is not None:
+            try:
+                self._seekdb_bridge.commit(praxis_event)
+            except Exception:
+                logger.exception(
+                    "SeekDBBridge commit failed for episode %s; "
+                    "local artifact already saved",
+                    episode_id,
+                )
 
         # Publish enriched praxis.recorded
         self._event_bus.publish(Event(

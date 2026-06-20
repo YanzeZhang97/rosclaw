@@ -33,11 +33,20 @@ class AutoEngine:
     def __init__(self, config: AutoConfig | None = None,
                  event_bus: Any | None = None,
                  seekdb_client: Any | None = None,
-                 skill_registry: Any | None = None):
+                 skill_registry: Any | None = None,
+                 sense_runtime: Any | None = None):
         self.config = config or AutoConfig()
         self._event_bus = event_bus
         self._seekdb = seekdb_client
         self._skill_registry = skill_registry
+        self._sense_runtime = sense_runtime
+        self._auto_context_adapter: Any | None = None
+        if sense_runtime is not None:
+            try:
+                from rosclaw.sense.adapters.auto_context import AutoContextAdapter
+                self._auto_context_adapter = AutoContextAdapter(sense_runtime)
+            except Exception:
+                pass
         self.store = LocalStore(self.config.local_store_path)
         # Sprint C: runners
         self.local_runner = LocalRunner({"simulate": True, "latency_sec": 0.01})
@@ -85,6 +94,12 @@ class AutoEngine:
     def create_failure_case(self, praxis_event_id: str, task_id: str, skill_id: str,
                             phase: str = "", failure_mode: str = "",
                             severity: str = "medium", evidence: dict | None = None) -> FailureCase:
+        evidence = evidence or {}
+        if self._auto_context_adapter is not None:
+            try:
+                evidence = self._auto_context_adapter.apply(evidence)
+            except Exception:
+                pass
         fc = FailureCase(
             id=f"failure_{uuid.uuid4().hex[:8]}",
             praxis_event_id=praxis_event_id,
@@ -93,7 +108,7 @@ class AutoEngine:
             phase=phase,
             failure_mode=failure_mode,
             severity=severity,
-            evidence=evidence or {},
+            evidence=evidence,
         )
         self._save("failures", fc.id, fc.to_dict())
         return fc

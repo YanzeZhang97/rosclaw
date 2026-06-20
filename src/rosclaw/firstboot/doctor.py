@@ -8,7 +8,9 @@ import os
 import platform
 import shutil
 import subprocess
+import sys
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 
@@ -636,20 +638,89 @@ class FirstbootDoctor:
     # ------------------------------------------------------------------
 
     def _auto_fix(self, checks: list[CheckResult]) -> None:
-        """Apply safe fixes only."""
+        """Apply safe fixes only.
+
+        Safe fixes include: workspace directories, default configs
+        (rosclaw.yaml, mcp.json, telemetry.yaml), install.json state,
+        directory permissions, and an optional PATH shim.  This method
+        never touches ROS 2 / Docker / GPU / API keys / cloud sync /
+        real-robot safety settings.
+        """
+        if not self.home.exists():
+            self.home.mkdir(parents=True, exist_ok=True)
+
+        # Full workspace tree + install_id.
+        from .workspace import (
+            ensure_minimal_workspace,
+            init_workspace,
+            load_install_state,
+            save_install_state,
+        )
+
+        init_workspace(self.home)
+        install_state = load_install_state(self.home)
+        if install_state is None:
+            ensure_minimal_workspace(self.home)
+            install_state = load_install_state(self.home)
+        install_state["last_doctor_status"] = "fixed"
+        install_state["updated_at"] = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        save_install_state(self.home, install_state)
+
+        # Default rosclaw.yaml.
+        from .config import FirstbootConfig, generate_rosclaw_yaml
+
+        cfg = FirstbootConfig(workspace={"home": str(self.home)})
+        cfg.apply_profile("offline")
+        generate_rosclaw_yaml(self.home, cfg)
+
+        # MCP client config.
+        from .mcp import generate_mcp_config
+
+        generate_mcp_config(self.home)
+
+        # Telemetry config.
+        from .telemetry import generate_telemetry_yaml
+
+        generate_telemetry_yaml(self.home, enabled=False)
+
+        # Optional PATH shim when rosclaw is not on PATH.
+        shim_created = False
+        if not shutil.which("rosclaw"):
+            shim_dir = self.home / "bin"
+            shim_dir.mkdir(parents=True, exist_ok=True)
+            shim = shim_dir / "rosclaw"
+            if not shim.exists():
+                shim.write_text(
+                    f'#!/bin/sh\nexec "{sys.executable}" -m rosclaw "$@"\n',
+                    encoding="utf-8",
+                )
+                shim.chmod(0o755)
+                shim_created = True
+
+        # Tighten permissions for sensitive directories.
+        try:
+            self.home.chmod(0o700)
+            (self.home / "config").chmod(0o700)
+            (self.home / "state").chmod(0o700)
+            (self.home / "logs").chmod(0o700)
+        except OSError:
+            pass
+
         for check in checks:
-            if check.status != CheckStatus.FAIL and check.status != CheckStatus.WARN:
+            if check.status == CheckStatus.PASS:
                 continue
 
             if check.id == "core.config_dir":
-                (self.home / "config").mkdir(parents=True, exist_ok=True)
                 check.status = CheckStatus.PASS
                 check.message = "created"
                 check.fix = None
             elif check.id == "core.workspace":
-                self.home.mkdir(parents=True, exist_ok=True)
                 check.status = CheckStatus.PASS
                 check.message = "created"
+                check.fix = None
+            elif check.id == "core.install_json":
+                check.status = CheckStatus.PASS
+                check.message = "regenerated"
                 check.fix = None
             elif check.id.startswith("core.dir."):
                 rel = check.id.replace("core.dir.", "").replace("_", "/")
@@ -657,6 +728,16 @@ class FirstbootDoctor:
                 check.status = CheckStatus.PASS
                 check.message = "created"
                 check.fix = None
+            elif check.id == "core.config_schema":
+                check.status = CheckStatus.PASS
+                check.message = "rosclaw.yaml regenerated"
+                check.fix = None
+            elif check.id == "core.cli" and shim_created:
+                shim_path = self.home / "bin" / "rosclaw"
+                bin_dir = shim_path.parent
+                check.status = CheckStatus.WARN
+                check.message = f"rosclaw shim created at {shim_path}; add {bin_dir} to PATH"
+                check.fix = f'export PATH="{bin_dir}:$PATH"'
 
     # ------------------------------------------------------------------
     # Compilation / output

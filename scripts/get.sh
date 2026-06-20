@@ -28,16 +28,68 @@ log() {
 }
 
 fail() {
+  local code=1
+  if [[ "$1" =~ ^[0-9]+$ ]]; then
+    code="$1"
+    shift
+  fi
   red "❌ $*"
-  log "ERROR $*"
+  log "ERROR [$code] $*"
   echo
-  echo "Run diagnostics:"
-  echo "  rosclaw doctor --bootstrap"
+  case "$code" in
+    10)
+      echo "Python >= 3.11 is required."
+      echo
+      case "$OS" in
+        linux)
+          echo "Ubuntu/Debian:"
+          echo "  sudo apt update && sudo apt install -y python3.11 python3.11-venv python3.11-dev"
+          ;;
+        darwin)
+          echo "macOS:"
+          echo "  brew install python@3.12"
+          ;;
+      esac
+      echo
+      echo "Alternatively, install uv (recommended):"
+      echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
+      ;;
+    11)
+      echo "Unsupported platform. Use Linux, macOS, or Windows WSL2."
+      ;;
+    20)
+      echo "Package download/install failed. Try:"
+      echo "  1. Check your internet connection."
+      echo "  2. Retry with a different channel: ROSCLAW_CHANNEL=dev bash get.sh"
+      echo "  3. Use a mirror or install from a local checkout."
+      ;;
+    21)
+      echo "This Python is externally managed (PEP 668). Choose one of:"
+      echo "  • Install uv:   curl -LsSf https://astral.sh/uv/install.sh | sh"
+      echo "  • Install pipx: sudo apt install pipx"
+      echo "  • Run in a venv: python3 -m venv ~/.rosclaw/venv"
+      ;;
+    22)
+      echo "Existing ROSClaw installation conflict. Try:"
+      echo "  uv tool uninstall rosclaw && uv tool install rosclaw"
+      echo "or"
+      echo "  pipx uninstall rosclaw && pipx install rosclaw"
+      ;;
+    23)
+      echo "Cannot write workspace at $ROSCLAW_HOME."
+      echo "Fix permissions or choose a different workspace:"
+      echo "  export ROSCLAW_HOME=/path/to/writable/dir"
+      ;;
+    *)
+      echo "Run diagnostics:"
+      echo "  rosclaw doctor --bootstrap"
+      ;;
+  esac
   echo
   echo "If rosclaw is not in PATH, try:"
   echo "  export PATH=\"$ROSCLAW_HOME/bin:\$PATH\""
   echo
-  exit 1
+  exit "$code"
 }
 
 step() {
@@ -64,12 +116,12 @@ detect_platform() {
 
   case "$OS" in
     linux|darwin) ;;
-    *) fail "Unsupported OS: $OS. Use Linux, macOS, or Windows WSL." ;;
+    *) fail 11 "Unsupported OS: $OS. Use Linux, macOS, or Windows WSL." ;;
   esac
 
   case "$ARCH" in
     x86_64|amd64|arm64|aarch64) ;;
-    *) fail "Unsupported architecture: $ARCH" ;;
+    *) fail 11 "Unsupported architecture: $ARCH" ;;
   esac
 
   if [ "$IS_WSL" = "true" ]; then
@@ -106,25 +158,7 @@ PY
   done
 
   if [ -z "$PYTHON_BIN" ]; then
-    red "Python >= 3.11 is required."
-    echo
-    case "$OS" in
-      linux)
-        echo "Ubuntu/Debian:"
-        echo "  sudo apt update && sudo apt install -y python3.11 python3.11-venv python3.11-dev"
-        echo
-        echo "Or install uv (recommended):"
-        echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
-        ;;
-      darwin)
-        echo "macOS:"
-        echo "  brew install python@3.12"
-        echo
-        echo "Or install uv (recommended):"
-        echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
-        ;;
-    esac
-    exit 10
+    fail 10 "Python >= 3.11 is required."
   fi
 
   green "Python: $PYTHON_BIN ($PYTHON_VERSION)"
@@ -148,31 +182,42 @@ install_cli() {
     return 0
   fi
 
-  mkdir -p "$ROSCLAW_HOME/bin" "$ROSCLAW_HOME/logs" "$ROSCLAW_HOME/cache"
+  mkdir -p "$ROSCLAW_HOME/bin" "$ROSCLAW_HOME/logs" "$ROSCLAW_HOME/cache" || fail 23 "Cannot create workspace directories"
 
   case "$INSTALL_BACKEND" in
     uv_tool)
       if [ "$ROSCLAW_CHANNEL" = "dev" ]; then
-        uv tool install --force "git+https://github.com/ros-claw/rosclaw.git"
+        uv tool install --force "git+https://github.com/ros-claw/rosclaw.git" || fail 20 "uv tool install failed"
       else
-        uv tool install --force "$ROSCLAW_PIP_SPEC"
+        uv tool install --force "$ROSCLAW_PIP_SPEC" || fail 20 "uv tool install failed"
       fi
       ;;
     pipx)
       if [ "$ROSCLAW_CHANNEL" = "dev" ]; then
-        pipx install --force "git+https://github.com/ros-claw/rosclaw.git"
+        pipx install --force "git+https://github.com/ros-claw/rosclaw.git" || fail 20 "pipx install failed"
       else
-        pipx install --force "$ROSCLAW_PIP_SPEC"
+        pipx install --force "$ROSCLAW_PIP_SPEC" || fail 20 "pipx install failed"
       fi
       ;;
     venv)
-      "$PYTHON_BIN" -m venv "$ROSCLAW_HOME/venv"
+      # Detect PEP 668 externally-managed environments before building a venv.
+      EXTERNALLY_MANAGED="$($PYTHON_BIN - <<'PY' 2>/dev/null
+import sysconfig, os
+std = sysconfig.get_paths().get("stdlib", "")
+print(os.path.join(std, "EXTERNALLY-MANAGED"))
+PY
+      )"
+      if [ -n "$EXTERNALLY_MANAGED" ] && [ -f "$EXTERNALLY_MANAGED" ]; then
+        fail 21 "Detected externally-managed Python environment ($EXTERNALLY_MANAGED)"
+      fi
+
+      "$PYTHON_BIN" -m venv "$ROSCLAW_HOME/venv" || fail 20 "Failed to create venv"
       VENV_PYTHON="$ROSCLAW_HOME/venv/bin/python"
-      "$VENV_PYTHON" -m pip install --upgrade pip wheel setuptools
+      "$VENV_PYTHON" -m pip install --upgrade pip wheel setuptools || fail 20 "Failed to upgrade pip"
       if [ "$ROSCLAW_CHANNEL" = "dev" ]; then
-        "$VENV_PYTHON" -m pip install "git+https://github.com/ros-claw/rosclaw.git"
+        "$VENV_PYTHON" -m pip install "git+https://github.com/ros-claw/rosclaw.git" || fail 20 "pip install failed"
       else
-        "$VENV_PYTHON" -m pip install "$ROSCLAW_PIP_SPEC"
+        "$VENV_PYTHON" -m pip install "$ROSCLAW_PIP_SPEC" || fail 20 "pip install failed"
       fi
 
       cat > "$ROSCLAW_HOME/bin/rosclaw" <<EOF
@@ -226,7 +271,7 @@ init_minimal_workspace() {
     "$ROSCLAW_HOME/config" \
     "$ROSCLAW_HOME/logs" \
     "$ROSCLAW_HOME/cache" \
-    "$ROSCLAW_HOME/state"
+    "$ROSCLAW_HOME/state" || fail 23 "Cannot create workspace directories"
 
   INSTALL_ID_FILE="$ROSCLAW_HOME/state/install_id"
   if [ ! -f "$INSTALL_ID_FILE" ]; then

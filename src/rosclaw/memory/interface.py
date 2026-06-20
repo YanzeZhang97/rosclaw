@@ -93,6 +93,8 @@ class MemoryInterface(LifecycleMixin):
         self.event_bus = event_bus
         self._client = seekdb_client or SeekDBMemoryClient()
         self._embodied = embodied_memory
+        self._sense_runtime: Any | None = None
+        self._memory_writer_adapter: Any | None = None
         # Semantic-search cache: invalidated on any experience mutation
         self._search_cache_lock = threading.Lock()
         self._search_cache: dict[str, Any] = {}
@@ -191,6 +193,33 @@ class MemoryInterface(LifecycleMixin):
     def seekdb_client(self) -> SeekDBClient:
         """Public accessor for the SeekDB client (used by HOW/KNOW modules)."""
         return self._client
+
+    def set_sense_runtime(self, sense_runtime: Any | None) -> None:
+        """Late-bind the SenseRuntime after it has been initialized.
+
+        MemoryInterface is created before SenseRuntime in Runtime, so the
+        sense reference must be injected via this setter rather than the
+        constructor.
+        """
+        self._sense_runtime = sense_runtime
+        if sense_runtime is not None:
+            try:
+                from rosclaw.sense.adapters.memory_writer import MemoryWriterAdapter
+                self._memory_writer_adapter = MemoryWriterAdapter(sense_runtime)
+            except Exception:
+                logger.warning("Failed to initialize MemoryWriterAdapter", exc_info=True)
+        else:
+            self._memory_writer_adapter = None
+
+    def _enrich_record_with_body_sense(self, record: dict[str, Any]) -> dict[str, Any]:
+        """Attach body-sense evidence to a memory record when available."""
+        if self._memory_writer_adapter is None:
+            return record
+        try:
+            return self._memory_writer_adapter.apply(record)
+        except Exception:
+            logger.warning("MemoryWriterAdapter failed; storing record unchanged", exc_info=True)
+            return record
 
     def _on_praxis_recorded(self, event: Event) -> None:
         """Auto-ingest PraxisEvent as an experience."""
@@ -954,6 +983,7 @@ class MemoryInterface(LifecycleMixin):
             record.setdefault("robot_id", self._robot_id)
         else:
             record = event.to_seekdb_record()
+        record = self._enrich_record_with_body_sense(record)
         return self._client.insert("praxis_events", record)
 
     def write_failure_memory(self, failure: FailureMemory | dict) -> str:
@@ -967,6 +997,7 @@ class MemoryInterface(LifecycleMixin):
             record.setdefault("robot_id", self._robot_id)
         else:
             record = failure.to_seekdb_record()
+        record = self._enrich_record_with_body_sense(record)
         return self._client.insert("failures", record)
 
     def retrieve_similar_episode(

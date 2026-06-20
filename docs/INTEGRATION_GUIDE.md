@@ -32,6 +32,28 @@ runtime = Runtime(config)
 runtime.initialize()
 ```
 
+### Enabling Practice / SeekDB Persistence
+
+When `enable_practice=True` and `seekdb_url` is set, `EpisodeRecorder` automatically
+forwards each completed episode to SeekDB via the `rosclaw_practice` bridge.
+
+```python
+from rosclaw.core import Runtime, RuntimeConfig
+
+config = RuntimeConfig(
+    robot_id="ur5e_lab_01",
+    enable_practice=True,
+    seekdb_url="http://localhost:2881",
+    seekdb_fallback_dir="/data/rosclaw/fallback",
+)
+
+runtime = Runtime(config)
+runtime.initialize()
+```
+
+See [`docs/practice/SEEKDB_INTEGRATION.md`](practice/SEEKDB_INTEGRATION.md) for the
+data mapping, failure-handling behavior, and test commands.
+
 ### Configuration Parameters
 
 | Parameter | Type | Default | Description |
@@ -43,6 +65,8 @@ runtime.initialize()
 | `enable_practice` | bool | True | Enable practice recording |
 | `seekdb_backend` | str | "memory" | "memory" or "sqlite" |
 | `seekdb_path` | str | "./seekdb.sqlite" | SQLite file path |
+| `seekdb_url` | str | None | SeekDB HTTP endpoint (e.g. `http://localhost:2881`). Enables `rosclaw_practice` bridge when set. |
+| `seekdb_fallback_dir` | str | `/data/rosclaw/fallback` | Directory for offline JSON fallback when SeekDB is unreachable. |
 
 ---
 

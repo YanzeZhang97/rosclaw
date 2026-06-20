@@ -42,9 +42,18 @@ class SandboxRuntimeAdapter(LifecycleMixin):
         self._e_urdf_model = e_urdf_model
         self._runtime = runtime
         self._sandbox_service: Any | None = None
+        self._sandbox_context_adapter: Any | None = None
         self._engine_name = config.get("engine", "mujoco")
         self._world_id = config.get("world_id", "empty")
         self._robot_id = config.get("robot_id", "")
+        if self._runtime is not None:
+            sense_runtime = getattr(self._runtime, "sense", None)
+            if sense_runtime is not None:
+                try:
+                    from rosclaw.sense.adapters.sandbox_context import SandboxContextAdapter
+                    self._sandbox_context_adapter = SandboxContextAdapter(sense_runtime)
+                except Exception:
+                    logger.warning("Failed to initialize SandboxContextAdapter", exc_info=True)
 
     def _do_initialize(self) -> None:
         """Initialize sandbox service."""
@@ -127,10 +136,12 @@ class SandboxRuntimeAdapter(LifecycleMixin):
                 "type": "joint_position",
                 "values": trajectory[-1] if trajectory else [],
             }
-            # Inject body sense snapshot if available for sense-aware firewall rules
-            sense_snapshot = self._get_body_sense_snapshot()
-            if sense_snapshot is not None:
-                action["body_sense_snapshot"] = sense_snapshot
+            # Inject body sense snapshot via sense-aware adapter for sense-aware firewall rules
+            if self._sandbox_context_adapter is not None:
+                try:
+                    action = self._sandbox_context_adapter.apply(action)
+                except Exception:
+                    logger.warning("SandboxContextAdapter failed; validating without body sense", exc_info=True)
             decision = gate.check(action)
             # CRITICAL FIX: Publish firewall event for BOTH blocked AND allowed
             if self._event_bus:

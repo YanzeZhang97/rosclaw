@@ -91,6 +91,13 @@ class RuntimeConfig:
     how_api_key: str | None = field(default_factory=lambda: os.environ.get("ROSCLAW_HOW_API_KEY"))
     how_timeout: float = 10.0
     how_fallback_to_local: bool = True
+    # SeekDB / rosclaw_practice integration (optional)
+    seekdb_url: str | None = field(default_factory=lambda: os.environ.get("ROSCLAW_SEEKDB_URL"))
+    seekdb_fallback_dir: str = field(
+        default_factory=lambda: os.environ.get(
+            "ROSCLAW_SEEKDB_FALLBACK_DIR", "/data/rosclaw/fallback"
+        )
+    )
     # KNOW optional integration with private rosclaw_know curated registry.
     know_curated_registry_enabled: bool = field(
         default_factory=lambda: os.environ.get("ROSCLAW_KNOW_CURATED_REGISTRY_ENABLED", "").lower() in ("1", "true", "yes", "on")
@@ -229,6 +236,14 @@ class Runtime(LifecycleMixin):
             except ImportError as e:
                 logger.info(f"Sense module not available: {e}")
 
+        # Late-bind sense reference to MemoryInterface (initialized above Sense)
+        if self._memory is not None and self._sense is not None:
+            try:
+                self._memory.set_sense_runtime(self._sense)
+                logger.info("MemoryInterface bound to SenseRuntime")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Failed to bind MemoryInterface to SenseRuntime: {e}")
+
         # Initialize Experience Grounding (Memory)
         if self.config.enable_memory:
             try:
@@ -266,11 +281,29 @@ class Runtime(LifecycleMixin):
                 logger.info(f"UnifiedTimeline not available: {e}")
 
             # Initialize EpisodeRecorder for artifact management
+            seekdb_bridge = None
+            if self.config.seekdb_url:
+                try:
+                    from rosclaw.practice.seekdb_bridge import SeekDBBridge
+                    seekdb_bridge = SeekDBBridge(
+                        seekdb_url=self.config.seekdb_url,
+                        fallback_dir=self.config.seekdb_fallback_dir,
+                    )
+                    logger.info("SeekDBBridge initialized")
+                except ImportError as e:
+                    logger.info(
+                        f"rosclaw_practice not installed, SeekDB integration disabled: {e}"
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"SeekDBBridge initialization failed: {e}")
+
             try:
                 from rosclaw.practice.episode_recorder import EpisodeRecorder
                 self._episode_recorder = EpisodeRecorder(
                     robot_id=self.config.robot_id,
                     event_bus=self.event_bus,
+                    seekdb_bridge=seekdb_bridge,
+                    sense_runtime=self._sense,
                 )
                 self._modules.append(self._episode_recorder)
                 logger.info("EpisodeRecorder initialized")
@@ -392,6 +425,7 @@ class Runtime(LifecycleMixin):
                     event_bus=self.event_bus,
                     seekdb_client=seekdb,
                     skill_registry=getattr(self._skill_manager, "registry", None) if self._skill_manager else None,
+                    sense_runtime=self._sense,
                 )
                 self._modules.append(self._auto)
                 logger.info("Self-Evolution Control Plane (Auto) initialized")
@@ -460,6 +494,7 @@ class Runtime(LifecycleMixin):
             seekdb_client=seekdb,
             knowledge_interface=self._knowledge,
             event_bus=self.event_bus,
+            sense_runtime=self._sense,
         )
         self._run_async(engine.initialize())
         self._run_async(engine.seed_defaults())

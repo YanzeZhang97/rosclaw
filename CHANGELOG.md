@@ -11,13 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Body Module (P0 three-layer body system)**
   - `src/rosclaw/body/` self-contained module: schema, resolver, compiler, renderer, diff, notes, compatibility, validators, and CLI.
-  - e-URDF / `body.yaml` / `EMBODIMENT.md` three-layer body model.
+  - e-URDF / `~/.rosclaw/body/body.yaml` / `~/.rosclaw/body/EMBODIMENT.md` three-layer body model.
   - `EffectiveBodyCompiler` merges Physical DNA, instance state, calibration, and maintenance events into a single Effective Body Model.
   - `BodyResolver` API and `rosclaw://` URI scheme for cross-module body access.
   - `BodyDiffer` with impact-aware change categorization (`structural`, `installed_component`, `actuator_status`, `sensor_status`, `calibration`, `safety`, `capability`, `incident`).
   - `SkillCompatibilityChecker` with `compatible` / `degraded` / `blocked` / `unknown` statuses and incremental recheck.
   - CLI commands: `rosclaw body link-eurdf`, `inspect`, `diff`, `update-state`, `note`.
-  - Generated artifacts: `EMBODIMENT.md`, `skill_compatibility.yaml`, `generated/*.json` summaries, and historical snapshots.
+  - Generated artifacts: `~/.rosclaw/body/EMBODIMENT.md`, `~/.rosclaw/body/skill_compatibility.yaml`, `generated/*.json` summaries, and historical snapshots.
 
 ### Changed
 

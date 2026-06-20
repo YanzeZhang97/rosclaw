@@ -12,6 +12,8 @@ Welcome to the ROSClaw documentation index. This directory contains all project 
 | [Security](#security) | Security audits, gap analysis |
 | [Planning](#planning) | Roadmaps, sprints, release checklist |
 | [Testing](#testing) | Test reports, verification, deep user tests |
+| [Practice](#practice) | SeekDB / `rosclaw_practice` integration |
+| [Body module](#body-module) | Multi-body registry and routing |
 
 ---
 
@@ -54,6 +56,17 @@ Welcome to the ROSClaw documentation index. This directory contains all project 
 - **[FINAL_ACCEPTANCE.md](FINAL_ACCEPTANCE.md)** — Final acceptance criteria and results (9.2/10)
 - **[FINAL_VERIFICATION.md](FINAL_VERIFICATION.md)** — Final verification checklist
 - **[ROS_INTEGRATION_TESTING.md](ROS_INTEGRATION_TESTING.md)** — Cross-project ROS 1 / ROS 2 integration test matrix
+
+## Body module
+
+- **[body/BODY_REGISTRY.md](body/BODY_REGISTRY.md)** — Multi-body registry, `list`/`create`/`switch`/`remove`, and `--body` routing
+- **[body/BODY_HISTORY_EXPORT.md](body/BODY_HISTORY_EXPORT.md)** — Body snapshots, `history`, `export`, and restoration workflow
+- **[body/SKILL_COMPATIBILITY.md](body/SKILL_COMPATIBILITY.md)** — Skill compatibility statuses and enforcement
+- **[body/URI_SCHEME.md](body/URI_SCHEME.md)** — Stable `rosclaw://` references to body and e-URDF resources
+
+## Practice
+
+- **[practice/SEEKDB_INTEGRATION.md](practice/SEEKDB_INTEGRATION.md)** — Persisting physical episodes to SeekDB via `rosclaw_practice`
 
 ---
 

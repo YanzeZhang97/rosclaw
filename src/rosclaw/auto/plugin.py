@@ -26,7 +26,8 @@ class AutoPlugin(LifecycleMixin):
     version = "1.0.0"
 
     def __init__(self, config: dict | None = None, event_bus: Any | None = None,
-                 seekdb_client: Any | None = None, skill_registry: Any | None = None):
+                 seekdb_client: Any | None = None, skill_registry: Any | None = None,
+                 sense_runtime: Any | None = None):
         super().__init__()
         self.config = AutoConfig.from_dict(config or {})
         self.engine: AutoEngine | None = None
@@ -35,6 +36,7 @@ class AutoPlugin(LifecycleMixin):
         self._event_bus = event_bus
         self._seekdb_client = seekdb_client
         self._skill_registry = skill_registry
+        self._sense_runtime = sense_runtime
 
     def _do_initialize(self) -> None:
         """Initialize engine and connect to runtime context."""
@@ -43,6 +45,7 @@ class AutoPlugin(LifecycleMixin):
             event_bus=self._event_bus,
             seekdb_client=self._seekdb_client,
             skill_registry=self._skill_registry,
+            sense_runtime=self._sense_runtime,
         )
         self.publisher = AutoPublisher(event_bus=self._event_bus)
         self.subscriber = AutoSubscriber(engine=self.engine, event_bus=self._event_bus)
