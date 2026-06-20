@@ -5,6 +5,33 @@ All notable changes to ROSClaw will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-06-20
+
+### Added
+
+- **Body Module (P0 three-layer body system)**
+  - `src/rosclaw/body/` self-contained module: schema, resolver, compiler, renderer, diff, notes, compatibility, validators, and CLI.
+  - e-URDF / `body.yaml` / `EMBODIMENT.md` three-layer body model.
+  - `EffectiveBodyCompiler` merges Physical DNA, instance state, calibration, and maintenance events into a single Effective Body Model.
+  - `BodyResolver` API and `rosclaw://` URI scheme for cross-module body access.
+  - `BodyDiffer` with impact-aware change categorization (`structural`, `installed_component`, `actuator_status`, `sensor_status`, `calibration`, `safety`, `capability`, `incident`).
+  - `SkillCompatibilityChecker` with `compatible` / `degraded` / `blocked` / `unknown` statuses and incremental recheck.
+  - CLI commands: `rosclaw body link-eurdf`, `inspect`, `diff`, `update-state`, `note`.
+  - Generated artifacts: `EMBODIMENT.md`, `skill_compatibility.yaml`, `generated/*.json` summaries, and historical snapshots.
+
+### Changed
+
+- `SkillExecutor._check_body_compatibility()` is now **fail-closed**: resolver
+  errors and `unknown` compatibility statuses block execution instead of
+  allowing it.
+
+### Tests
+
+- Added `tests/body/` suite covering schema, link-eurdf, inspect, effective body,
+  diff, update-state, notes, skill compatibility, and cross-module references.
+- Added `TestSkillExecutorBodyCheck` to verify fail-closed behavior on resolver
+  errors and unknown compatibility.
+
 ## [1.0.0] - 2026-05-28
 
 ### Added

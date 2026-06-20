@@ -70,6 +70,11 @@ def add_body_subparser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
     remove_parser.add_argument("--workspace", default=None, help="ROSClaw workspace")
     remove_parser.add_argument("--archive", action="store_true", help="Archive body data instead of deleting")
 
+    # list
+    list_parser = body_subparsers.add_parser("list", help="List registered bodies")
+    list_parser.add_argument("--workspace", default=None, help="ROSClaw workspace")
+    list_parser.add_argument("--json", action="store_true", help="Output JSON")
+
     # validate
     validate_parser = body_subparsers.add_parser("validate", help="Validate body workspace")
     validate_parser.add_argument("--json", action="store_true", help="Output JSON report")
@@ -256,6 +261,8 @@ def dispatch_body_command(args: argparse.Namespace) -> int:
         return cmd_body_switch(args)
     if command == "remove":
         return cmd_body_remove(args)
+    if command == "list":
+        return cmd_body_list(args)
     if command == "validate":
         return cmd_body_validate(args)
     if command == "render":
@@ -290,7 +297,7 @@ def dispatch_body_command(args: argparse.Namespace) -> int:
         return cmd_body_retrofit(args)
     if command == "capability":
         return cmd_body_capability(args)
-    print("[ROSClaw] body: no subcommand given. Use: init, create, switch, remove, validate, render, show, state, query, link-eurdf, inspect, diff, update-state, note, history, export, fault, maintenance, calibration, retrofit, capability")
+    print("[ROSClaw] body: no subcommand given. Use: init, create, switch, remove, list, validate, render, show, state, query, link-eurdf, inspect, diff, update-state, note, history, export, fault, maintenance, calibration, retrofit, capability")
     return 1
 
 
@@ -385,6 +392,52 @@ def cmd_body_remove(args: argparse.Namespace) -> int:
         print(f"Removed body '{args.body_id}' and archived data to {removal.archive_path}")
     else:
         print(f"Removed body '{args.body_id}'")
+    return 0
+
+
+def cmd_body_list(args: argparse.Namespace) -> int:
+    """List registered bodies in the workspace."""
+    workspace = Path(args.workspace) if args.workspace else None
+    ws = workspace or Path.home() / ".rosclaw"
+    manager = BodyRegistryManager(ws)
+    bodies = manager.list_bodies()
+    stats = manager.stats()
+
+    if args.json:
+        payload = {
+            "current": stats["current"],
+            "total": stats["total"],
+            "bodies": [
+                {
+                    "body_id": entry.body_id,
+                    "nickname": entry.nickname,
+                    "profile_id": entry.profile_id,
+                    "profile_version": entry.profile_version,
+                    "path": entry.path,
+                    "tags": entry.tags,
+                    "created_at": entry.created_at,
+                    "updated_at": entry.updated_at,
+                    "is_current": entry.body_id == stats["current"],
+                }
+                for entry in bodies
+            ],
+        }
+        print(json.dumps(payload, indent=2, default=str))
+        return 0
+
+    print("=" * 60)
+    print("ROSClaw Bodies")
+    print("=" * 60)
+    if not bodies:
+        print("No bodies registered.")
+        print("Create one with: rosclaw body create --robot <profile> --name <id>")
+    else:
+        print(f"Current: {stats['current']}   Total: {stats['total']}")
+        print("")
+        for entry in bodies:
+            marker = "*" if entry.body_id == stats["current"] else " "
+            print(f"  [{marker}] {entry.body_id:<20} {entry.nickname:<20} {entry.profile_id}@{entry.profile_version}")
+    print("=" * 60)
     return 0
 
 

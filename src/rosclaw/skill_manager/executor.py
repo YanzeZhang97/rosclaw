@@ -214,7 +214,10 @@ class SkillExecutor(LifecycleMixin):
             return {"status": "ok", "result": result.to_dict()}
         except Exception as exc:
             logger.warning("Body compatibility check failed for %s: %s", skill.name, exc)
-            return {"status": "ok"}  # fail open on check error to preserve existing workflows
+            return {
+                "status": "blocked",
+                "reason": f"Body compatibility check error: {exc}",
+            }
 
     def _check_body_sense(self, skill: SkillEntry) -> dict[str, Any]:
         """Check skill against body sense readiness if the skill declares requirements."""

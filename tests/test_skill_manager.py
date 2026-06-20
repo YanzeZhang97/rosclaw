@@ -337,3 +337,72 @@ class TestSkillRegistrySkillEntry:
         assert d["success_criteria"] == ["grasped"]
         assert d["metadata"] == {"author": "test"}
         assert "handler" not in d
+
+
+class TestSkillExecutorBodyCheck:
+    def test_body_check_fail_closed_on_resolver_error(self, monkeypatch):
+        bus = EventBus()
+        reg = SkillRegistry()
+        reg.initialize()
+        executor = SkillExecutor(bus, reg)
+        executor.initialize()
+
+        def handler(params):
+            return {"done": True}
+
+        reg.register(SkillEntry(
+            name="body_test_skill",
+            description="Test",
+            skill_type="programmed",
+            handler=handler,
+        ))
+
+        def _exploding_resolver(*args, **kwargs):
+            raise RuntimeError("resolver exploded")
+
+        monkeypatch.setattr(
+            "rosclaw.body.resolver.BodyResolver",
+            _exploding_resolver,
+        )
+
+        result = executor.execute("body_test_skill")
+        assert result["status"] == "blocked"
+        assert "resolver exploded" in result.get("message", "")
+        executor.stop()
+        reg.stop()
+
+    def test_body_check_blocks_unknown_compatibility(self, monkeypatch):
+        bus = EventBus()
+        reg = SkillRegistry()
+        reg.initialize()
+        executor = SkillExecutor(bus, reg)
+        executor.initialize()
+
+        reg.register(SkillEntry(
+            name="body_test_skill",
+            description="Test",
+            skill_type="programmed",
+        ))
+
+        class _LinkedResolver:
+            def is_linked(self):
+                return True
+            def check_skill_compatibility(self, name, version=None):
+                from rosclaw.body.schema import SkillCompatibilityResult
+                return SkillCompatibilityResult(
+                    skill_id=name,
+                    skill_version=version or "",
+                    status="unknown",
+                    reason="missing manifest",
+                )
+
+        monkeypatch.setattr(
+            "rosclaw.body.resolver.BodyResolver",
+            _LinkedResolver,
+        )
+
+        result = executor.execute("body_test_skill")
+        assert result["status"] == "blocked"
+        assert "unknown" in result.get("message", "").lower()
+        executor.stop()
+        reg.stop()
