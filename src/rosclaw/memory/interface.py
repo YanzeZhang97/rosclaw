@@ -233,7 +233,7 @@ class MemoryInterface(LifecycleMixin):
                 or "unnamed_task"  # noqa: W503
             )
         self.store_experience(
-            event_id=payload.get("event_id", payload.get("episode_id", "")),
+            event_id=str(payload.get("event_id") or payload.get("episode_id") or ""),
             event_type=payload.get("event_type", "unknown"),
             instruction=instruction,
             duration_sec=payload.get("duration_sec", 0.0),

@@ -664,3 +664,118 @@ class TestHowEndToEndRecovery:
         assert fallback is not None
         assert fallback["source"] == "knowledge_analogy"
         assert "charging station" in fallback["action"]
+
+
+class TestHeuristicEngineBodySense:
+    """Tests for body-aware recovery hint enrichment via HowContextAdapter."""
+
+    @pytest.fixture
+    def sense_runtime_kick_not_ready(self):
+        from rosclaw.core.event_bus import EventBus
+        from rosclaw.sense.config import SenseConfig
+        from rosclaw.sense.runtime import SenseRuntime
+
+        bus = EventBus()
+        cfg = SenseConfig(
+            robot_id="g1_lab_01",
+            collector="mock",
+            update_hz=0.0,
+            extra={"scenario": "kick_not_ready"},
+        )
+        runtime = SenseRuntime(cfg, event_bus=bus, robot_id="g1_lab_01")
+        runtime.initialize()
+        runtime.tick()
+        yield runtime
+        runtime.stop()
+
+    @pytest.fixture
+    def engine_with_sense(self, sense_runtime_kick_not_ready):
+        client = SeekDBMemoryClient()
+        client.connect()
+        engine = HeuristicEngine(
+            seekdb_client=client,
+            sense_runtime=sense_runtime_kick_not_ready,
+        )
+        return engine
+
+    @pytest.mark.asyncio
+    async def test_generate_recovery_hint_includes_body_readiness(self, engine_with_sense):
+        await engine_with_sense.seed_defaults()
+        hint = await engine_with_sense.generate_recovery_hint(
+            "joint limit exceeded",
+            context={"task": "kick_ball"},
+        )
+        assert hint is not None
+        assert "body_readiness" in hint
+        assert "body_block_reasons" in hint
+        reasons = hint["body_block_reasons"] or []
+        assert any("kick_ball" in r for r in reasons)
+        assert any("temperature" in r.lower() for r in reasons)
+
+    @pytest.mark.asyncio
+    async def test_generate_recovery_hint_ready_state_no_blocks(self):
+        from rosclaw.core.event_bus import EventBus
+        from rosclaw.sense.config import SenseConfig
+        from rosclaw.sense.runtime import SenseRuntime
+
+        bus = EventBus()
+        cfg = SenseConfig(
+            robot_id="g1_lab_01",
+            collector="mock",
+            update_hz=0.0,
+            extra={"scenario": "normal"},
+        )
+        runtime = SenseRuntime(cfg, event_bus=bus, robot_id="g1_lab_01")
+        runtime.initialize()
+        runtime.tick()
+
+        client = SeekDBMemoryClient()
+        client.connect()
+        engine = HeuristicEngine(seekdb_client=client, sense_runtime=runtime)
+        await engine.seed_defaults()
+        hint = await engine.generate_recovery_hint(
+            "joint limit exceeded",
+            context={"task": "observe_scene"},
+        )
+        assert hint is not None
+        assert hint.get("body_block_reasons") in (None, [])
+        assert hint["body_readiness"]["overall_status"] == "ready"
+        runtime.stop()
+
+    @pytest.mark.asyncio
+    async def test_on_failure_event_enriches_context(self, sense_runtime_kick_not_ready):
+        from rosclaw.core.event_bus import EventBus
+
+        client = SeekDBMemoryClient()
+        client.connect()
+        bus = EventBus()
+        engine = HeuristicEngine(
+            seekdb_client=client,
+            event_bus=bus,
+            sense_runtime=sense_runtime_kick_not_ready,
+        )
+        await engine.initialize()
+        await engine.seed_defaults()
+
+        captured = []
+        bus.subscribe("rosclaw.how.recovery_hint.generated", lambda e: captured.append(e.payload))
+
+        class FakeEvent:
+            payload = {
+                "error_log": "joint limit exceeded",
+                "request_id": "req_sense_001",
+                "task": "kick_ball",
+            }
+
+        engine._on_failure_sync_wrapper(FakeEvent())
+        # Give fire_and_forget a moment to run
+        import asyncio
+        await asyncio.sleep(0.05)
+
+        assert len(captured) == 1
+        payload = captured[0]
+        assert payload["failure_type"] == "joint limit exceeded"
+        assert "body_readiness" in payload
+        assert "body_block_reasons" in payload
+        assert payload["body_readiness"]["overall_status"] == "not_ready"
+        assert any("kick_ball" in r for r in payload["body_block_reasons"])

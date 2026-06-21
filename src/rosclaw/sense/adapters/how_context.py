@@ -26,8 +26,14 @@ class HowContextAdapter(SenseAdapterBase):
 
         readiness = sense.get("readiness", {})
         item = readiness.get("capabilities", {}).get(task, {})
+        status = item.get("status", "unknown")
         reasons = list(item.get("reasons", []))
-        block_reasons = [f"{task}: {r}" for r in reasons] if reasons else [f"{task}: not ready"]
+        if status == "ready":
+            block_reasons: list[str] = []
+        elif reasons:
+            block_reasons = [f"{task}: {r}" for r in reasons]
+        else:
+            block_reasons = [f"{task}: not ready"]
 
         return {
             **context,

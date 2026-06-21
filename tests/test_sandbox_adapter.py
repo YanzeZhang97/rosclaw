@@ -2,8 +2,12 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from rosclaw.core.event_bus import EventBus
 from rosclaw.sandbox.runtime_adapter import SandboxRuntimeAdapter
+from rosclaw.sense.config import SenseConfig
+from rosclaw.sense.runtime import SenseRuntime
 
 
 class TestSandboxRuntimeAdapterLifecycle:
@@ -240,3 +244,98 @@ class TestSandboxRuntimeAdapterProperties:
         health = adapter.health()
         assert health["status"] == "unavailable"
         assert health["session_id"] is None
+
+
+class TestSandboxRuntimeAdapterSenseAware:
+    @pytest.fixture
+    def sense_runtime(self):
+        bus = EventBus()
+        cfg = SenseConfig(
+            robot_id="g1_lab_01",
+            collector="mock",
+            update_hz=0.0,
+            extra={"scenario": "kick_not_ready"},
+        )
+        runtime = SenseRuntime(cfg, event_bus=bus, robot_id="g1_lab_01")
+        runtime.initialize()
+        runtime.tick()
+        yield runtime
+        runtime.stop()
+
+    def _make_adapter(self, sense_runtime=None):
+        bus = EventBus()
+        config = {"engine": "mujoco", "world_id": "empty", "robot_id": "test_bot"}
+        runtime_wrapper = type("FakeRuntime", (), {"sense": sense_runtime})() if sense_runtime else None
+        adapter = SandboxRuntimeAdapter(config, event_bus=bus, runtime=runtime_wrapper)
+        adapter._sandbox_service = MagicMock()
+        return adapter
+
+    def test_validate_injects_body_sense_snapshot(self, sense_runtime):
+        adapter = self._make_adapter(sense_runtime)
+        captured_action = {}
+
+        with patch("rosclaw.sandbox.firewall.gate.FirewallGate") as mock_gate:
+            instance = mock_gate.return_value
+            decision = MagicMock()
+            decision.is_allowed = True
+            decision.risk_score = 0.1
+            decision.reason = "safe"
+            decision.predicted_collision = False
+            decision.violated_constraints = []
+            decision.replay_id = None
+            instance.check.return_value = decision
+
+            def capture_check(action):
+                captured_action.update(action)
+                return decision
+
+            instance.check.side_effect = capture_check
+            adapter.validate_trajectory([[0.0, 0.0, 0.0]])
+
+        assert "body_sense_snapshot" in captured_action
+        assert captured_action["body_sense_snapshot"]["overall_status"] == "not_ready"
+
+    def test_validate_without_runtime_does_not_inject_snapshot(self):
+        adapter = self._make_adapter(None)
+        captured_action = {}
+
+        with patch("rosclaw.sandbox.firewall.gate.FirewallGate") as mock_gate:
+            instance = mock_gate.return_value
+            decision = MagicMock()
+            decision.is_allowed = True
+            decision.risk_score = 0.1
+            decision.reason = "safe"
+            decision.predicted_collision = False
+            decision.violated_constraints = []
+            decision.replay_id = None
+
+            def capture_check(action):
+                captured_action.update(action)
+                return decision
+
+            instance.check.side_effect = capture_check
+            adapter.validate_trajectory([[0.0, 0.0, 0.0]])
+
+        assert "body_sense_snapshot" not in captured_action
+
+    def test_validate_adapter_failure_falls_back(self, sense_runtime, caplog):
+        import logging
+        adapter = self._make_adapter(sense_runtime)
+        adapter._sandbox_context_adapter = MagicMock()
+        adapter._sandbox_context_adapter.apply.side_effect = RuntimeError("adapter broken")
+
+        with patch("rosclaw.sandbox.firewall.gate.FirewallGate") as mock_gate:
+            instance = mock_gate.return_value
+            decision = MagicMock()
+            decision.is_allowed = True
+            decision.risk_score = 0.0
+            decision.reason = "safe"
+            decision.predicted_collision = False
+            decision.violated_constraints = []
+            decision.replay_id = None
+            instance.check.return_value = decision
+            with caplog.at_level(logging.WARNING, logger="rosclaw.sandbox.runtime_adapter"):
+                result = adapter.validate_trajectory([[0.0, 0.0, 0.0]])
+
+        assert result["is_safe"] is True
+        assert "without body sense" in caplog.text or "adapter broken" in caplog.text
