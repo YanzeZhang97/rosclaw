@@ -182,7 +182,7 @@ def ensure_minimal_workspace(home: Path, platform: PlatformInfo | None = None) -
         "firstboot_completed": False,
         "last_doctor_status": "pending",
     }
-    install_state = save_install_state(home, state)
+    save_install_state(home, state)
 
     workspace_state = {
         "schema_version": "1.0",
@@ -196,4 +196,4 @@ def ensure_minimal_workspace(home: Path, platform: PlatformInfo | None = None) -
         encoding="utf-8",
     )
 
-    return install_state
+    return state

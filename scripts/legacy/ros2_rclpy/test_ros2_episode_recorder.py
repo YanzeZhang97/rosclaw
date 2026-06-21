@@ -19,19 +19,16 @@ if sys.version_info[:2] != (3, 10):
 
 try:
     import rclpy
-    from rclpy.node import Node
-    from sensor_msgs.msg import JointState
 except ImportError as e:
     print(f"SKIP: rclpy not available: {e}")
     sys.exit(0)
 
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
 
+from rosclaw.core.event_bus import Event, EventBus
 from rosclaw.core.runtime import Runtime, RuntimeConfig
-from rosclaw.core.event_bus import EventBus, Event, EventPriority
 from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
 from rosclaw.practice.episode_recorder import EpisodeRecorder
-
 
 # ------------------------------------------------------------------
 # Test framework

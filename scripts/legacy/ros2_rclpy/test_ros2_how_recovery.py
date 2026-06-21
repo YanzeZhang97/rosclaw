@@ -18,19 +18,16 @@ if sys.version_info[:2] != (3, 10):
 
 try:
     import rclpy
-    from rclpy.node import Node
-    from trajectory_msgs.msg import JointTrajectory
 except ImportError as e:
     print(f"SKIP: rclpy not available: {e}")
     sys.exit(0)
 
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
 
+from rosclaw.core.event_bus import Event
 from rosclaw.core.runtime import Runtime, RuntimeConfig
-from rosclaw.core.event_bus import EventBus, Event, EventPriority
-from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
 from rosclaw.how.engine import HeuristicEngine
-
+from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
 
 # ------------------------------------------------------------------
 # Test framework

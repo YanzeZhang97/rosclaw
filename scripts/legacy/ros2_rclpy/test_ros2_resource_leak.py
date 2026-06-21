@@ -5,10 +5,10 @@ Tests node cleanup, memory stability, and repeated init/stop cycles.
 Runs in standalone subprocess to avoid pytest module reload issues.
 """
 
-import sys
-import time
-import traceback
+import contextlib
 import gc
+import sys
+import traceback
 
 if sys.version_info[:2] != (3, 10):
     print(f"SKIP: Requires Python 3.10 (found {sys.version_info.major}.{sys.version_info.minor})")
@@ -25,7 +25,6 @@ except ImportError as e:
 
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
 from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
-
 
 # ------------------------------------------------------------------
 # Test framework
@@ -67,10 +66,8 @@ def _count_nodes():
 
 def _cleanup_rclpy():
     if rclpy.ok():
-        try:
+        with contextlib.suppress(Exception):
             rclpy.shutdown()
-        except Exception:
-            pass
 
 
 # ------------------------------------------------------------------
@@ -173,7 +170,7 @@ def test_repeated_emergency_stop():
     driver = ROS2Driver("emerg_bot", joint_dof=6, node_name="emerg_driver")
     driver.initialize()
 
-    for i in range(10):
+    for _i in range(10):
         driver.emergency_stop()
         state = driver.get_state()
         assert state.error_code == 99

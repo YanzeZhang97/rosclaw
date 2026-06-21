@@ -13,6 +13,7 @@ Runs in standalone subprocess to avoid pytest module reload issues.
 """
 
 import asyncio
+import contextlib
 import sys
 import time
 import traceback
@@ -32,8 +33,7 @@ except ImportError as e:
 
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
 
-from rosclaw.mcp.ur5_server import UR5MCPServer, ROS_IMPORTS_OK
-
+from rosclaw.mcp.ur5_server import UR5MCPServer
 
 # ------------------------------------------------------------------
 # Test framework
@@ -127,10 +127,8 @@ def next_name(base: str) -> str:
 def _cleanup_server(server):
     """Clean up UR5MCPServer resources."""
     if server and server.ros_node:
-        try:
+        with contextlib.suppress(Exception):
             server.ros_node.destroy_node()
-        except Exception:
-            pass
 
 
 # ------------------------------------------------------------------

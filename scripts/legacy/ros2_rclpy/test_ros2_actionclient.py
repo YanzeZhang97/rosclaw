@@ -6,6 +6,7 @@ Runs in standalone subprocess to avoid pytest module reload issues.
 """
 
 import asyncio
+import contextlib
 import sys
 import time
 import traceback
@@ -16,18 +17,16 @@ if sys.version_info[:2] != (3, 10):
 
 try:
     import rclpy
-    from rclpy.action import ActionServer, ActionClient
-    from rclpy.node import Node
-    from rclpy.executors import SingleThreadedExecutor
     from control_msgs.action import FollowJointTrajectory
-    from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+    from rclpy.action import ActionServer
+    from rclpy.executors import SingleThreadedExecutor
+    from rclpy.node import Node
 except ImportError as e:
     print(f"SKIP: ROS2 not available: {e}")
     sys.exit(0)
 
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
 from rosclaw.mcp.ur5_server import UR5ROSNode
-
 
 # ------------------------------------------------------------------
 # Test framework
@@ -102,16 +101,12 @@ def _cleanup():
     """Destroy all active nodes and shutdown rclpy."""
     global _active_nodes
     for n in _active_nodes:
-        try:
+        with contextlib.suppress(Exception):
             n.destroy_node()
-        except Exception:
-            pass
     _active_nodes = []
     if rclpy.ok():
-        try:
+        with contextlib.suppress(Exception):
             rclpy.shutdown()
-        except Exception:
-            pass
 
 
 def spin_nodes(nodes, duration: float = 0.5):

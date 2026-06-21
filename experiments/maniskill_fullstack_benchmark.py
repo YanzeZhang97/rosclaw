@@ -323,9 +323,9 @@ def main():
     import gymnasium as gym
     import mani_skill.envs  # noqa: F401
 
-    NUM_EPISODES = 100
-    MAX_STEPS = 100
-    NUM_ROUNDS = 6
+    num_episodes = 100
+    max_steps = 100
+    num_rounds = 6
 
     env = gym.make(
         "PickCube-v1",
@@ -334,16 +334,16 @@ def main():
     )
 
     # Pre-generate identical actions for ALL groups
-    actions = generate_actions(env, NUM_EPISODES, MAX_STEPS, seed=42)
+    actions = generate_actions(env, num_episodes, max_steps, seed=42)
 
     print("=" * 72)
     print("ROSClaw Full-Stack Benchmark — ALL Modules协同")
     print("=" * 72)
-    print(f"Task:         PickCube-v1")
-    print(f"Episodes:     {NUM_EPISODES} per round")
-    print(f"Max steps:    {MAX_STEPS}")
-    print(f"Rounds:       {NUM_ROUNDS}")
-    print(f"Policy:       ScaledRandom with identical base actions")
+    print("Task:         PickCube-v1")
+    print(f"Episodes:     {num_episodes} per round")
+    print(f"Max steps:    {max_steps}")
+    print(f"Rounds:       {num_rounds}")
+    print("Policy:       ScaledRandom with identical base actions")
     print("=" * 72)
     print()
 
@@ -351,20 +351,20 @@ def main():
     # Baseline A: Pure random (scale=1.0)
     # ------------------------------------------------------------------
     print("[Baseline A] Pure random — scale=1.0 (no learning)")
-    baseline_a_results = run_baseline(env, actions, scale=1.0, num_episodes=NUM_EPISODES, max_steps=MAX_STEPS)
-    baseline_a_reward = sum(r["total_reward"] for r in baseline_a_results) / NUM_EPISODES
+    baseline_a_results = run_baseline(env, actions, scale=1.0, num_episodes=num_episodes, max_steps=max_steps)
+    baseline_a_reward = sum(r["total_reward"] for r in baseline_a_results) / num_episodes
     baseline_a_success = sum(1 for r in baseline_a_results if r["success"])
-    print(f"             Reward: {baseline_a_reward:.4f}  Success: {baseline_a_success}/{NUM_EPISODES}")
+    print(f"             Reward: {baseline_a_reward:.4f}  Success: {baseline_a_success}/{num_episodes}")
     print()
 
     # ------------------------------------------------------------------
     # Baseline B: Fixed optimal (scale=2.0 from auto-tuning)
     # ------------------------------------------------------------------
     print("[Baseline B] Fixed optimal — scale=2.0 (manual tuning, no learning)")
-    baseline_b_results = run_baseline(env, actions, scale=2.0, num_episodes=NUM_EPISODES, max_steps=MAX_STEPS, seed_offset=10000)
-    baseline_b_reward = sum(r["total_reward"] for r in baseline_b_results) / NUM_EPISODES
+    baseline_b_results = run_baseline(env, actions, scale=2.0, num_episodes=num_episodes, max_steps=max_steps, seed_offset=10000)
+    baseline_b_reward = sum(r["total_reward"] for r in baseline_b_results) / num_episodes
     baseline_b_success = sum(1 for r in baseline_b_results if r["success"])
-    print(f"             Reward: {baseline_b_reward:.4f}  Success: {baseline_b_success}/{NUM_EPISODES}")
+    print(f"             Reward: {baseline_b_reward:.4f}  Success: {baseline_b_success}/{num_episodes}")
     print()
 
     # ------------------------------------------------------------------
@@ -380,22 +380,22 @@ def main():
 
     rosclaw_rounds = []
 
-    for round_num in range(1, NUM_ROUNDS + 1):
+    for round_num in range(1, num_rounds + 1):
         print(f"[Round {round_num}] ROSClaw Full Stack")
         print(f"             Memory: {len(policy.memory_actions)} actions")
         print(f"             Replay: {policy.replay_ratio:.1%}")
 
         results = run_rosclaw(
             env, actions, policy,
-            num_episodes=NUM_EPISODES, max_steps=MAX_STEPS,
+            num_episodes=num_episodes, max_steps=max_steps,
             seed_offset=round_num * 10000,
         )
 
-        avg_reward = sum(r["total_reward"] for r in results) / NUM_EPISODES
+        avg_reward = sum(r["total_reward"] for r in results) / num_episodes
         success_count = sum(1 for r in results if r["success"])
-        avg_steps = sum(r["steps"] for r in results) / NUM_EPISODES
+        avg_steps = sum(r["steps"] for r in results) / num_episodes
 
-        print(f"             Reward: {avg_reward:.4f}  Success: {success_count}/{NUM_EPISODES}  Steps: {avg_steps:.1f}")
+        print(f"             Reward: {avg_reward:.4f}  Success: {success_count}/{num_episodes}  Steps: {avg_steps:.1f}")
 
         # How analyzes and adjusts
         analysis = policy.how_analyze_round(results)
@@ -407,7 +407,7 @@ def main():
             "round": round_num,
             "avg_reward": round(avg_reward, 4),
             "success_count": success_count,
-            "success_rate": round(success_count / NUM_EPISODES * 100, 2),
+            "success_rate": round(success_count / num_episodes * 100, 2),
             "avg_steps": round(avg_steps, 2),
             "memory_size": analysis["memory_size"],
             "replay_ratio": round(analysis["replay_ratio"], 2),
@@ -441,7 +441,7 @@ def main():
     for rd in rosclaw_rounds:
         marker = " ★ BEST" if rd is best_round else ""
         print(f"  Round {rd['round']}: reward={rd['avg_reward']:.4f}, "
-              f"success={rd['success_count']}/{NUM_EPISODES}, "
+              f"success={rd['success_count']}/{num_episodes}, "
               f"steps={rd['avg_steps']:.1f}{marker}")
     print()
 
@@ -467,7 +467,7 @@ def main():
 
     if vs_b > 10:
         print("CONCLUSION: ROSClaw Full Stack SIGNIFICANTLY outperforms fixed optimal.")
-        print(f"            Beyond manual tuning — learning beats hand-tuned parameters.")
+        print("            Beyond manual tuning — learning beats hand-tuned parameters.")
     elif vs_b > 0:
         print("CONCLUSION: ROSClaw Full Stack improves upon fixed optimal.")
     elif vs_a > 50:
@@ -481,7 +481,7 @@ def main():
     output = {
         "benchmark": "ROSClaw Full-Stack on ManiSkill PickCube",
         "date": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "config": {"episodes": NUM_EPISODES, "max_steps": MAX_STEPS, "rounds": NUM_ROUNDS},
+        "config": {"episodes": num_episodes, "max_steps": max_steps, "rounds": num_rounds},
         "baseline_a": {"name": "Pure random", "scale": 1.0, "avg_reward": round(baseline_a_reward, 4), "success_count": baseline_a_success},
         "baseline_b": {"name": "Fixed optimal", "scale": 2.0, "avg_reward": round(baseline_b_reward, 4), "success_count": baseline_b_success},
         "rosclaw_rounds": rosclaw_rounds,

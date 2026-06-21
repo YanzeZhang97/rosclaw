@@ -22,7 +22,6 @@ Commands:
 """
 
 import argparse
-import asyncio
 import contextlib
 import json
 import os
@@ -611,14 +610,14 @@ def _auto_register_builtins() -> tuple[list, list]:
         reg = SkillRegistry()
         skills = list(reg.list_skills()) if hasattr(reg, "list_skills") else []
         if not skills:
-            builtins = [
+            builtin_skills = [
                 ("pid_move", "Move robot using PID control", "motion", {"target": "float", "duration": "float"}),
                 ("reach", "Reach to a target pose", "manipulation", {"target_pose": "list[float]", "approach": "str"}),
                 ("grasp", "Grasp an object", "manipulation", {"object_id": "str", "force": "float"}),
                 ("navigate", "Navigate to a waypoint", "navigation", {"waypoint": "list[float]", "speed": "float"}),
                 ("inspect", "Inspect a target with sensors", "perception", {"target_id": "str", "sensor": "str"}),
             ]
-            for name, description, skill_type, params in builtins:
+            for name, description, skill_type, params in builtin_skills:
                 try:
                     entry = SkillEntry(
                         name=name,
@@ -3273,7 +3272,7 @@ def main() -> int:
         default="INFO",
         help="Logging level",
     )
-    mcp_serve_parser.set_defaults(func=lambda args: asyncio.run(_cmd_mcp_serve(args)))
+    mcp_serve_parser.set_defaults(func=_cmd_mcp_serve)
 
     # Hardware MCP onboarding subcommands (install/list/health)
     add_mcp_subparser(mcp_subparsers)

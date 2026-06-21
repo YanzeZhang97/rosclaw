@@ -29,9 +29,7 @@ from typing import Any
 sys.path.insert(0, "src")
 
 from rosclaw.memory.interface import MemoryInterface
-from rosclaw.memory.seekdb_client import SeekDBMemoryClient
-from rosclaw.memory.types import PraxisEvent, FailureMemory, ArtifactRef
-from rosclaw.core.event_bus import EventBus, Event
+from rosclaw.memory.types import FailureMemory
 
 # ---------------------------------------------------------------------------
 # Benchmark harness
@@ -264,7 +262,7 @@ def bench_retrieve(mem: MemoryInterface) -> dict[str, BenchMetrics]:
         metrics["temporal"].latencies_ms.append(timing() - t0)
 
     # 2c — Entity query (by skill tag)
-    for skill in SKILL_NAMES[:5]:
+    for _skill in SKILL_NAMES[:5]:
         for _ in range(10):
             t0 = timing()
             mem._client.query(
@@ -479,16 +477,16 @@ def main() -> None:
     mem = MemoryInterface("benchmark_bot")
     mem.initialize()
 
-    N = 1000  # Scale factor
+    n = 1000  # Scale factor
 
     # Phase 1 — Write
-    write_metrics = bench_write(mem, n=N)
+    write_metrics = bench_write(mem, n=n)
 
     # Phase 2 — Retrieve
     retrieve_metrics = bench_retrieve(mem)
 
     # Phase 3 — Update
-    update_metric = bench_update(mem, n=N // 5)
+    update_metric = bench_update(mem, n=n // 5)
 
     # Phase 4 — Compress
     compress_metric = bench_compress(mem)
@@ -524,13 +522,13 @@ def main() -> None:
     print(f"\n[Compress Latency]  p50={fmt_ms(compress_metric.p50_ms)}  "
           f"p99={fmt_ms(compress_metric.p99_ms)}")
 
-    print(f"\n[DB Size]")
+    print("\n[DB Size]")
     for table, cnt in size_info["table_counts"].items():
         print(f"  {table:20s}  {cnt:6d} records")
     print(f"  {'TOTAL':20s}  {size_info['total_records']:6d} records")
     print(f"  {'Approx memory':20s}  {size_info['memory_approx_mb']:.2f} MB")
 
-    print(f"\n[Benefit Comparison]")
+    print("\n[Benefit Comparison]")
     print(f"  Scenario: {benefit['scenario']}")
     print(f"  No Memory:        {benefit['no_memory_latency_ms']:.3f} ms (random guess)")
     print(f"  Flat RAG:         {benefit['flat_rag_latency_ms']:.3f} ms ({benefit['flat_rag_matches']} matches)")

@@ -5,7 +5,6 @@ Run: python benchmarks/integration_performance.py
 """
 
 import asyncio
-import statistics
 import time
 from pathlib import Path
 
@@ -131,7 +130,7 @@ def benchmark_eventbus_full() -> dict:
 
     target = 10_000
     t0 = time.perf_counter()
-    for i in range(target):
+    for _i in range(target):
         bus.publish(
             Event(
                 topic="robot.joint_states",

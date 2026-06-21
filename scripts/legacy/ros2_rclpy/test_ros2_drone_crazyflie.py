@@ -30,8 +30,6 @@ except ImportError as e:
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
 
 from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
-from rosclaw.mcp_drivers.base import TrajectoryCommand
-
 
 PASSED = 0
 FAILED = 0
@@ -139,7 +137,7 @@ def test_crazyflie_swarm():
 
     # Each drone different thrust
     thrusts = [[0.1, 0.1, 0.1, 0.1], [0.15, 0.15, 0.15, 0.15], [0.2, 0.2, 0.2, 0.2]]
-    for d, t in zip(drones, thrusts):
+    for d, t in zip(drones, thrusts, strict=False):
         d.move_joints(t, duration=0.5)
 
     for i, d in enumerate(drones):

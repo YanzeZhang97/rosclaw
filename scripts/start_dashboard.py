@@ -7,12 +7,11 @@ Usage:
     # Open ws://localhost:8765/ws for WebSocket stream
 """
 import asyncio
-import sys
 
 
 def main():
-    from rosclaw.dashboard.web_server import DashboardWebServer
     from rosclaw.core.event_bus import EventBus
+    from rosclaw.dashboard.web_server import DashboardWebServer
 
     event_bus = EventBus()
     ws = DashboardWebServer(host="0.0.0.0", port=8765)

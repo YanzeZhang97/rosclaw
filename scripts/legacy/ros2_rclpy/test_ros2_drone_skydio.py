@@ -30,10 +30,8 @@ except ImportError as e:
 
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
 
-from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
 from rosclaw.mcp_drivers.base import TrajectoryCommand
-from rosclaw.firewall.decorator import DigitalTwinFirewall, SafetyLevel
-
+from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
 
 PASSED = 0
 FAILED = 0

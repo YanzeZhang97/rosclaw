@@ -28,13 +28,11 @@ from typing import Any
 
 sys.path.insert(0, "src")
 
-from rosclaw.memory.interface import MemoryInterface
-from rosclaw.memory.seekdb_client import SeekDBMemoryClient, SeekDBSQLiteClient
-from rosclaw.memory.types import PraxisEvent, FailureMemory
-from rosclaw.core.event_bus import EventBus, Event
+from rosclaw.core.event_bus import Event, EventBus
 from rosclaw.how.engine import HeuristicEngine
 from rosclaw.how.recovery_loop import RecoveryLoop
-
+from rosclaw.memory.interface import MemoryInterface
+from rosclaw.memory.seekdb_client import SeekDBMemoryClient, SeekDBSQLiteClient
 
 # ---------------------------------------------------------------------------
 # Harness
@@ -267,7 +265,7 @@ def bench_memory_leak(duration_sec: int = 30) -> dict[str, Any]:
         x = [s[0] for s in samples]
         y = [s[1] for s in samples]
         n = len(x)
-        slope = (n * sum(xi * yi for xi, yi in zip(x, y)) - sum(x) * sum(y)) / (n * sum(xi * xi for xi in x) - sum(x) ** 2)
+        slope = (n * sum(xi * yi for xi, yi in zip(x, y, strict=False)) - sum(x) * sum(y)) / (n * sum(xi * xi for xi in x) - sum(x) ** 2)
     else:
         slope = 0.0
 
