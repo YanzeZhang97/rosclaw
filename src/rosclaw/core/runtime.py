@@ -252,6 +252,8 @@ class Runtime(LifecycleMixin):
                     embodied_memory=self.config.embodied_memory,
                 )
                 self._modules.append(self._memory)
+                if self._sense is not None:
+                    self._memory.set_sense_runtime(self._sense)
                 em_label = "+EmbodiedMemory" if self.config.embodied_memory else "SeekDB-only"
                 logger.info(f"Experience Grounding (Memory) initialized [{em_label}]")
             except ImportError as e:
@@ -416,6 +418,7 @@ class Runtime(LifecycleMixin):
                     event_bus=self.event_bus,
                     seekdb_client=seekdb,
                     skill_registry=getattr(self._skill_manager, "registry", None) if self._skill_manager else None,
+                    sense_runtime=self._sense,
                 )
                 self._modules.append(self._auto)
                 logger.info("Self-Evolution Control Plane (Auto) initialized")
@@ -484,6 +487,7 @@ class Runtime(LifecycleMixin):
             seekdb_client=seekdb,
             knowledge_interface=self._knowledge,
             event_bus=self.event_bus,
+            sense_runtime=self._sense,
         )
         self._run_async(engine.initialize())
         self._run_async(engine.seed_defaults())

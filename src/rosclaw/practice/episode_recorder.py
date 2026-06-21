@@ -214,12 +214,18 @@ class EpisodeRecorder(LifecycleMixin):
             buf.agent_request = payload["agent_request"]
         elif "parameters" in payload:
             buf.agent_request = {"skill_name": payload.get("skill_name"), "parameters": payload.get("parameters")}
-        buf.trajectory.append({
+        start_entry = {
             "phase": "start",
             "timestamp": time.time(),
             "skill_name": payload.get("skill_name"),
             "parameters": payload.get("parameters"),
-        })
+        }
+        if self._practice_adapter is not None:
+            try:
+                start_entry = self._practice_adapter.apply(start_entry)
+            except Exception:
+                logger.warning("PracticeWriterAdapter failed for start entry", exc_info=True)
+        buf.trajectory.append(start_entry)
         buf.last_event_at = time.time()
 
     def _on_skill_complete(self, event: Event) -> None:
@@ -460,6 +466,14 @@ class EpisodeRecorder(LifecycleMixin):
                 "error_details": praxis_event.error_details,
             },
         }
+        # Capture final body-sense snapshot if available
+        if self._practice_adapter is not None:
+            try:
+                end_context = self._practice_adapter.apply({"phase": "end"})
+                metadata["body_sense_end"] = end_context.get("body_sense_end")
+            except Exception:
+                logger.warning("PracticeWriterAdapter failed for end snapshot", exc_info=True)
+
         with open(episode_dir / "metadata.json", "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2, default=str)
 

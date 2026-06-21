@@ -331,3 +331,86 @@ class TestStubTopics:
             meta = json.load(f)
         assert meta["status"] == "success"
         assert meta["reward"] == 0.9
+
+
+class TestEpisodeRecorderBodySense:
+    @pytest.fixture
+    def sense_runtime_kick_not_ready(self):
+        from rosclaw.sense.config import SenseConfig
+        from rosclaw.sense.runtime import SenseRuntime
+        bus = EventBus()
+        cfg = SenseConfig(
+            robot_id="g1_lab_01",
+            collector="mock",
+            update_hz=0.0,
+            extra={"scenario": "kick_not_ready"},
+        )
+        runtime = SenseRuntime(cfg, event_bus=bus, robot_id="g1_lab_01")
+        runtime.initialize()
+        runtime.tick()
+        yield runtime
+        runtime.stop()
+
+    @pytest.fixture
+    def recorder_with_sense(self, bus, temp_artifact_dir, sense_runtime_kick_not_ready):
+        r = EpisodeRecorder(
+            "test_bot",
+            bus,
+            artifact_base_dir=temp_artifact_dir,
+            sense_runtime=sense_runtime_kick_not_ready,
+        )
+        r.initialize()
+        yield r
+        r.stop()
+
+    def test_skill_start_captures_body_sense_start(self, recorder_with_sense, temp_artifact_dir):
+        recorder_with_sense._event_bus.publish(Event(
+            topic="skill.execution.start",
+            payload={"skill_name": "kick_ball", "correlation_id": "ep_sense_001"},
+        ))
+        recorder_with_sense._event_bus.publish(Event(
+            topic="praxis.completed",
+            payload={"practice_id": "ep_sense_001", "outcome": {"reward": 1.0}},
+        ))
+        traj_path = os.path.join(temp_artifact_dir, "episodes", "ep_sense_001", "trajectory.jsonl")
+        with open(traj_path) as f:
+            entries = [json.loads(line) for line in f]
+        start_entry = entries[0]
+        assert "body_sense_start" in start_entry
+        assert start_entry["body_sense_start"]["overall_status"] == "not_ready"
+
+    def test_finalize_captures_body_sense_end(self, recorder_with_sense, temp_artifact_dir):
+        recorder_with_sense._event_bus.publish(Event(
+            topic="skill.execution.start",
+            payload={"skill_name": "kick_ball", "correlation_id": "ep_sense_002"},
+        ))
+        recorder_with_sense._event_bus.publish(Event(
+            topic="praxis.completed",
+            payload={"practice_id": "ep_sense_002", "outcome": {"reward": 1.0}},
+        ))
+        meta_path = os.path.join(temp_artifact_dir, "episodes", "ep_sense_002", "metadata.json")
+        with open(meta_path) as f:
+            meta = json.load(f)
+        assert "body_sense_end" in meta
+        assert meta["body_sense_end"]["overall_status"] == "not_ready"
+
+    def test_recorder_without_sense_does_not_add_body_sense(self, bus, temp_artifact_dir):
+        r = EpisodeRecorder("test_bot", bus, artifact_base_dir=temp_artifact_dir)
+        r.initialize()
+        r._event_bus.publish(Event(
+            topic="skill.execution.start",
+            payload={"skill_name": "kick_ball", "correlation_id": "ep_sense_003"},
+        ))
+        r._event_bus.publish(Event(
+            topic="praxis.completed",
+            payload={"practice_id": "ep_sense_003", "outcome": {"reward": 1.0}},
+        ))
+        traj_path = os.path.join(temp_artifact_dir, "episodes", "ep_sense_003", "trajectory.jsonl")
+        with open(traj_path) as f:
+            entries = [json.loads(line) for line in f]
+        assert "body_sense_start" not in entries[0]
+        meta_path = os.path.join(temp_artifact_dir, "episodes", "ep_sense_003", "metadata.json")
+        with open(meta_path) as f:
+            meta = json.load(f)
+        assert "body_sense_end" not in meta
+        r.stop()

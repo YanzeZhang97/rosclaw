@@ -632,6 +632,8 @@ class HeuristicEngine:
         hint = await coro
         if hint and self._event_bus is not None:
             event_payload = re.format_for_eventbus(hint, request_id=payload.get("request_id", payload.get("episode_id", "")))
+            event_payload["body_readiness"] = context.get("body_readiness")
+            event_payload["body_block_reasons"] = context.get("body_block_reasons")
             from rosclaw.core.event_bus import Event, EventPriority
             self._event_bus.publish(Event(
                 topic="rosclaw.how.recovery_hint.generated",
