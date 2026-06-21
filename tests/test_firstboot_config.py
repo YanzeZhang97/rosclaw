@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
-
-from rosclaw.firstboot.config import FirstbootConfig, generate_rosclaw_yaml, load_rosclaw_yaml, merge_config
+from rosclaw.firstboot.config import (
+    FirstbootConfig,
+    generate_rosclaw_yaml,
+    load_rosclaw_yaml,
+    merge_config,
+)
 
 
 class TestMergeConfig:

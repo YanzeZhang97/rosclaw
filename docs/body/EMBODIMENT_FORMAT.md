@@ -1,109 +1,144 @@
-# EMBODIMENT.md format
+# EMBODIMENT.md Format Guide
 
-`~/.rosclaw/body/EMBODIMENT.md` is the **Agent-readable compiled body manual** in the ROSClaw three-layer body model.
-It is rendered from the `EffectiveBody` by `EmbodimentRenderer` and kept in sync by body commands.
+`~/.rosclaw/body/EMBODIMENT.md` is the **compiled body manual** that the Agent
+reads before deciding which skills are safe to run. It is generated from the
+*Effective Body Model* and should always be treated as the single source of
+truth for the current physical robot.
 
-## Purpose
+Do **not** hand-edit the managed sections of this file. Use the CLI to change
+the body, then let `BodyResolver` regenerate the document:
 
-- Tell an Agent what physical body it is operating.
-- Summarize identity, structure, sensors, actuators, capabilities, limits, faults, and policy.
-- Provide a stable, human-readable view of the body state without exposing internal YAML structures.
-- Preserve hand-written notes between regenerations.
+```bash
+rosclaw body update-state --set installed_components.sensors.head_rgb_camera.status=unavailable --reason "camera offline"
+rosclaw body note --type incident --affects right_arm_actuator_group "Right arm overheated during test."
+```
 
-## Conventions
+## File Location
 
-- The file is Markdown.
-- Generated sections are wrapped in `<!-- ROSCLAW-GENERATED-START -->` and `<!-- ROSCLAW-GENERATED-END -->`.
-- Do not edit generated sections by hand. They are overwritten by `rosclaw body render`, `update-state`, `note`, etc.
-- Hand-written notes go between `<!-- HUMAN-NOTES-START -->` and `<!-- HUMAN-NOTES-END -->` and are preserved across renders.
-
-## Frontmatter
-
-The generated YAML frontmatter identifies the file schema, generation time, and source files.
-
-| Field | Type | Description |
-|---|---|---|
-| `schema` | string | `rosclaw.embodiment.v1` |
-| `generated_by` | string | Tool that produced the file (e.g., `rosclaw body init`). |
-| `generated_at` | ISO-8601 timestamp | Render time in UTC. |
-| `robot_instance_id` | string | Unique body instance identifier. |
-| `robot_model` | string | Robot model / e-URDF profile ID. |
-| `robot_vendor` | string | Vendor name, if known. |
-| `eurdf_profile` | string | Linked e-URDF profile ID. |
-| `eurdf_profile_path` | string | Relative path to the normalized e-URDF profile. |
-| `eurdf_checksum` | string | Checksum of the pinned e-URDF profile. |
-| `body_yaml` | string | Relative path to `body.yaml`. |
-| `calibration_yaml` | string | Relative path to `calibration.yaml`. |
-| `maintenance_log` | string | Relative path to `maintenance.log`. |
-| `body_state_generation` | integer | Effective body generation counter. |
-| `safety_status` | string | Current safety status. |
-| `agent_readability` | boolean | Always `true`. |
-| `do_not_edit_generated_sections` | boolean | Always `true`. |
+```text
+~/.rosclaw/body/
+├── body.yaml              # Body Instance Ledger (human/machine editable)
+├── calibration.yaml       # Calibration data
+├── maintenance.log        # JSONL history of all changes
+├── EMBODIMENT.md          # This file
+├── skill_compatibility.yaml
+└── refs/
+    ├── eurdf.lock
+    ├── eurdf.profile.yaml
+    └── effective_body.json
+```
 
 ## Sections
 
-The rendered file contains the following sections in order.
+The rendered document contains the following sections. Some are always present;
+others appear only when the underlying data exists.
 
-| # | Section | Source data | Purpose |
-|---|---------|-------------|---------|
-| 1 | **Identity** | `body.yaml` instance identity | Who/what/where this robot is. |
-| 2 | **Body Structure** | `body.yaml` body parts + `EffectiveBody.frames` | Kinematic tree, frames, joint groups. |
-| 3 | **Installed Sensors** | `EffectiveBody.sensors` | Sensor inventory and readiness. |
-| 4 | **Installed Actuators and Tools** | `EffectiveBody.actuators` | Actuator / tool inventory. |
-| 5 | **Current Capabilities** | `EffectiveBody.capabilities` | Enabled, degraded, blocked capabilities. |
-| 6 | **Forbidden Capabilities** | `body.yaml.forbidden_capabilities` | Capabilities that must never be used. |
-| 7 | **Safety Limits** | `EffectiveBody.safety` | Global envelope, workspace, contact limits, gates. |
-| 8 | **Known Faults** | `EffectiveBody.known_faults` | Open faults and capability overrides. |
-| 9 | **Known Successful Experiences** | `EffectiveBody.known_successes` | Reusable memory references. |
-| 10 | **Known Failed Experiences** | `EffectiveBody.known_failures` | Failures to avoid. |
-| 11 | **Calibration Summary** | `calibration.yaml` + `body.yaml.calibration` | Calibration status per category. |
-| 12 | **Maintenance and Modification History** | `maintenance.log` | Recent maintenance events. |
-| 13 | **Agent Operating Instructions** | `body.yaml.agent_policy` | Must do / must not do / when unsure. |
-| 14 | **Machine-readable Summary** | `EffectiveBody` + calibration | Compact YAML block for agents / MCP. |
-| 15 | **Source Files** | `EffectiveBody.source_trace` | Where each piece of information came from. |
-| 16 | **Regeneration** | hard-coded | Commands to refresh this file. |
+### 1. Identity
+- `body_instance_id` — unique instance identifier.
+- `base_model_id` — linked e-URDF model.
+- `nickname` — human-friendly name.
+- `effective_body_hash` — deterministic fingerprint of the effective body.
+- `generated_at` / `source_files` — audit trail.
 
-## Capability rendering
+### 2. Body Structure
+- Kinematic tree summary (links, joints, degrees of freedom).
+- Important frames (base, tool, camera, etc.).
+- Joint groups (arms, legs, head, gripper, etc.).
 
-Capabilities are listed twice:
+### 3. Installed Sensors
+- List of sensors from the e-URDF plus instance overrides.
+- `Sensor Readiness` sub-section shows which sensors are currently available.
 
-1. A summary table with `enabled` / `degraded` / `disabled` status.
-2. Separate YAML blocks under **5.1 Enabled**, **5.2 Degraded**, and **5.3 Disabled**.
+### 4. Installed Actuators and Tools
+- Actuators, end-effectors, grippers, and any retrofit tooling.
 
-The YAML blocks include validation requirements. A capability appearing in this file is **not** permission to execute; it is a declaration that the body is physically capable. Execution still requires skill compatibility, sandbox validation, and policy checks.
+### 5. Current Capabilities
+Derived from the effective body and grouped by status:
+- **Enabled** — safe to use.
+- **Degraded** — usable only if the skill manifest explicitly allows the
+  degradation.
+- **Disabled** — explicitly turned off in `body.yaml`.
 
-## Human notes
+### 6. Forbidden Capabilities
+Capabilities that must never be invoked (e.g. because of a safety incident).
 
-Add free-form Markdown between the human-notes markers:
+### 7. Safety Limits
+- Global safety envelope.
+- Workspace limits.
+- Contact / force limits.
+- Safety gates (required checks before motion).
+
+### 8. Known Faults
+Active faults and their impact on capabilities.
+
+### 9. Known Successful Experiences
+Reusable practice episodes from memory that match this body hash.
+
+### 10. Known Failed Experiences
+Failed episodes that should be avoided or require extra validation.
+
+### 11. Calibration Summary
+Calibration status, warnings, and stale entries.
+
+### 12. Maintenance and Modification History
+Chronological log of maintenance events, incidents, repairs, and modifications.
+
+### 13. Agent Operating Instructions
+Mandatory do / do-not / when-unsure rules generated from safety limits and
+faults.
+
+### 14. Machine-readable Summary
+A YAML front-matter block containing the effective body hash, capability map,
+and key safety flags. Other tools can parse this block without reading the full
+document.
+
+### 15. Source Files
+Paths and hashes of the files used to compile the effective body.
+
+### 16. Regeneration
+A footer reminding the reader that the file is auto-generated and pointing back
+to this guide.
+
+## Human Notes Zone
+
+You may add free-form notes in the managed human-notes markers:
 
 ```markdown
 <!-- HUMAN-NOTES-START -->
 
-## Operator notes
-
-- Camera cable tends to slip after long runs. Check before vision tasks.
-- Left gripper has reduced force; use precision_grasp only in supervised mode.
+My lab robot has a custom mounting bracket on the left wrist.
+Always check bracket bolts before running manipulation skills.
 
 <!-- HUMAN-NOTES-END -->
 ```
 
-`rosclaw body render` and other update commands preserve this block.
+The renderer preserves the content between these markers across regenerations.
+Notes placed outside the markers may be overwritten.
 
-## Regeneration
+## Determinism and Hashing
+
+The effective body hash is computed from the normalized effective body dict:
+
+1. Convert all dataclasses to dicts recursively.
+2. Drop volatile fields (`generated_at`, `captured_at`, file paths).
+3. Sort dict keys and lists.
+4. Serialize as compact JSON.
+5. Compute SHA-256.
+
+This hash is used for:
+- Skill compatibility caching.
+- Memory lookups (`body_hash`).
+- Cross-module consistency checks.
+
+## Regenerating the Document
 
 ```bash
-# Re-render EMBODIMENT.md from the current effective body
-rosclaw body render
+# After any body change
+rosclaw body inspect --agent
 
-# Validate body files
-rosclaw body validate
-
-# Print compact agent summary
-rosclaw body show --agent
+# Or force a recompile
+python -m rosclaw.body.resolver --recompile
 ```
 
-## Files
-
-- `src/rosclaw/body/renderer.py` — `EmbodimentRenderer`
-- `src/rosclaw/body/schema.py` — `EffectiveBody` schema
-- `~/.rosclaw/body/EMBODIMENT.md` — rendered output for the linked body
+If you delete `EMBODIMENT.md`, running any `rosclaw body` command that touches
+the effective body will recreate it.
