@@ -23,6 +23,18 @@ DEFAULT_COMPUTE_THRESHOLDS = {
 }
 
 
+DEFAULT_THERMAL_THRESHOLDS = {
+    "warm": 50.0,
+    "hot": 65.0,
+    "overheat": 80.0,
+}
+
+DEFAULT_COMPUTE_THRESHOLDS = {
+    "high": 85.0,
+    "critical": 95.0,
+}
+
+
 class FatigueEstimator:
     """Estimate robot fatigue level from recent history and current state."""
 

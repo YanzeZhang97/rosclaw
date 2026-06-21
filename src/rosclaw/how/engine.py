@@ -77,14 +77,23 @@ class HeuristicEngine:
         seekdb_client: Any,
         knowledge_interface: Any | None = None,
         event_bus: Any | None = None,
+        sense_runtime: Any | None = None,
     ) -> None:
         self._seekdb = seekdb_client
         self._knowledge = knowledge_interface
         self._event_bus = event_bus
+        self._sense_runtime = sense_runtime
         self._table = "heuristic_rules"
         self._rule_cache: dict[str, dict[str, Any]] = {}
         self._cache_valid = False
         self._subscribed_topics: list[tuple[str, Any]] = []
+        self._how_context_adapter: Any | None = None
+        if sense_runtime is not None:
+            try:
+                from rosclaw.sense.adapters.how_context import HowContextAdapter
+                self._how_context_adapter = HowContextAdapter(sense_runtime)
+            except Exception:
+                logger.warning("Failed to initialize HowContextAdapter", exc_info=True)
 
     # ── lifecycle ────────────────────────────────────────────────────────
 
@@ -537,8 +546,15 @@ class HeuristicEngine:
         ``previous_scores`` and ``current_iteration`` are forwarded for
         compatibility with service-backed engines that route on plateau state.
         """
+        enriched_context = dict(context or {})
+        enriched_context.setdefault("task", failure_type)
+        if self._how_context_adapter is not None:
+            try:
+                enriched_context = self._how_context_adapter.apply(enriched_context)
+            except Exception:
+                logger.warning("HowContextAdapter failed for recovery hint", exc_info=True)
         rule = await self.suggest_recovery(
-            failure_type, context,
+            failure_type, enriched_context,
             previous_scores=previous_scores, current_iteration=current_iteration,
         )
         if rule is None:
@@ -548,6 +564,8 @@ class HeuristicEngine:
             "rule_id": rule.get("rule_id", ""),
             "priority": rule.get("priority", 0),
             "source": rule.get("source", "heuristic"),
+            "body_readiness": enriched_context.get("body_readiness"),
+            "body_block_reasons": enriched_context.get("body_block_reasons"),
         }
 
     # ── retry plan ───────────────────────────────────────────────────────
@@ -597,11 +615,18 @@ class HeuristicEngine:
         """Handle failure events from EventBus and generate recovery hints."""
         payload = event.payload if hasattr(event, "payload") else {}
         failure_type = payload.get("error_log", payload.get("reason", "unknown_failure"))
+        context = dict(payload)
+        context.setdefault("task", failure_type)
+        if self._how_context_adapter is not None:
+            try:
+                context = self._how_context_adapter.apply(context)
+            except Exception:
+                logger.warning("HowContextAdapter failed for failure event", exc_info=True)
         from rosclaw.how.recovery import RecoveryEngine
         re = RecoveryEngine(self, event_bus=self._event_bus)
         coro = re.generate_recovery_hint(
             failure_type,
-            context=payload,
+            context=context,
             request_id=payload.get("request_id", payload.get("episode_id", "")),
         )
         hint = await coro

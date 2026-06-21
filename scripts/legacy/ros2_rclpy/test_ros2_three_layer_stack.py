@@ -26,10 +26,9 @@ except ImportError as e:
 
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
 
+from rosclaw.core.event_bus import Event
 from rosclaw.core.runtime import Runtime, RuntimeConfig
-from rosclaw.core.event_bus import EventBus, Event, EventPriority
 from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
-
 
 # ------------------------------------------------------------------
 # Test framework

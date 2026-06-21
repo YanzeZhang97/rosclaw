@@ -38,6 +38,13 @@ class SkillExecutor(LifecycleMixin):
         self.registry = registry
         self._seekdb = seekdb_client
         self._sense_interface = sense_interface
+        self._skill_requirements_adapter: Any | None = None
+        if sense_interface is not None:
+            try:
+                from rosclaw.sense.adapters.skill_requirements import SkillRequirementsAdapter
+                self._skill_requirements_adapter = SkillRequirementsAdapter(sense_interface)
+            except Exception:
+                logger.warning("Failed to initialize SkillRequirementsAdapter", exc_info=True)
         self._current_skill: str | None = None
 
     def _do_initialize(self) -> None:
@@ -214,41 +221,63 @@ class SkillExecutor(LifecycleMixin):
             return {"status": "ok", "result": result.to_dict()}
         except Exception as exc:
             logger.warning("Body compatibility check failed for %s: %s", skill.name, exc)
-            return {"status": "ok"}  # fail open on check error to preserve existing workflows
+            return {
+                "status": "blocked",
+                "reason": f"Body compatibility check error: {exc}",
+            }
 
     def _check_body_sense(self, skill: SkillEntry) -> dict[str, Any]:
         """Check skill against body sense readiness if the skill declares requirements."""
         requirements = skill.metadata.get("requires_body_sense") if skill.metadata else None
         if not requirements:
-            return {"ok": True}
+            result: dict[str, Any] = {"ok": True}
+            return self._enrich_with_body_sense_check(skill, result)
         if self._sense_interface is None:
-            return {
+            result = {
                 "ok": False,
                 "reason": "Skill requires body sense but Sense module is not available",
                 "failed_requirements": [],
             }
+            return self._enrich_with_body_sense_check(skill, result)
         readiness = self._sense_interface.get_readiness(
             task=skill.name,
             requirements=requirements,
         )
         item = readiness.capabilities.get(skill.name)
         if item is None or item.status == "ready":
-            return {"ok": True}
+            result = {"ok": True}
+            return self._enrich_with_body_sense_check(skill, result)
         if item.status in ("degraded", "unknown"):
             # Low-risk tasks may allow degraded; high-risk block.
             safety_level = skill.metadata.get("safety_level", "MODERATE") if skill.metadata else "MODERATE"
             if safety_level in ("HIGH", "CRITICAL"):
-                return {
+                result = {
                     "ok": False,
                     "reason": f"Body sense degraded for high-risk skill {skill.name}: {item.reasons}",
                     "failed_requirements": [req.to_dict() for req in item.failed_requirements],
                 }
-            return {"ok": True, "note": f"Body sense degraded but allowed: {item.reasons}"}
-        return {
+            else:
+                result = {"ok": True, "note": f"Body sense degraded but allowed: {item.reasons}"}
+            return self._enrich_with_body_sense_check(skill, result)
+        result = {
             "ok": False,
             "reason": f"Body sense not ready for {skill.name}: {item.reasons}",
             "failed_requirements": [req.to_dict() for req in item.failed_requirements],
         }
+        return self._enrich_with_body_sense_check(skill, result)
+
+    def _enrich_with_body_sense_check(self, skill: SkillEntry, result: dict[str, Any]) -> dict[str, Any]:
+        """Attach a lightweight body-sense readiness check for observability."""
+        if self._skill_requirements_adapter is None:
+            return result
+        try:
+            return self._skill_requirements_adapter.apply({
+                "task": skill.name,
+                **result,
+            })
+        except Exception:
+            logger.warning("SkillRequirementsAdapter failed; returning body-sense result unchanged", exc_info=True)
+            return result
 
     def _check_preconditions(self, skill: SkillEntry) -> dict[str, Any]:
         """Check if skill preconditions are met."""

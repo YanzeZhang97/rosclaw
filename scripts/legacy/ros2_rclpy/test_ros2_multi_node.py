@@ -25,7 +25,6 @@ except ImportError as e:
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
 from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
 
-
 # ------------------------------------------------------------------
 # Test framework
 # ------------------------------------------------------------------
@@ -207,14 +206,14 @@ def test_different_dof_drivers():
     # 6-DOF should reject 3 positions
     try:
         driver_6.move_joints([0.1] * 3, duration=1.0)
-        assert False, "Expected ValueError"
+        raise AssertionError("Expected ValueError")
     except ValueError:
         pass
 
     # 3-DOF should reject 6 positions
     try:
         driver_3.move_joints([0.1] * 6, duration=1.0)
-        assert False, "Expected ValueError"
+        raise AssertionError("Expected ValueError")
     except ValueError:
         pass
 

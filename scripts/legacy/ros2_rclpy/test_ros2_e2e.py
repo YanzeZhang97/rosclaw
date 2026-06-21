@@ -30,9 +30,8 @@ except ImportError as e:
 
 # Import rosclaw modules after rclpy is ready
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
-from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
 from rosclaw.mcp_drivers.base import TrajectoryCommand
-
+from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
 
 # ------------------------------------------------------------------
 # Test framework (minimal)
@@ -275,7 +274,7 @@ def test_driver_wrong_dof():
     driver.initialize()
     try:
         driver.move_joints([0.1] * 5, duration=1.0)
-        assert False, "Expected ValueError"
+        raise AssertionError("Expected ValueError")
     except ValueError as e:
         assert "Expected 6 joint positions, got 5" in str(e)
     driver.stop()

@@ -23,7 +23,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from rosclaw.firewall import DigitalTwinFirewall, SafetyViolationError, SafetyLevel
+from rosclaw.firewall import DigitalTwinFirewall, SafetyViolationError
 
 
 def test_digital_twin():
@@ -39,7 +39,7 @@ def test_digital_twin():
         return False
 
     # UR5e joint limits (radians)
-    JOINT_LIMITS = {
+    joint_limits = {
         "shoulder_pan_joint": (-6.2831853, 6.2831853),
         "shoulder_lift_joint": (-6.2831853, 6.2831853),
         "elbow_joint": (-3.1415926, 3.1415926),
@@ -50,7 +50,7 @@ def test_digital_twin():
 
     firewall = DigitalTwinFirewall(
         model_path=str(model_path),
-        joint_limits=JOINT_LIMITS,
+        joint_limits=joint_limits,
         sim_steps_per_check=10
     )
 
@@ -68,7 +68,7 @@ def test_digital_twin():
     )
 
     if result.is_safe:
-        print(f"  ✓ Trajectory valid")
+        print("  ✓ Trajectory valid")
         print(f"  - Collision detected: {result.collision_detected}")
         print(f"  - Min self-distance: {result.min_distance_to_collision:.4f}m")
         print(f"  - Max joint torque: {result.max_predicted_torque:.2f}Nm")
@@ -89,10 +89,10 @@ def test_digital_twin():
     )
 
     if not result.is_safe:
-        print(f"  ✓ Correctly rejected unsafe trajectory")
+        print("  ✓ Correctly rejected unsafe trajectory")
         print(f"  - Violations: {result.violation_details}")
     else:
-        print(f"  ✗ Should have failed!")
+        print("  ✗ Should have failed!")
         return False
 
     print("\n✓ Digital Twin tests passed")
@@ -109,7 +109,7 @@ def test_firewall_decorator():
 
     from rosclaw.firewall import mujoco_firewall
 
-    JOINT_LIMITS = {
+    joint_limits = {
         "shoulder_pan_joint": (-6.2831853, 6.2831853),
         "shoulder_lift_joint": (-6.2831853, 6.2831853),
         "elbow_joint": (-3.1415926, 3.1415926),
@@ -120,7 +120,7 @@ def test_firewall_decorator():
 
     @mujoco_firewall(
         model_path=str(model_path),
-        joint_limits=JOINT_LIMITS
+        joint_limits=joint_limits
     )
     def execute_motion(trajectory_points: list):
         """Simulated motion execution."""
@@ -163,7 +163,7 @@ def test_mcp_protocol():
         }
     }
 
-    print(f"\nMCP Request:")
+    print("\nMCP Request:")
     print(json.dumps(tool_call, indent=2))
 
     # Simulate response
@@ -184,7 +184,7 @@ def test_mcp_protocol():
         }
     }
 
-    print(f"\nMCP Response:")
+    print("\nMCP Response:")
     print(json.dumps(tool_response, indent=2))
 
     print("\n✓ MCP protocol format validated")
@@ -199,7 +199,11 @@ async def test_mcp_server():
 
     # Import and check server structure
     try:
-        from rosclaw.mcp.ur5_server import UR5MCPServer, UR5ROSNode
+        import importlib.util
+        if not importlib.util.find_spec("rosclaw.mcp.ur5_server"):
+            print("\n⚠ Skipping MCP server test - ROS 2 not available")
+            print("(This is expected in non-ROS environments)")
+            return True
     except ImportError as e:
         print(f"\n⚠ Skipping MCP server test - ROS 2 not available: {e}")
         print("(This is expected in non-ROS environments)")

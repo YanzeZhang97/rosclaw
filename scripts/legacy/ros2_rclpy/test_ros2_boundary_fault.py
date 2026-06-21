@@ -22,16 +22,14 @@ try:
     import rclpy
     from rclpy.node import Node
     from sensor_msgs.msg import JointState
-    from trajectory_msgs.msg import JointTrajectory
 except ImportError as e:
     print(f"SKIP: rclpy not available: {e}")
     sys.exit(0)
 
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
 
-from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
 from rosclaw.mcp_drivers.base import TrajectoryCommand
-
+from rosclaw.mcp_drivers.ros2_driver import ROS2Driver
 
 # ------------------------------------------------------------------
 # Test framework
@@ -90,7 +88,7 @@ def test_move_joints_nan():
         result = driver.move_joints([float("nan")] * 6, duration=1.0)
         # If it doesn't raise, at least shouldn't crash
         assert result is not None
-    except (ValueError, AssertionError) as e:
+    except (ValueError, AssertionError):
         # Expected: validation should catch this
         pass
     driver.stop()

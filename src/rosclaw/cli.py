@@ -22,7 +22,6 @@ Commands:
 """
 
 import argparse
-import asyncio
 import contextlib
 import json
 import os
@@ -35,7 +34,10 @@ from rosclaw.agent.doctor import add_doctor_parser as _add_agent_doctor_parser
 from rosclaw.agent.init_claude_code import add_init_parser as _add_agent_init_parser
 from rosclaw.agent.test_claude_code import add_test_parser as _add_agent_test_parser
 from rosclaw.body.cli import add_body_subparser, dispatch_body_command
+from rosclaw.body.registry import BodyRegistryManager
+from rosclaw.body.resolver import BodyResolver
 from rosclaw.connectors.ros.cli import add_ros_subparser, cmd_doctor_ros, dispatch_ros_command
+from rosclaw.core.event_bus import Event, EventPriority
 from rosclaw.firstboot.wizard import run_firstboot
 from rosclaw.firstboot.workspace import resolve_home
 from rosclaw.hub.cli import add_hub_subparser, dispatch_hub_command
@@ -608,14 +610,14 @@ def _auto_register_builtins() -> tuple[list, list]:
         reg = SkillRegistry()
         skills = list(reg.list_skills()) if hasattr(reg, "list_skills") else []
         if not skills:
-            builtins = [
+            builtin_skills = [
                 ("pid_move", "Move robot using PID control", "motion", {"target": "float", "duration": "float"}),
                 ("reach", "Reach to a target pose", "manipulation", {"target_pose": "list[float]", "approach": "str"}),
                 ("grasp", "Grasp an object", "manipulation", {"object_id": "str", "force": "float"}),
                 ("navigate", "Navigate to a waypoint", "navigation", {"waypoint": "list[float]", "speed": "float"}),
                 ("inspect", "Inspect a target with sensors", "perception", {"target_id": "str", "sensor": "str"}),
             ]
-            for name, description, skill_type, params in builtins:
+            for name, description, skill_type, params in builtin_skills:
                 try:
                     entry = SkillEntry(
                         name=name,
@@ -1294,10 +1296,32 @@ def cmd_skill_check(args: argparse.Namespace) -> int:
     """Check skill availability and body compatibility."""
     from rosclaw.body.resolver import BodyNotLinkedError, BodyResolver
 
+    if args.all:
+        return _cmd_skill_check_all(args)
+
     skill_id = args.skill_id
+    if skill_id is None:
+        print("[ROSClaw] Error: skill_id is required unless --all is used.")
+        return 1
+
     _, skills = _auto_register_builtins()
     by_name = {getattr(s, "name", ""): s for s in skills}
     entry = by_name.get(skill_id)
+
+    # Also look for a workspace skill manifest if the skill is not builtin.
+    if entry is None:
+        try:
+            resolver = BodyResolver(resolve_home())
+            manifest = resolver._load_skill_manifest(skill_id, None)
+            if manifest is not None:
+                from types import SimpleNamespace
+                entry = SimpleNamespace(
+                    name=skill_id,
+                    skill_type=getattr(manifest, "skill_type", "manifest"),
+                    version=getattr(manifest, "skill_version", "1.0.0"),
+                )
+        except Exception:
+            pass
 
     if entry is None:
         available = sorted(by_name.keys())
@@ -1344,7 +1368,10 @@ def cmd_skill_check(args: argparse.Namespace) -> int:
         }, indent=2, default=str))
     else:
         print(f"[ROSClaw] Checking skill: {skill_id}")
-        print(f"Skill '{skill_id}' is available (type={entry.skill_type}, version={entry.version})")
+        print(
+            f"Skill '{skill_id}@{getattr(entry, 'version', '1.0.0')}' is available "
+            f"(type={getattr(entry, 'skill_type', 'unknown')})"
+        )
         if compatibility is None:
             print("Body compatibility: unknown (no body linked)")
         else:
@@ -1356,7 +1383,43 @@ def cmd_skill_check(args: argparse.Namespace) -> int:
             if missing:
                 print(f"  Missing requirements: {', '.join(missing)}")
 
-    return 1 if status == "blocked" else 0
+    return 0
+
+
+def _cmd_skill_check_all(args: argparse.Namespace) -> int:
+    """Check all discovered skill manifests against the current body."""
+    from rosclaw.body.resolver import BodyNotLinkedError, BodyResolver
+
+    try:
+        resolver = BodyResolver(resolve_home())
+        if not resolver.is_linked():
+            if args.json:
+                print(json.dumps({"error": "No body linked"}, indent=2))
+            else:
+                print("[ROSClaw] No body linked. Run: rosclaw body link-eurdf <profile_id>")
+            return 1
+        _, report = resolver.refresh_all_artifacts()
+    except BodyNotLinkedError:
+        if args.json:
+            print(json.dumps({"error": "No body linked"}, indent=2))
+        else:
+            print("[ROSClaw] No body linked. Run: rosclaw body link-eurdf <profile_id>")
+        return 1
+
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2, default=str))
+        return 0
+
+    print("Skill compatibility")
+    print(f"  body: {report.body_instance_id or 'current'}")
+    print(f"  hash: {report.effective_body_hash}")
+    if not report.skills:
+        print("  No skill manifests found.")
+        return 0
+    for key in sorted(report.skills):
+        result = report.skills[key]
+        print(f"  {key} ... {result.status}")
+    return 0
 
 
 def cmd_skill_champions_list(_args: argparse.Namespace) -> int:
@@ -2717,6 +2780,79 @@ def cmd_stop(_args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_fleet_status(args: argparse.Namespace) -> int:
+    """Show fleet-wide body status and readiness summary."""
+    workspace = Path(args.workspace) if args.workspace else Path.home() / ".rosclaw"
+    manager = BodyRegistryManager(workspace)
+    bodies = manager.list_bodies()
+
+    rows: list[dict[str, Any]] = []
+    for entry in bodies:
+        row: dict[str, Any] = {
+            "body_id": entry.body_id,
+            "nickname": entry.nickname,
+            "profile_id": entry.profile_id,
+            "current": entry.body_id == manager.get_current_body_id(),
+            "linked": False,
+            "readiness": "unknown",
+        }
+        with contextlib.suppress(Exception):
+            resolver = BodyResolver(workspace, body_id=entry.body_id)
+            row["linked"] = resolver.is_linked()
+            if resolver.is_linked():
+                effective = resolver.get_effective_body(recompile_if_stale=False)
+                row["readiness"] = effective.readiness.get("overall", "unknown")
+        rows.append(row)
+
+    if args.json:
+        print(json.dumps({"current": manager.get_current_body_id(), "bodies": rows}, indent=2, default=str))
+        return 0
+
+    print(f"Fleet status ({len(rows)} bodies, current: {manager.get_current_body_id()})")
+    for row in rows:
+        marker = "*" if row["current"] else " "
+        print(
+            f" {marker} {row['body_id']:<20} {row['profile_id']:<20} "
+            f"linked={row['linked']:<5} readiness={row['readiness']}"
+        )
+    return 0
+
+
+def cmd_fleet_stop(args: argparse.Namespace) -> int:
+    """Broadcast an emergency stop event for every registered body."""
+    workspace = Path(args.workspace) if args.workspace else Path.home() / ".rosclaw"
+    manager = BodyRegistryManager(workspace)
+    bodies = manager.list_bodies()
+    if not bodies:
+        print("[ROSClaw] No bodies registered; nothing to stop.")
+        return 0
+
+    # Publish an event for each body. If the runtime is not running, the
+    # global bus will have no subscribers, so we still advise physical E-stop.
+    from rosclaw.core.event_bus import get_global_event_bus
+
+    bus = get_global_event_bus()
+    for entry in bodies:
+        event = Event(
+            topic="robot.emergency_stop",
+            payload={
+                "reason": args.reason,
+                "source": "rosclaw.fleet.stop",
+                "body_id": entry.body_id,
+            },
+            source="rosclaw.cli",
+            priority=EventPriority.CRITICAL,
+        )
+        bus.publish(event)
+        print(f"[ROSClaw] Emergency stop event published for body '{entry.body_id}': {args.reason}")
+
+    print(
+        "[ROSClaw] Fleet stop broadcast complete. If the runtime is not running, "
+        "activate each robot's physical E-stop manually."
+    )
+    return 0
+
+
 def cmd_restart(args: argparse.Namespace) -> int:
     """Restart ROSClaw runtime."""
     print("[ROSClaw] Restarting runtime...")
@@ -2933,7 +3069,8 @@ def main() -> int:
     skill_subparsers.add_parser("list", help="List available skills")
 
     skill_check_parser = skill_subparsers.add_parser("check", help="Check skill availability and body compatibility")
-    skill_check_parser.add_argument("skill_id", help="Skill identifier (e.g., reach, grasp)")
+    skill_check_parser.add_argument("skill_id", nargs="?", default=None, help="Skill identifier (e.g., reach, grasp)")
+    skill_check_parser.add_argument("--all", action="store_true", help="Check all discovered skill manifests against the current body")
     skill_check_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     skill_invoke_parser = skill_subparsers.add_parser("invoke", help="Invoke a skill")
@@ -3080,6 +3217,18 @@ def main() -> int:
     sense_explain_parser.add_argument("--mock", default="normal", help="Mock scenario")
     sense_explain_parser.add_argument("--robot-id", default="g1_lab_01", help="Robot identifier")
 
+    # fleet subcommand
+    fleet_parser = subparsers.add_parser("fleet", help="Fleet-wide body operations")
+    fleet_subparsers = fleet_parser.add_subparsers(dest="fleet_command")
+
+    fleet_status_parser = fleet_subparsers.add_parser("status", help="Show fleet status")
+    fleet_status_parser.add_argument("--workspace", default=None, help="ROSClaw workspace")
+    fleet_status_parser.add_argument("--json", action="store_true", help="Output JSON")
+
+    fleet_stop_parser = fleet_subparsers.add_parser("stop", help="Broadcast emergency stop to all bodies")
+    fleet_stop_parser.add_argument("--workspace", default=None, help="ROSClaw workspace")
+    fleet_stop_parser.add_argument("--reason", default="fleet emergency stop", help="Stop reason")
+
     # demo subcommand
     demo_parser = subparsers.add_parser("demo", help="Run demonstration scenarios")
     demo_subparsers = demo_parser.add_subparsers(dest="demo_command")
@@ -3123,7 +3272,7 @@ def main() -> int:
         default="INFO",
         help="Logging level",
     )
-    mcp_serve_parser.set_defaults(func=lambda args: asyncio.run(_cmd_mcp_serve(args)))
+    mcp_serve_parser.set_defaults(func=_cmd_mcp_serve)
 
     # Hardware MCP onboarding subcommands (install/list/health)
     add_mcp_subparser(mcp_subparsers)
@@ -3344,6 +3493,14 @@ def main() -> int:
             return args.func(args)
         mcp_parser.print_help()
         return 1
+    elif args.command == "fleet":
+        if args.fleet_command == "status":
+            return cmd_fleet_status(args)
+        elif args.fleet_command == "stop":
+            return cmd_fleet_stop(args)
+        else:
+            fleet_parser.print_help()
+            return 1
     else:
         parser.print_help()
         return 1

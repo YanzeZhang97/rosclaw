@@ -69,3 +69,38 @@ class TestDoctorJson:
             assert config_dir_check["status"] == "PASS"
             assert config_dir_check["message"] == "created"
         assert (home / "config").exists()
+
+    def test_doctor_fix_regenerates_default_configs_and_path_shim(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        home = tmp_path / ".rosclaw"
+        monkeypatch.setenv("ROSCLAW_HOME", str(home))
+        # Force the shim branch by pretending rosclaw is not on PATH.
+        monkeypatch.setattr(
+            "rosclaw.firstboot.doctor.shutil.which",
+            lambda cmd: None if cmd == "rosclaw" else f"/usr/bin/{cmd}",
+        )
+        from rosclaw.cli import main
+
+        sys.argv = ["rosclaw", "doctor", "--full", "--fix", "--json"]
+        code = main()
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+
+        assert data["exit_code"] == code
+        assert (home / "config" / "rosclaw.yaml").exists()
+        assert (home / "config" / "mcp.json").exists()
+        assert (home / "config" / "telemetry.yaml").exists()
+        assert (home / "state" / "install.json").exists()
+        assert (home / "state" / "workspace.json").exists()
+        assert (home / "bin" / "rosclaw").exists()
+
+        cli_check = next((c for c in data["checks"] if c["id"] == "core.cli"), None)
+        assert cli_check is not None
+        assert cli_check["status"] == "WARN"
+        assert "shim created" in cli_check["message"]
+
+        install_check = next((c for c in data["checks"] if c["id"] == "core.install_json"), None)
+        assert install_check is not None
+        assert install_check["status"] == "PASS"
+        assert install_check["message"] == "regenerated"

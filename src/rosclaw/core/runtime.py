@@ -294,6 +294,7 @@ class Runtime(LifecycleMixin):
                     robot_id=self.config.robot_id,
                     event_bus=self.event_bus,
                     seekdb_bridge=seekdb_bridge,
+                    sense_runtime=self._sense,
                 )
                 self._modules.append(self._episode_recorder)
                 logger.info("EpisodeRecorder initialized")

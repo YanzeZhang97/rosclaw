@@ -8,6 +8,7 @@ import os
 import platform
 import shutil
 import subprocess
+import sys
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -745,7 +746,7 @@ class FirstbootDoctor:
             elif check.id == "core.install_json":
                 ensure_minimal_workspace(self.home)
                 check.status = CheckStatus.PASS
-                check.message = "created"
+                check.message = "regenerated"
                 check.fix = None
             elif check.id == "core.config_schema":
                 config = FirstbootConfig(workspace={"home": str(self.home)})
@@ -771,7 +772,7 @@ class FirstbootDoctor:
 
     def _create_path_shim(self, check: CheckResult) -> None:
         """Create a PATH shim so the rosclaw command is reachable."""
-        python = shutil.which("python3") or shutil.which("python")
+        python = sys.executable or shutil.which("python3") or shutil.which("python")
         if not python:
             return
         try:
@@ -792,10 +793,9 @@ class FirstbootDoctor:
             encoding="utf-8",
         )
         shim.chmod(0o755)
-        if shutil.which("rosclaw") or shim.exists():
-            check.status = CheckStatus.PASS
-            check.message = "shim created"
-            check.fix = None
+        check.status = CheckStatus.WARN
+        check.message = f"rosclaw shim created at {shim}; add {shim_dir} to PATH"
+        check.fix = f'export PATH="{shim_dir}:$PATH"'
 
     def _tighten_permissions(self, check: CheckResult) -> None:
         """Restrict access to sensitive workspace directories."""

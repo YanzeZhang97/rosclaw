@@ -17,6 +17,7 @@ import yaml
 
 from rosclaw.body.compiler import compute_checksum
 from rosclaw.body.diff import BodyDiffer
+from rosclaw.body.fleet import FleetCompatibilityAggregator, discover_skill_manifests
 from rosclaw.body.notes import MaintenanceLog
 from rosclaw.body.query import BodyQueryEngine
 from rosclaw.body.registry import BodyRegistryError, BodyRegistryManager
@@ -72,6 +73,11 @@ def add_body_subparser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
     remove_parser.add_argument("body_id", help="Body ID to remove")
     remove_parser.add_argument("--workspace", default=None, help="ROSClaw workspace")
     remove_parser.add_argument("--archive", action="store_true", help="Archive body data instead of deleting")
+
+    # list
+    list_parser = body_subparsers.add_parser("list", help="List registered bodies")
+    list_parser.add_argument("--workspace", default=None, help="ROSClaw workspace")
+    list_parser.add_argument("--json", action="store_true", help="Output JSON")
 
     # validate
     validate_parser = body_subparsers.add_parser("validate", help="Validate body workspace")
@@ -232,6 +238,12 @@ def add_body_subparser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
     export_parser.add_argument("--workspace", default=None, help="ROSClaw workspace")
     _add_body_arg(export_parser)
 
+    # fleet-compat
+    fleet_compat_parser = body_subparsers.add_parser("fleet-compat", help="Aggregate skill compatibility across all bodies")
+    fleet_compat_parser.add_argument("--workspace", default=None, help="ROSClaw workspace")
+    fleet_compat_parser.add_argument("--json", action="store_true", help="Output JSON")
+    _add_body_arg(fleet_compat_parser)
+
     return body_parser
 
 
@@ -261,6 +273,8 @@ def dispatch_body_command(args: argparse.Namespace) -> int:
         return cmd_body_switch(args)
     if command == "remove":
         return cmd_body_remove(args)
+    if command == "list":
+        return cmd_body_list(args)
     if command == "validate":
         return cmd_body_validate(args)
     if command == "render":
@@ -285,6 +299,8 @@ def dispatch_body_command(args: argparse.Namespace) -> int:
         return cmd_body_history(args)
     if command == "export":
         return cmd_body_export(args)
+    if command == "fleet-compat":
+        return cmd_body_fleet_compat(args)
     if command == "fault":
         return cmd_body_fault(args)
     if command == "maintenance":
@@ -295,7 +311,7 @@ def dispatch_body_command(args: argparse.Namespace) -> int:
         return cmd_body_retrofit(args)
     if command == "capability":
         return cmd_body_capability(args)
-    print("[ROSClaw] body: no subcommand given. Use: init, create, switch, remove, validate, render, show, state, query, link-eurdf, inspect, diff, update-state, note, history, export, fault, maintenance, calibration, retrofit, capability")
+    print("[ROSClaw] body: no subcommand given. Use: init, create, switch, remove, list, validate, render, show, state, query, link-eurdf, inspect, diff, update-state, note, history, export, fleet-compat, fault, maintenance, calibration, retrofit, capability")
     return 1
 
 
@@ -390,6 +406,52 @@ def cmd_body_remove(args: argparse.Namespace) -> int:
         print(f"Removed body '{args.body_id}' and archived data to {removal.archive_path}")
     else:
         print(f"Removed body '{args.body_id}'")
+    return 0
+
+
+def cmd_body_list(args: argparse.Namespace) -> int:
+    """List registered bodies in the workspace."""
+    workspace = Path(args.workspace) if args.workspace else None
+    ws = workspace or Path.home() / ".rosclaw"
+    manager = BodyRegistryManager(ws)
+    bodies = manager.list_bodies()
+    stats = manager.stats()
+
+    if args.json:
+        payload = {
+            "current": stats["current"],
+            "total": stats["total"],
+            "bodies": [
+                {
+                    "body_id": entry.body_id,
+                    "nickname": entry.nickname,
+                    "profile_id": entry.profile_id,
+                    "profile_version": entry.profile_version,
+                    "path": entry.path,
+                    "tags": entry.tags,
+                    "created_at": entry.created_at,
+                    "updated_at": entry.updated_at,
+                    "is_current": entry.body_id == stats["current"],
+                }
+                for entry in bodies
+            ],
+        }
+        print(json.dumps(payload, indent=2, default=str))
+        return 0
+
+    print("=" * 60)
+    print("ROSClaw Bodies")
+    print("=" * 60)
+    if not bodies:
+        print("No bodies registered.")
+        print("Create one with: rosclaw body create --robot <profile> --name <id>")
+    else:
+        print(f"Current: {stats['current']}   Total: {stats['total']}")
+        print("")
+        for entry in bodies:
+            marker = "*" if entry.body_id == stats["current"] else " "
+            print(f"  [{marker}] {entry.body_id:<20} {entry.nickname:<20} {entry.profile_id}@{entry.profile_version}")
+    print("=" * 60)
     return 0
 
 
@@ -1425,6 +1487,40 @@ def cmd_body_export(args: argparse.Namespace) -> int:
                     tf.add(path, arcname)
 
     print(f"Exported body '{body_id}' to {archive_path}")
+    return 0
+
+
+def cmd_body_fleet_compat(args: argparse.Namespace) -> int:
+    """Aggregate skill compatibility across all bodies in the workspace."""
+    workspace = Path(args.workspace) if args.workspace else Path.home() / ".rosclaw"
+    manifests = discover_skill_manifests(workspace)
+    aggregator = FleetCompatibilityAggregator(workspace)
+    report = aggregator.aggregate(manifests)
+
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2, default=str))
+        return 0
+
+    summary = report.fleet_summary
+    print("Fleet compatibility summary")
+    print(f"  workspace: {report.workspace}")
+    print(f"  bodies:    {summary.get('total_bodies', 0)}")
+    print(f"  skills:    {summary.get('total_skills', 0)}")
+    print(f"  compatible: {summary.get('compatible_skills', 0)}")
+    print(f"  degraded:   {summary.get('degraded_skills', 0)}")
+    print(f"  blocked:    {summary.get('blocked_skills', 0)}")
+    print(f"  unknown:    {summary.get('unknown_skills', 0)}")
+
+    errors = summary.get("errors", [])
+    if errors:
+        print("\nErrors:")
+        for err in errors:
+            print(f"  - {err}")
+
+    for body_id, body_report in report.per_body.items():
+        print(f"\n{body_id}:")
+        for status, count in body_report.summary.items():
+            print(f"  {status}: {count}")
     return 0
 
 

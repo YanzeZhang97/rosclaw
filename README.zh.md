@@ -364,115 +364,68 @@ pick_cube@v1.1.0  real_champion
 
 ## 快速开始
 
-### 1. 克隆项目
+### 1. 安装 ROSClaw CLI
+
+```bash
+curl -sSL https://rosclaw.io/get | bash
+```
+
+这只会安装 `rosclaw` 命令，并在 `~/.rosclaw` 创建最小工作区。  
+不会启动任何运行时、连接机器人或上传数据。
+
+### 2. 运行 First Boot
+
+```bash
+rosclaw firstboot
+```
+
+按交互式向导操作（或在 CI/服务器上使用 `rosclaw firstboot --yes`）。  
+这会生成本地运行时配置、MCP 配置和 telemetry 偏好。
+
+### 3. 检查系统健康
+
+```bash
+rosclaw doctor
+```
+
+结构化输出：
+
+```bash
+rosclaw doctor --full --json
+```
+
+### 4. 运行本地仿真 Demo
+
+```bash
+rosclaw sandbox run --robot sim_ur5e --world tabletop --task reach
+```
+
+### 开发者安装
+
+想直接修改 ROSClaw 源码？
 
 ```bash
 git clone https://github.com/ros-claw/rosclaw.git
 cd rosclaw
-```
-
-### 2. 安装
-
-```bash
-bash scripts/install.sh
-```
-
-或者开发模式安装：
-
-```bash
-pip install -e .
+make setup
 ```
 
 详细说明见 [INSTALL.md](INSTALL.md)。
 
-### 3. 检查系统状态
+---
 
-```bash
-./rosclaw doctor
-```
-
-期望输出：
-
-```text
-runtime:     HEALTHY
-event_bus:   HEALTHY
-seekdb:      HEALTHY
-provider:    HEALTHY
-sandbox:     HEALTHY
-practice:    HEALTHY
-memory:      HEALTHY
-how:         HEALTHY
-auto:        HEALTHY
-darwin:      HEALTHY
-dashboard:   HEALTHY
-```
-
-### 4. 启动 ROSClaw Runtime
-
-```bash
-./rosclaw start
-```
-
-或者通过代码启动：
-
-```python
-from rosclaw.core import Runtime, RuntimeConfig
-
-config = RuntimeConfig(
-    robot_id="ur5e",
-    robot_zoo_path="./e-urdf-zoo",
-    default_eurdf_robot="ur5e",
-    enable_firewall=True,
-    enable_memory=True,
-    enable_practice=True,
-    enable_how=True,
-    enable_auto=True,
-    enable_darwin=True,
-)
-
-runtime = Runtime(config)
-runtime.initialize()
-runtime.start()
-```
-
-### 5. 查看机器人资产
-
-```bash
-./rosclaw robot list
-./rosclaw robot inspect ur5e
-```
-
-### 6. 运行沙盒验证
-
-```bash
-./rosclaw sandbox validate ur5e
-./rosclaw sandbox run --robot ur5e --world tabletop --task reach
-```
-
-### 7. 运行防火墙检查
-
-```bash
-./rosclaw firewall check \
-  --robot ur5e \
-  --world tabletop \
-  --action examples/actions/unsafe_reach.json
-```
-
-### 8. 连接 MCP Agent
+### 连接 MCP Agent
 
 ROSClaw 可以作为 MCP Server 暴露给支持 MCP 的 Agent，例如 Claude Code、OpenClaw 或其他 Agent Runtime。
 
-示例配置：
+`rosclaw firstboot` 会在 `~/.rosclaw/config/mcp.json` 生成如下配置：
 
 ```json
 {
   "mcpServers": {
     "rosclaw": {
-      "command": "python3",
-      "args": ["-m", "rosclaw.mcp.minimal_server"],
-      "env": {
-        "PYTHONPATH": "src"
-      }
+      "command": "rosclaw-mcp",
+      "args": []
     }
   }
 }
@@ -652,56 +605,101 @@ rosclaw/
 
 ## 配置示例
 
-`rosclaw.yaml` 示例：
+`rosclaw firstboot --profile offline` 生成的 `rosclaw.yaml` 示例：
 
 ```yaml
+schema_version: '1.0'
+generated_by: rosclaw firstboot
+workspace:
+  home: ~/.rosclaw
+  profile: offline
+  mode: local
+  install_channel: stable
+  auto_update: false
+
 runtime:
-  robot_id: ur5e
+  enabled: true
+  robot_id: sim_ur5e
   safety_level: strict
+  log_level: INFO
 
 event_bus:
   backend: local
-
-knowledge_plane:
-  backend: seekdb
-  path: .rosclaw/seekdb
-
-object_store:
-  backend: local
-  path: .rosclaw/artifacts
 
 sandbox:
   enabled: true
   backend: mujoco
   firewall_mode: true
+  require_sim_before_real: true
+  default_world: tabletop
 
 provider:
   enabled: true
+  mode: local
+  manifests_dir: ~/.rosclaw/providers/manifests
 
 practice:
   enabled: true
-  mcap: true
+  auto_record: true
+  output_dir: ~/.rosclaw/artifacts/episodes
+  formats:
+    jsonl: true
+    mcap: false
+    video: false
 
 memory:
   enabled: true
+  backend: local
+  path: ~/.rosclaw/data/memory
+  write_failures: true
+  write_successes: true
 
 how:
   enabled: true
-  cooldown_window: 3
   evidence_trace_enabled: true
+  cooldown_window: 3
+
+know:
+  enabled: true
+  asset_dir: ~/.rosclaw/data/seekdb
 
 auto:
-  enabled: true
-  allow_code_patch: false
+  enabled: false
   require_human_approval: true
+  allow_code_patch: false
   trigger_failure_threshold: 3
 
 darwin:
-  enabled: true
+  enabled: false
   seeds: [0, 1, 2]
   episodes: 50
-  metrics: [success_rate, collision_rate, completion_time]
+
+mcp:
+  enabled: true
+  config_path: ~/.rosclaw/config/mcp.json
+  server_command: rosclaw-mcp
+
+cloud:
+  enabled: false
+  sync:
+    configs: false
+    logs: false
+    artifacts: false
+    memory: false
+    anonymous_usage: false
+
+telemetry:
+  enabled: false
+  anonymous_install_ping: false
+
+security:
+  never_execute_robot_without_confirmation: true
+  require_firewall_for_real_robot: true
+  secrets_backend: env
 ```
+
+Cloud、telemetry、auto-evolution 和 Darwin benchmark 默认均**关闭**。  
+可通过 `rosclaw profile use cloud` 或手动编辑 `rosclaw.yaml` 显式开启。
 
 ---
 
@@ -773,13 +771,13 @@ darwin:
 运行测试：
 
 ```bash
-PYTHONPATH=src pytest tests -v
+PYTHONPATH=src python3 -m pytest tests -v
 ```
 
 运行端到端测试：
 
 ```bash
-PYTHONPATH=src pytest tests/test_e2e_full_pipeline.py -v
+PYTHONPATH=src python3 -m pytest tests/test_e2e_full_pipeline.py -v
 ```
 
 运行架构检查：

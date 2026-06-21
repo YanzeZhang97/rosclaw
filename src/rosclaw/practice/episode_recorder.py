@@ -105,14 +105,17 @@ class EpisodeRecorder(LifecycleMixin):
         event_bus: EventBus,
         artifact_base_dir: str = "~/.rosclaw/artifacts",
         seekdb_bridge: Any | None = None,
+        sense_runtime: Any | None = None,
     ):
         super().__init__()
         self._robot_id = robot_id
         self._event_bus = event_bus
         self._artifact_base = Path(artifact_base_dir).expanduser()
+        self._seekdb_bridge = seekdb_bridge
+        self._sense_runtime = sense_runtime
         self._buffers: dict[str, _EpisodeBuffer] = {}
         self._counter_file = self._artifact_base / "episode_counter.json"
-        self._seekdb_bridge = seekdb_bridge
+        self._practice_adapter: Any | None = None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -120,6 +123,13 @@ class EpisodeRecorder(LifecycleMixin):
 
     def _do_initialize(self) -> None:
         self._artifact_base.mkdir(parents=True, exist_ok=True)
+
+        if self._sense_runtime is not None:
+            try:
+                from rosclaw.sense.adapters.practice_writer import PracticeWriterAdapter
+                self._practice_adapter = PracticeWriterAdapter(self._sense_runtime)
+            except Exception:
+                logger.warning("Failed to initialize PracticeWriterAdapter", exc_info=True)
 
         if self._event_bus is None:
             print(f"[EpisodeRecorder] Initialized in read-only mode for {self._robot_id}, "

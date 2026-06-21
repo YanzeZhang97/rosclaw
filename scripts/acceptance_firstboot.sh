@@ -7,9 +7,24 @@
 
 set -euo pipefail
 
+# Keep pip, venv, and mktemp build artifacts off the often-tiny /tmp filesystem
+# when /data is available (e.g. the rosclaw lab host); otherwise fall back to a
+# directory inside the temporary workspace.
+if [ -d /data ] && [ -w /data ]; then
+  export TMPDIR="${TMPDIR:-/data/tmp}"
+else
+  export TMPDIR=""
+fi
+
 TMP_HOME="$(mktemp -d)"
+if [ -z "${TMPDIR:-}" ]; then
+  export TMPDIR="$TMP_HOME/tmp"
+fi
+mkdir -p "$TMPDIR"
 export ROSCLAW_HOME="$TMP_HOME/.rosclaw"
 export ROSCLAW_CHANNEL="${ROSCLAW_CHANNEL:-dev}"
+export PIP_CACHE_DIR="$TMP_HOME/.pip-cache"
+mkdir -p "$PIP_CACHE_DIR"
 
 echo "== ROSClaw First Boot Acceptance =="
 echo "ROSCLAW_HOME=$ROSCLAW_HOME"
@@ -18,8 +33,8 @@ if [ "${ROSCLAW_DEV_SOURCE:-0}" = "1" ]; then
   echo "[dev] Installing from local source"
   VENV_DIR="$TMP_HOME/.rosclaw-venv"
   python3 -m venv "$VENV_DIR"
-  "$VENV_DIR/bin/python" -m pip install --upgrade pip wheel setuptools
-  "$VENV_DIR/bin/python" -m pip install -e .
+  "$VENV_DIR/bin/python" -m pip install --no-cache-dir --upgrade pip wheel setuptools
+  "$VENV_DIR/bin/python" -m pip install --no-cache-dir -e .
   export PATH="$VENV_DIR/bin:$PATH"
   mkdir -p "$ROSCLAW_HOME/state"
   "$VENV_DIR/bin/python" - <<'PY' > "$ROSCLAW_HOME/state/install_id"

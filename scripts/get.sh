@@ -30,55 +30,55 @@ log() {
 fail() {
   local code=1
   if [[ "$1" =~ ^[0-9]+$ ]]; then
-    code=$1
+    code="$1"
     shift
   fi
   red "❌ $*"
-  log "ERROR (exit $code) $*"
-  echo
-  echo "Exit code: $code"
+  log "ERROR [$code] $*"
   echo
   case "$code" in
     10)
       echo "Python >= 3.11 is required."
+      echo
       case "$OS" in
         linux)
-          echo "Ubuntu/Debian: sudo apt update && sudo apt install -y python3.11 python3.11-venv python3.11-dev"
-          echo "Or install uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
+          echo "Ubuntu/Debian:"
+          echo "  sudo apt update && sudo apt install -y python3.11 python3.11-venv python3.11-dev"
           ;;
         darwin)
-          echo "macOS: brew install python@3.12"
-          echo "Or install uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
+          echo "macOS:"
+          echo "  brew install python@3.12"
           ;;
       esac
+      echo
+      echo "Alternatively, install uv (recommended):"
+      echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
       ;;
     11)
-      echo "This platform is not supported by the ROSClaw bootstrapper."
-      echo "Supported: Linux, macOS, Windows WSL."
+      echo "Unsupported platform. Use Linux, macOS, or Windows WSL2."
       ;;
     20)
-      echo "Failed to install the ROSClaw package."
-      echo "Check your network connection and proxy settings, then re-run:"
-      echo "  export ROSCLAW_CHANNEL=stable"
-      echo "  bash scripts/get.sh"
+      echo "Package download/install failed. Try:"
+      echo "  1. Check your internet connection."
+      echo "  2. Retry with a different channel: ROSCLAW_CHANNEL=dev bash get.sh"
+      echo "  3. Use a mirror or install from a local checkout."
       ;;
     21)
-      echo "pip install failed with an externally-managed-environment error (PEP 668)."
-      echo "Use the venv backend or install uv:"
-      echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
-      echo "Then re-run this script."
+      echo "This Python is externally managed (PEP 668). Choose one of:"
+      echo "  • Install uv:   curl -LsSf https://astral.sh/uv/install.sh | sh"
+      echo "  • Install pipx: sudo apt install pipx"
+      echo "  • Run in a venv: python3 -m venv ~/.rosclaw/venv"
       ;;
-    30)
-      echo "Permission denied while creating the workspace."
-      echo "Fix ownership/permissions:"
-      echo "  sudo chown -R \"$(id -u):$(id -g)\" \"$ROSCLAW_HOME\""
-      echo "Or set ROSCLAW_HOME to a writable directory:"
-      echo "  export ROSCLAW_HOME=/path/to/writable/.rosclaw"
+    22)
+      echo "Existing ROSClaw installation conflict. Try:"
+      echo "  uv tool uninstall rosclaw && uv tool install rosclaw"
+      echo "or"
+      echo "  pipx uninstall rosclaw && pipx install rosclaw"
       ;;
-    40)
-      echo "Existing installation conflict or unsupported install backend."
-      echo "Remove the existing workspace or force a clean install:"
-      echo "  rm -rf \"$ROSCLAW_HOME\" && bash scripts/get.sh"
+    23)
+      echo "Cannot write workspace at $ROSCLAW_HOME."
+      echo "Fix permissions or choose a different workspace:"
+      echo "  export ROSCLAW_HOME=/path/to/writable/dir"
       ;;
     *)
       echo "Run diagnostics:"
@@ -182,7 +182,7 @@ install_cli() {
     return 0
   fi
 
-  mkdir -p "$ROSCLAW_HOME/bin" "$ROSCLAW_HOME/logs" "$ROSCLAW_HOME/cache"
+  mkdir -p "$ROSCLAW_HOME/bin" "$ROSCLAW_HOME/logs" "$ROSCLAW_HOME/cache" || fail 23 "Cannot create workspace directories"
 
   case "$INSTALL_BACKEND" in
     uv_tool)
@@ -200,27 +200,33 @@ install_cli() {
       fi
       ;;
     venv)
-      "$PYTHON_BIN" -m venv "$ROSCLAW_HOME/venv" || fail 20 "venv creation failed"
-      # shellcheck disable=SC1091
-      . "$ROSCLAW_HOME/venv/bin/activate"
-      python -m pip install --upgrade pip wheel setuptools || fail 21 "pip bootstrap failed (PEP668?)"
-      if [ "$ROSCLAW_CHANNEL" = "dev" ]; then
-        python -m pip install "git+https://github.com/ros-claw/rosclaw.git" || fail 20 "pip install failed"
-      else
-        python -m pip install "$ROSCLAW_PIP_SPEC" || fail 20 "pip install failed"
+      # Detect PEP 668 externally-managed environments before building a venv.
+      EXTERNALLY_MANAGED="$($PYTHON_BIN - <<'PY' 2>/dev/null
+import sysconfig, os
+std = sysconfig.get_paths().get("stdlib", "")
+print(os.path.join(std, "EXTERNALLY-MANAGED"))
+PY
+      )"
+      if [ -n "$EXTERNALLY_MANAGED" ] && [ -f "$EXTERNALLY_MANAGED" ]; then
+        fail 21 "Detected externally-managed Python environment ($EXTERNALLY_MANAGED)"
       fi
 
-      cat > "$ROSCLAW_HOME/bin/rosclaw" <<EOF || fail 30 "Cannot write PATH shim"
+      "$PYTHON_BIN" -m venv "$ROSCLAW_HOME/venv" || fail 20 "Failed to create venv"
+      VENV_PYTHON="$ROSCLAW_HOME/venv/bin/python"
+      "$VENV_PYTHON" -m pip install --upgrade pip wheel setuptools || fail 20 "Failed to upgrade pip"
+      if [ "$ROSCLAW_CHANNEL" = "dev" ]; then
+        "$VENV_PYTHON" -m pip install "git+https://github.com/ros-claw/rosclaw.git" || fail 20 "pip install failed"
+      else
+        "$VENV_PYTHON" -m pip install "$ROSCLAW_PIP_SPEC" || fail 20 "pip install failed"
+      fi
+
+      cat > "$ROSCLAW_HOME/bin/rosclaw" <<EOF
 #!/usr/bin/env bash
 exec "$ROSCLAW_HOME/venv/bin/rosclaw" "\$@"
 EOF
       chmod +x "$ROSCLAW_HOME/bin/rosclaw"
       ;;
   esac
-
-  if ! command -v rosclaw >/dev/null 2>&1 && [ ! -x "$ROSCLAW_HOME/bin/rosclaw" ]; then
-    fail 20 "rosclaw command not available after install"
-  fi
 }
 
 ensure_path() {
@@ -265,21 +271,21 @@ init_minimal_workspace() {
     "$ROSCLAW_HOME/config" \
     "$ROSCLAW_HOME/logs" \
     "$ROSCLAW_HOME/cache" \
-    "$ROSCLAW_HOME/state" || fail 30 "Cannot create workspace"
+    "$ROSCLAW_HOME/state" || fail 23 "Cannot create workspace directories"
 
   INSTALL_ID_FILE="$ROSCLAW_HOME/state/install_id"
   if [ ! -f "$INSTALL_ID_FILE" ]; then
     if command -v uuidgen >/dev/null 2>&1; then
-      uuidgen > "$INSTALL_ID_FILE" || fail 30 "Cannot write install_id"
+      uuidgen > "$INSTALL_ID_FILE"
     else
-      "$PYTHON_BIN" - <<'PY' > "$INSTALL_ID_FILE" || fail 30 "Cannot write install_id"
+      "$PYTHON_BIN" - <<'PY' > "$INSTALL_ID_FILE"
 import uuid
 print(uuid.uuid4())
 PY
     fi
   fi
 
-  cat > "$ROSCLAW_HOME/state/install.json" <<EOF || fail 30 "Cannot write install.json"
+  cat > "$ROSCLAW_HOME/state/install.json" <<EOF
 {
   "schema_version": "1.0",
   "install_id": "$(cat "$INSTALL_ID_FILE")",

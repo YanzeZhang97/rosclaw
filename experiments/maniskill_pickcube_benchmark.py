@@ -241,15 +241,15 @@ def compare(baseline: dict, rosclaw: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def main():
-    NUM_EPISODES = 20
-    MAX_STEPS = 100
+    num_episodes = 20
+    max_steps = 100
 
     print("=" * 70)
     print("ManiSkill PickCube Benchmark — Baseline vs ROSClaw Adapter")
     print("=" * 70)
-    print(f"Episodes per group: {NUM_EPISODES}")
-    print(f"Max steps per episode: {MAX_STEPS}")
-    print(f"Policy: random (action_space.sample)")
+    print(f"Episodes per group: {num_episodes}")
+    print(f"Max steps per episode: {max_steps}")
+    print("Policy: random (action_space.sample)")
     print("=" * 70)
     print()
 
@@ -257,18 +257,18 @@ def main():
     import gymnasium as gym
     import mani_skill.envs  # noqa: F401
     _env = gym.make("PickCube-v1", obs_mode="state_dict", control_mode="pd_joint_pos")
-    actions = _generate_actions(_env, NUM_EPISODES, MAX_STEPS)
+    actions = _generate_actions(_env, num_episodes, max_steps)
     _env.close()
 
     # Baseline
     print("[1/2] Running Baseline (raw ManiSkill)...")
-    baseline = run_baseline(NUM_EPISODES, MAX_STEPS)
+    baseline = run_baseline(num_episodes, max_steps)
     print(f"      Done: {baseline['episodes']} episodes in {baseline['elapsed_sec']}s")
     print()
 
     # ROSClaw
     print("[2/2] Running ROSClaw (adapter + governance)...")
-    rosclaw = run_rosclaw(NUM_EPISODES, MAX_STEPS, actions=actions)
+    rosclaw = run_rosclaw(num_episodes, max_steps, actions=actions)
     print(f"      Done: {rosclaw['episodes']} episodes in {rosclaw['elapsed_sec']}s")
     print()
 
@@ -309,10 +309,10 @@ def main():
     print("=" * 70)
     print("ROSClaw-Specific Metrics:")
     print("=" * 70)
-    print(f"  Unsafe Execution Rate (UER):    0 / 0 = N/A (no injected hazards)")
-    print(f"  Safety Block Rate (SBR):        N/A (no injected hazards)")
+    print("  Unsafe Execution Rate (UER):    0 / 0 = N/A (no injected hazards)")
+    print("  Safety Block Rate (SBR):        N/A (no injected hazards)")
     print(f"  Episode Completeness (EC):      {rosclaw['episode_completeness']}%")
-    print(f"    ({NUM_EPISODES}/{NUM_EPISODES} episodes have full trace_id + step_traces + total_reward)")
+    print(f"    ({num_episodes}/{num_episodes} episodes have full trace_id + step_traces + total_reward)")
     print("=" * 70)
 
     # Save results
@@ -320,8 +320,8 @@ def main():
         "benchmark": "ManiSkill PickCube — Baseline vs ROSClaw",
         "date": time.strftime("%Y-%m-%d %H:%M:%S"),
         "config": {
-            "episodes": NUM_EPISODES,
-            "max_steps": MAX_STEPS,
+            "episodes": num_episodes,
+            "max_steps": max_steps,
             "policy": "random",
             "task": "PickCube-v1",
             "obs_mode": "state_dict",

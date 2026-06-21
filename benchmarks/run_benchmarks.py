@@ -13,10 +13,9 @@ from pathlib import Path
 
 from rosclaw.core.event_bus import Event, EventBus
 from rosclaw.e_urdf.parser import JointSpec, RobotModel
-from rosclaw.firewall.validator import FirewallValidator, ValidationLayer, ValidationRequest
+from rosclaw.firewall.validator import FirewallValidator, ValidationRequest
 from rosclaw.memory.seekdb_client import SeekDBMemoryClient
 from rosclaw.skill_manager.registry import SkillEntry, SkillRegistry
-
 
 REPO_ROOT = Path(__file__).parent.parent
 RESULTS_PATH = REPO_ROOT / "benchmarks" / "results.md"
@@ -135,11 +134,11 @@ def benchmark_skill_registry() -> dict:
     register_s = time.perf_counter() - t0
 
     t0 = time.perf_counter()
-    names = reg.list_skills()
+    _ = reg.list_skills()
     list_names_ms = (time.perf_counter() - t0) * 1000
 
     t0 = time.perf_counter()
-    entries = reg.list_skills(return_entries=True)
+    _ = reg.list_skills(return_entries=True)
     list_entries_ms = (time.perf_counter() - t0) * 1000
 
     t0 = time.perf_counter()
@@ -200,7 +199,7 @@ def benchmark_firewall() -> dict:
         "is_safe": result.is_safe,
         "violations": len(result.violations),
         "warnings": len(result.warnings),
-        "layers": [l.value for l in result.layers_checked],
+        "layers": [layer.value for layer in result.layers_checked],
         "verdict": "PASS",
     }
 

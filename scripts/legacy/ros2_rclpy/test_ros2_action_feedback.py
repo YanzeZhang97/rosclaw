@@ -5,6 +5,7 @@ Tests ActionClient receiving feedback from ActionServer during trajectory execut
 Runs in standalone subprocess to avoid pytest module reload issues.
 """
 
+import contextlib
 import sys
 import time
 import traceback
@@ -15,10 +16,10 @@ if sys.version_info[:2] != (3, 10):
 
 try:
     import rclpy
-    from rclpy.action import ActionServer, ActionClient
-    from rclpy.node import Node
-    from rclpy.executors import SingleThreadedExecutor
     from control_msgs.action import FollowJointTrajectory
+    from rclpy.action import ActionServer
+    from rclpy.executors import SingleThreadedExecutor
+    from rclpy.node import Node
     from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 except ImportError as e:
     print(f"SKIP: ROS2 not available: {e}")
@@ -26,7 +27,6 @@ except ImportError as e:
 
 sys.path.insert(0, "/home/dell/rosclaw-v1.0/src")
 from rosclaw.mcp.ur5_server import UR5ROSNode
-
 
 # ------------------------------------------------------------------
 # Test framework
@@ -108,10 +108,8 @@ def next_name(base: str) -> str:
 
 def _cleanup():
     if rclpy.ok():
-        try:
+        with contextlib.suppress(Exception):
             rclpy.shutdown()
-        except Exception:
-            pass
 
 
 # ------------------------------------------------------------------
