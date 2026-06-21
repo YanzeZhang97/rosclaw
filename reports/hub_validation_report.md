@@ -1,6 +1,6 @@
 # ROSClaw Hub Validation Report
 
-**Date:** 2026-06-21
+**Date:** 2026-06-22
 **Scope:** `src/rosclaw/hub/`, `tests/hub/`, Hub documentation, README/QUICKSTART/CI updates
 **Objective:** Confirm that the Hub subsystem meets the acceptance criteria from
 the master implementation plan.
@@ -12,15 +12,16 @@ the master implementation plan.
 | 1 | Code passes lint | `ruff check src/rosclaw/hub tests/hub` | PASS |
 | 2 | Code is formatted | `ruff format --check src/rosclaw/hub tests/hub` | PASS |
 | 3 | Unit + integration tests pass | `pytest tests/hub -q` | PASS (287 passed) |
-| 4 | E2E lifecycle works | `tests/hub/test_e2e_fake_registry.py` | PASS |
-| 5 | Security regressions covered | `tests/hub/test_security_regression.py` | PASS |
-| 6 | Client and publisher coverage | `tests/hub/test_client.py`, expanded `tests/hub/test_publisher.py` | PASS |
-| 7 | Documentation written | `docs/hub/*.md` created | PASS |
-| 8 | Progress / validation reports written | `reports/hub_*.md` created | PASS |
-| 9 | README / QUICKSTART updated | Hub quickstart added | PASS |
-| 10 | CI updated | Dedicated `hub-test` job added to `.github/workflows/ci.yml` | PASS |
-| 11 | Installer transaction / rollback tests | `tests/hub/test_installer_transaction.py` | PASS |
-| 12 | MCP config merge tests | `tests/hub/test_mcp_merge.py` | PASS |
+| 4 | Type check on Hub code | `mypy src/rosclaw/hub` | PASS |
+| 5 | E2E lifecycle works | `tests/hub/test_e2e_fake_registry.py` | PASS |
+| 6 | Security regressions covered | `tests/hub/test_security_regression.py` | PASS |
+| 7 | Client and publisher coverage | `tests/hub/test_client.py`, expanded `tests/hub/test_publisher.py` | PASS |
+| 8 | Documentation written | `docs/hub/*.md` created | PASS |
+| 9 | Progress / validation reports written | `reports/hub_*.md` created | PASS |
+| 10 | README / QUICKSTART updated | Hub quickstart added | PASS |
+| 11 | CI updated | Dedicated `hub-test` job added to `.github/workflows/ci.yml` | PASS |
+| 12 | Installer transaction / rollback tests | `tests/hub/test_installer_transaction.py` | PASS |
+| 13 | MCP config merge tests | `tests/hub/test_mcp_merge.py` | PASS |
 
 ## Commands run
 
@@ -28,7 +29,13 @@ the master implementation plan.
 ruff check src/rosclaw/hub tests/hub
 ruff format --check src/rosclaw/hub tests/hub
 pytest tests/hub -q
+mypy src/rosclaw/hub
 ```
+
+`mypy src/rosclaw/hub` is now clean thanks to Hub-scoped overrides in
+`pyproject.toml`: Hub modules are checked with normal imports while the rest of
+`rosclaw.*` is followed with `skip` to avoid pre-existing type errors in
+unrelated modules.
 
 CI workflow additionally runs `pytest tests/hub -v` in a dedicated `hub-test` job
 after `lint` and `type-check` succeed.
@@ -179,9 +186,6 @@ reference fails gracefully when the manifest has not been cached by `sync`.
 
 ## Known issues
 
-- `mypy src/rosclaw/hub` reports many pre-existing type errors in modules
-  outside the Hub subsystem because mypy follows imports. These are not
-  introduced by the Hub work and are tracked separately.
 - Placeholder signing material is present and must be replaced before
   production use.
 - Coverage gaps in `src/rosclaw/hub/client.py` and `src/rosclaw/hub/publisher.py`
@@ -194,4 +198,4 @@ The ROSClaw Hub subsystem satisfies the Phase 6 acceptance criteria and is
 ready for wider runtime integration and future cloud-registry work.
 
 **Validated by:** Claude Code / automated test suite
-**Date:** 2026-06-21
+**Date:** 2026-06-22
