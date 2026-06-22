@@ -44,7 +44,9 @@ def test_lockfile_version_second_priority(unitree_manifest: McpManifest, fake_ho
         solver.solve(unitree_manifest.id)
 
 
-def test_latest_built_in_selected_when_no_lock(unitree_manifest: McpManifest, fake_home: Path) -> None:
+def test_latest_built_in_selected_when_no_lock(
+    unitree_manifest: McpManifest, fake_home: Path
+) -> None:
     hub = HubClient(home=fake_home, offline=True)
     solver = VersionSolver(hub=hub)
     result = solver.solve(unitree_manifest.id)
@@ -59,7 +61,9 @@ def test_unknown_manifest_raises(fake_home: Path) -> None:
         solver.solve("io.rosclaw.hardware.unknown")
 
 
-def test_python_constraint_check_passes_for_built_in(unitree_manifest: McpManifest, fake_home: Path) -> None:
+def test_python_constraint_check_passes_for_built_in(
+    unitree_manifest: McpManifest, fake_home: Path
+) -> None:
     hub = HubClient(home=fake_home, offline=True)
     solver = VersionSolver(hub=hub)
     result = solver.solve(unitree_manifest.id)

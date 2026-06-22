@@ -12,7 +12,7 @@ import shutil
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from rosclaw.mcp.onboarding.errors import ClaudeMergeError
 
@@ -87,11 +87,9 @@ class ClaudeMcpMerge:
         if not self.mcp_json_path.exists():
             return {}
         try:
-            return json.loads(self.mcp_json_path.read_text(encoding="utf-8"))
+            return cast(dict[str, Any], json.loads(self.mcp_json_path.read_text(encoding="utf-8")))
         except json.JSONDecodeError as exc:
-            raise ClaudeMergeError(
-                f"Invalid JSON in {self.mcp_json_path}: {exc}"
-            ) from exc
+            raise ClaudeMergeError(f"Invalid JSON in {self.mcp_json_path}: {exc}") from exc
 
     def merge(
         self,
@@ -118,9 +116,7 @@ class ClaudeMcpMerge:
         """
         servers_fragment = mcp_json_fragment.get("mcpServers", {})
         if server_name not in servers_fragment:
-            raise ClaudeMergeError(
-                f"mcpJson fragment does not contain server '{server_name}'"
-            )
+            raise ClaudeMergeError(f"mcpJson fragment does not contain server '{server_name}'")
 
         server_config = dict(servers_fragment[server_name])
         server_config[MANAGED_KEY] = {
@@ -167,9 +163,7 @@ class ClaudeMcpMerge:
                 elif conflict == "replace":
                     result.action = "replaced"
                 else:
-                    raise ClaudeMergeError(
-                        f"Unknown conflict strategy: {conflict}"
-                    )
+                    raise ClaudeMergeError(f"Unknown conflict strategy: {conflict}")
 
         existing_servers[server_name] = server_config
 

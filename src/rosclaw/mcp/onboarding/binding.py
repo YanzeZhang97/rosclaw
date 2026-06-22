@@ -106,7 +106,9 @@ class BodyBindingManager:
         self.resolver = BodyResolver(workspace=workspace)
         self.registry = RobotRegistry()
 
-    def ensure_eurdf(self, eurdf: EurdfBinding | None, dry_run: bool = False) -> tuple[str | None, str | None]:
+    def ensure_eurdf(
+        self, eurdf: EurdfBinding | None, dry_run: bool = False
+    ) -> tuple[str | None, str | None]:
         """Ensure the required e-URDF profile is installed.
 
         Returns:
@@ -157,9 +159,7 @@ class BodyBindingManager:
     def check_required_fields(self, required_fields: list[str]) -> list[str]:
         """Return required fields that are missing from body.yaml."""
         if not self.resolver.body_yaml_path.exists():
-            raise OnboardingBodyNotLinkedError(
-                f"No body linked at {self.resolver.body_yaml_path}"
-            )
+            raise OnboardingBodyNotLinkedError(f"No body linked at {self.resolver.body_yaml_path}")
         with open(self.resolver.body_yaml_path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         missing: list[str] = []
@@ -203,9 +203,7 @@ class BodyBindingManager:
             )
 
         if not self.resolver.is_linked():
-            raise OnboardingBodyNotLinkedError(
-                f"No body linked at {self.resolver.body_yaml_path}"
-            )
+            raise OnboardingBodyNotLinkedError(f"No body linked at {self.resolver.body_yaml_path}")
 
         missing = self.check_required_fields(binding.required_fields or [])
         if missing:

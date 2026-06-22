@@ -39,7 +39,10 @@ def test_merge_creates_new_file(merger: ClaudeMcpMerge, unitree_fragment: dict) 
     assert merger.mcp_json_path.exists()
     data = merger.load()
     assert "rosclaw-unitree-g1" in data["mcpServers"]
-    assert data["mcpServers"]["rosclaw-unitree-g1"][MANAGED_KEY]["manifest_id"] == "io.rosclaw.hardware.unitree-g1"
+    assert (
+        data["mcpServers"]["rosclaw-unitree-g1"][MANAGED_KEY]["manifest_id"]
+        == "io.rosclaw.hardware.unitree-g1"
+    )
 
 
 def test_merge_upgrades_managed_server(merger: ClaudeMcpMerge, unitree_fragment: dict) -> None:
@@ -160,6 +163,8 @@ def test_list_managed_servers(merger: ClaudeMcpMerge, unitree_fragment: dict) ->
     assert "rosclaw-unitree-g1" in managed
 
 
-def test_remove_unmanaged_server_raises(merger: ClaudeMcpMerge, claude_mcp_with_existing: Path) -> None:
+def test_remove_unmanaged_server_raises(
+    merger: ClaudeMcpMerge, claude_mcp_with_existing: Path
+) -> None:
     with pytest.raises(ClaudeMergeError):
         merger.remove_managed_server("existing-server")

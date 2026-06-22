@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urljoin
 
 from rosclaw.firstboot.workspace import resolve_home
@@ -95,7 +95,11 @@ _BUILTIN_REGISTRY: dict[str, dict[str, Any]] = {
             "required": [
                 {"id": "mcp:tools:read", "level": "safe", "description": "List and call MCP tools"},
                 {"id": "mcp:resources:read", "level": "safe", "description": "Read resource URIs"},
-                {"id": "mcp:prompts:read", "level": "guarded", "description": "Read safety prompts"},
+                {
+                    "id": "mcp:prompts:read",
+                    "level": "guarded",
+                    "description": "Read safety prompts",
+                },
             ],
             "optional": [
                 {"id": "mcp:logging:write", "level": "safe", "description": "Forward server logs"},
@@ -132,7 +136,11 @@ _BUILTIN_REGISTRY: dict[str, dict[str, Any]] = {
             },
             "claudeMdSnippet": "This project has ROSClaw Hardware MCP enabled for Unitree G1. Use MCP tools for robot state, diagnostics, motion validation, and guarded execution. Never call raw execution tools unless explicitly approved.",
         },
-        "compatibility": {"rosDistros": ["humble", "jazzy"], "python": ">=3.10", "rosclaw": ">=1.0.0"},
+        "compatibility": {
+            "rosDistros": ["humble", "jazzy"],
+            "python": ">=3.10",
+            "rosclaw": ">=1.0.0",
+        },
         "lifecycle": {"deprecated": False},
     },
     "io.rosclaw.hardware.realsense-d455": {
@@ -234,7 +242,11 @@ _BUILTIN_REGISTRY: dict[str, dict[str, Any]] = {
                 }
             },
         },
-        "compatibility": {"rosDistros": ["humble", "jazzy"], "python": ">=3.10", "rosclaw": ">=1.0.0"},
+        "compatibility": {
+            "rosDistros": ["humble", "jazzy"],
+            "python": ">=3.10",
+            "rosclaw": ">=1.0.0",
+        },
         "lifecycle": {"deprecated": False},
     },
 }
@@ -251,9 +263,11 @@ class HubClient:
         home: Path | None = None,
         offline: bool = False,
     ) -> None:
-        self.hub_url = (hub_url or os.environ.get("ROSCLAW_MCP_HUB") or self.DEFAULT_HUB_URL).rstrip("/")
-        self.home = resolve_home(str(home) if home else None)
-        self.cache_dir = self.home / "mcp" / "cache"
+        self.hub_url = (
+            hub_url or os.environ.get("ROSCLAW_MCP_HUB") or self.DEFAULT_HUB_URL
+        ).rstrip("/")
+        self.home: Path = resolve_home(str(home) if home else None)
+        self.cache_dir: Path = self.home / "mcp" / "cache"
         self.offline = offline
         self._session: Any | None = None
 
@@ -270,7 +284,7 @@ class HubClient:
             return None
         try:
             with open(path, encoding="utf-8") as f:
-                return json.load(f)
+                return cast(dict[str, Any] | None, json.load(f))
         except (json.JSONDecodeError, OSError):
             return None
 
@@ -287,16 +301,14 @@ class HubClient:
         try:
             import requests
         except ImportError as exc:
-            raise ManifestNotFoundError(
-                f"Remote hub fetch requires 'requests': {exc}"
-            ) from exc
+            raise ManifestNotFoundError(f"Remote hub fetch requires 'requests': {exc}") from exc
 
         if self._session is None:
             self._session = requests.Session()
             self._session.headers.update({"Accept": "application/json"})
         response = self._session.get(url, timeout=30)
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
     def list_manifest_ids(self) -> list[str]:
         """Return all known manifest IDs from hub, cache, and built-ins."""

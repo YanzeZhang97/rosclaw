@@ -54,7 +54,10 @@ def test_hub_index_alias_match(fake_home: Any) -> None:
 def test_resolve_or_canonical() -> None:
     resolver = AliasResolver()
     assert resolver.resolve_or_canonical("unitree-g1") == "io.rosclaw.hardware.unitree-g1"
-    assert resolver.resolve_or_canonical("io.rosclaw.hardware.unitree-g1") == "io.rosclaw.hardware.unitree-g1"
+    assert (
+        resolver.resolve_or_canonical("io.rosclaw.hardware.unitree-g1")
+        == "io.rosclaw.hardware.unitree-g1"
+    )
 
 
 def test_case_insensitive_alias_resolution() -> None:

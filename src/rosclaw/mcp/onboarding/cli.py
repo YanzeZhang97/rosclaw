@@ -9,8 +9,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 def _project_root(args: argparse.Namespace) -> Path:
@@ -28,15 +29,21 @@ def add_mcp_subparser(mcp_subparsers: Any) -> None:
     )
     install_parser.add_argument("alias", help="Short name, alias, or canonical manifest ID")
     install_parser.add_argument("--version", default=None, help="Exact version to install")
-    install_parser.add_argument("--dry-run", action="store_true", help="Show plan without writing files")
-    install_parser.add_argument("--allow-dangerous", action="store_true", help="Auto-grant dangerous permissions")
+    install_parser.add_argument(
+        "--dry-run", action="store_true", help="Show plan without writing files"
+    )
+    install_parser.add_argument(
+        "--allow-dangerous", action="store_true", help="Auto-grant dangerous permissions"
+    )
     install_parser.add_argument(
         "--conflict",
         choices=["abort", "rename", "replace"],
         default="abort",
         help="Strategy for unmanaged .mcp.json collisions",
     )
-    install_parser.add_argument("--offline", action="store_true", help="Prefer cache and built-in registry")
+    install_parser.add_argument(
+        "--offline", action="store_true", help="Prefer cache and built-in registry"
+    )
     install_parser.add_argument("--skip-body", action="store_true", help="Skip body.yaml binding")
     install_parser.add_argument("--skip-claude", action="store_true", help="Skip .mcp.json merge")
     install_parser.add_argument("--json", action="store_true", help="Output structured JSON")
@@ -49,9 +56,15 @@ def add_mcp_subparser(mcp_subparsers: Any) -> None:
     )
     list_parser.add_argument("--installed", action="store_true", help="Show only installed servers")
     list_parser.add_argument("--available", action="store_true", help="Show only available servers")
-    list_parser.add_argument("--type", dest="type_filter", default=None, help="Filter by hardware type")
-    list_parser.add_argument("--bound", action="store_true", help="Show only bound installed servers")
-    list_parser.add_argument("--unbound", action="store_true", help="Show only unbound installed servers")
+    list_parser.add_argument(
+        "--type", dest="type_filter", default=None, help="Filter by hardware type"
+    )
+    list_parser.add_argument(
+        "--bound", action="store_true", help="Show only bound installed servers"
+    )
+    list_parser.add_argument(
+        "--unbound", action="store_true", help="Show only unbound installed servers"
+    )
     list_parser.add_argument("--offline", action="store_true", help="Use offline registry")
     list_parser.add_argument("--json", action="store_true", help="Output structured JSON")
     list_parser.add_argument("--project-root", default=".", help="Project root path")
@@ -66,7 +79,9 @@ def add_mcp_subparser(mcp_subparsers: Any) -> None:
         default=None,
         help="Specific server to check (default: all installed)",
     )
-    health_parser.add_argument("--full", action="store_true", help="Run hardware/safety checks and MCP handshake")
+    health_parser.add_argument(
+        "--full", action="store_true", help="Run hardware/safety checks and MCP handshake"
+    )
     health_parser.add_argument("--json", action="store_true", help="Output structured JSON")
     health_parser.add_argument("--project-root", default=".", help="Project root path")
     health_parser.set_defaults(func=lambda args: dispatch_mcp_health(args))
@@ -78,7 +93,7 @@ def dispatch_mcp_command(args: argparse.Namespace) -> int:
     Falls back to the serve handler when no onboarding subcommand was given.
     """
     command = getattr(args, "mcp_command", None)
-    func = getattr(args, "func", None)
+    func = cast(Callable[[argparse.Namespace], int] | None, getattr(args, "func", None))
     if command == "serve" and func is not None:
         return func(args)
     if func is not None:
@@ -247,21 +262,25 @@ def dispatch_mcp_list(args: argparse.Namespace) -> int:
                 hw_type = manifest.hardware.type if manifest.hardware else None
                 if hw_type != args.type_filter:
                     continue
-            available_entries.append({
-                "manifest_id": manifest_id,
-                "name": manifest.name,
-                "display_name": manifest.display_name,
-                "version": manifest.version,
-                "description": manifest.description,
-                "hardware_type": manifest.hardware.type if manifest.hardware else None,
-                "versions": [v.get("version") for v in meta.get("versions", [])],
-            })
+            available_entries.append(
+                {
+                    "manifest_id": manifest_id,
+                    "name": manifest.name,
+                    "display_name": manifest.display_name,
+                    "version": manifest.version,
+                    "description": manifest.description,
+                    "hardware_type": manifest.hardware.type if manifest.hardware else None,
+                    "versions": [v.get("version") for v in meta.get("versions", [])],
+                }
+            )
 
     if args.json:
-        _print_json({
-            "installed": installed_entries,
-            "available": available_entries,
-        })
+        _print_json(
+            {
+                "installed": installed_entries,
+                "available": available_entries,
+            }
+        )
         return 0
 
     print("=" * 60)
