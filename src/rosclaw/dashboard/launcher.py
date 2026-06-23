@@ -23,6 +23,7 @@ def serve_dashboard(host: str = "0.0.0.0", port: int = 8765, workspace: str | Pa
     except ImportError:
         logger.info("rosclaw-dashboard not installed; using built-in lightweight dashboard")
         import uvicorn
+
         from rosclaw.dashboard.web_server import app
 
         uvicorn.run(app, host=host, port=port, log_level="info")
