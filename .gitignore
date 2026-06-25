@@ -79,3 +79,11 @@ MUJOCO_LOG.TXT
 
 # Generated bundles
 generated/
+
+# Local/agent-generated files that should not be committed at the repo root.
+# Note: root CLAUDE.md / ROSCLAW.md / rosclaw.yaml are project defaults used by
+# Claude Code and docker-compose, so they remain tracked.
+/.mcp.json
+/mcp.json
+/P0_CLAUDE_CODE_AGENT_HELP.md
+/PYEOF
