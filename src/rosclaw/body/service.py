@@ -32,6 +32,7 @@ from rosclaw.body.schema import (
     EurdfProfile,
 )
 from rosclaw.eurdf.registry import RobotRegistry
+from rosclaw.eurdf.zoo_client import EurdfZooClient, EurdfZooClientError
 
 
 @dataclass
@@ -73,7 +74,12 @@ def _default_installed_components(eurdf: EurdfProfile) -> dict[str, Any]:
     for sensor in eurdf.sensors:
         name = sensor.get("name")
         if name:
-            sensors[name] = {"installed": True, "status": "available", "provider_ref": None, "notes": []}
+            sensors[name] = {
+                "installed": True,
+                "status": "available",
+                "provider_ref": None,
+                "notes": [],
+            }
     actuators = {}
     for actuator in eurdf.actuators:
         name = actuator.get("name")
@@ -98,6 +104,8 @@ class BodyInstanceService:
         mode: Literal["single", "registry"] = "single",
         version: str = "latest",
         from_eurdf: Path | None = None,
+        from_zoo: bool = False,
+        zoo_path: Path | None = None,
         force: bool = False,
         update_registry: bool = False,
         switch_active: bool = False,
@@ -106,7 +114,8 @@ class BodyInstanceService:
         """Create or re-initialize a body instance from an e-URDF profile.
 
         Args:
-            robot: User-facing robot profile ID (e.g. ``unitree-g1``).
+            robot: User-facing robot profile ID (e.g. ``unitree-g1`` or
+                ``dexhands/inspire_hand/right``).
             profile: Optional alias override; ignored if ``robot`` is given.
             name: Body instance ID. Auto-generated if omitted.
             nickname: Human-readable nickname. Defaults to ``name``.
@@ -114,6 +123,9 @@ class BodyInstanceService:
                 multi-body registry layout under ``bodies/<id>/``.
             version: e-URDF profile version. ``latest`` resolves to ``1.0.0``.
             from_eurdf: Optional path to an external e-URDF file.
+            from_zoo: If True, resolve ``robot`` as a manifest-driven zoo asset
+                ID (e.g. ``dexhands/inspire_hand/right``).
+            zoo_path: Optional explicit e-URDF-Zoo robots directory.
             force: Allow overwriting an existing body link.
             update_registry: Write the body into ``body_registry.yaml``.
             switch_active: Set the new body as the active body pointer.
@@ -130,7 +142,7 @@ class BodyInstanceService:
         profile_version = version if version != "latest" else "1.0.0"
 
         if mode == "registry":
-            body_id = (name or f"{profile_id}-001").strip().lower()
+            body_id = (name or f"{profile_id.replace('/', '-')}-001").strip().lower()
             body_dir = self.workspace / "bodies" / body_id
             if update_registry:
                 self.registry_manager.create_body(
@@ -143,19 +155,29 @@ class BodyInstanceService:
             if switch_active:
                 self.registry_manager.set_current_body_id(body_id)
         else:
-            body_id = (name or f"body-{profile_id}-001").strip().lower()
+            body_id = (name or f"body-{profile_id.replace('/', '-')}-001").strip().lower()
             body_dir = self.workspace / "body"
 
         # Load e-URDF profile.
         if from_eurdf is not None:
             raise NotImplementedError("External e-URDF file loading is not yet supported.")
 
-        registry = RobotRegistry()
-        profile_obj = registry.get(profile_id)
-        if profile_obj is None:
-            raise BodyRegistryError(f"e-URDF profile not found: {robot}")
+        if from_zoo or "/" in profile_id:
+            try:
+                normalized = EurdfZooClient(zoo_path=zoo_path).get_eurdf_profile(
+                    profile_id, version=profile_version
+                )
+            except EurdfZooClientError as exc:
+                raise BodyRegistryError(str(exc)) from exc
+            profile_source = "zoo"
+        else:
+            registry = RobotRegistry()
+            profile_obj = registry.get(profile_id)
+            if profile_obj is None:
+                raise BodyRegistryError(f"e-URDF profile not found: {robot}")
+            normalized = EurdfProfile.from_robot_complete_profile(profile_obj)
+            profile_source = "builtin"
 
-        normalized = EurdfProfile.from_robot_complete_profile(profile_obj)
         now = _utc_now()
 
         body_dir.mkdir(parents=True, exist_ok=True)
@@ -177,7 +199,9 @@ class BodyInstanceService:
             if switch_active and self.registry_manager.registry_path.exists():
                 self.registry_manager.set_current_body_id(body_id)
 
-        resolver = BodyResolver(workspace=self.workspace, body_id=body_id if mode == "registry" else None)
+        resolver = BodyResolver(
+            workspace=self.workspace, body_id=body_id if mode == "registry" else None
+        )
         resolver.ensure_body_dir()
 
         if mode == "single" and resolver.is_linked() and not force:
@@ -198,10 +222,13 @@ class BodyInstanceService:
             "profile_id": profile_id,
             "profile_version": profile_version,
             "uri": eurdf_uri,
-            "source": "builtin",
+            "source": profile_source,
+            "zoo_source": profile_source == "zoo",
             "checksum": checksum,
             "locked_at": now,
         }
+        if zoo_path is not None and profile_source == "zoo":
+            lock["zoo_path"] = str(zoo_path)
         with open(resolver.eurdf_lock_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(lock, f, sort_keys=False, allow_unicode=True)
 
@@ -238,7 +265,17 @@ class BodyInstanceService:
             installed_components=_default_installed_components(normalized),
             capabilities={"enabled": [], "disabled": [], "degraded": []},
             prohibited_capabilities=[],
+            forbidden_capabilities=normalized.forbidden_capabilities or [],
             safety_overrides={},
+            agent_policy={
+                "physical_execution_requires_sandbox": True,
+                "direct_real_robot_execution_allowed": bool(
+                    normalized.safety.get("environment", {}).get(
+                        "real_robot_execution_allowed", False
+                    )
+                ),
+                "human_approval_required_for_high_risk": True,
+            },
             runtime_state={
                 "battery_percent": None,
                 "last_seen_at": None,
@@ -264,7 +301,12 @@ class BodyInstanceService:
         calibration = CalibrationYaml(
             body_instance_id=body_id,
             model_ref=eurdf_uri,
-            validation={"status": "factory_default", "last_validated_at": None, "errors": [], "warnings": []},
+            validation={
+                "status": "factory_default",
+                "last_validated_at": None,
+                "errors": [],
+                "warnings": [],
+            },
         )
         with open(resolver.calibration_yaml_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(calibration.to_dict(), f, sort_keys=False, allow_unicode=True)
@@ -301,11 +343,13 @@ class BodyInstanceService:
 
             resolver.create_snapshot(effective)
 
-            created_files.extend([
-                resolver.effective_body_path,
-                resolver.embodiment_md_path,
-                resolver.body_md_path,
-            ])
+            created_files.extend(
+                [
+                    resolver.effective_body_path,
+                    resolver.embodiment_md_path,
+                    resolver.body_md_path,
+                ]
+            )
             if resolver.generated_dir.exists():
                 created_files.extend(resolver.generated_dir.glob("*.json"))
 

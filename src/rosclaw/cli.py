@@ -39,6 +39,7 @@ from rosclaw.body.registry import BodyRegistryManager
 from rosclaw.body.resolver import BodyResolver
 from rosclaw.connectors.ros.cli import add_ros_subparser, cmd_doctor_ros, dispatch_ros_command
 from rosclaw.core.event_bus import Event, EventPriority
+from rosclaw.eurdf.cli import add_eurdf_subparser, dispatch_eurdf_command
 from rosclaw.feedback.cli import add_feedback_subparser, dispatch_feedback_command
 from rosclaw.feedback.hooks import telemetry_command_hook
 from rosclaw.feedback.telemetry_client import TelemetryClient
@@ -3378,6 +3379,7 @@ def main() -> int:
     # robot subcommand
     add_ros_subparser(subparsers)
     add_body_subparser(subparsers)
+    add_eurdf_subparser(subparsers)
     add_hub_subparser(subparsers)
     robot_parser = subparsers.add_parser("robot", help="Robot registry commands")
     robot_subparsers = robot_parser.add_subparsers(dest="robot_command")
@@ -3742,6 +3744,8 @@ def main() -> int:
             return dispatch_ros_command(args)
         elif args.command == "body":
             return dispatch_body_command(args)
+        elif args.command == "eurdf":
+            return dispatch_eurdf_command(args)
         elif args.command == "logs":
             return cmd_logs(args)
         elif args.command == "robot":

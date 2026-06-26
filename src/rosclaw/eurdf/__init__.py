@@ -23,9 +23,11 @@ from rosclaw.eurdf.models import (
     RobotSimulationProfile,
 )
 from rosclaw.eurdf.registry import RobotRegistry
+from rosclaw.eurdf.zoo_client import EurdfZooClient
 
 __all__ = [
     "EURDFLoader",
+    "EurdfZooClient",
     "RobotRegistry",
     "RobotEmbodimentProfile",
     "RobotSafetyProfile",

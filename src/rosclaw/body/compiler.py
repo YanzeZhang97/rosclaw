@@ -37,7 +37,10 @@ class EffectiveBodyCompiler:
         runtime = runtime or {}
 
         body_id = body.body_instance.get("id") or f"body-{eurdf.profile_id}-default"
-        eurdf_uri = body.model_ref.get("eurdf_uri") or f"rosclaw://eurdf/{eurdf.profile_id}@{eurdf.profile_version}"
+        eurdf_uri = (
+            body.model_ref.get("eurdf_uri")
+            or f"rosclaw://eurdf/{eurdf.profile_id}@{eurdf.profile_version}"
+        )
 
         # 1. Start with e-URDF structural model
         joints = _index_by_name(eurdf.joints, "name")
@@ -114,7 +117,9 @@ class EffectiveBodyCompiler:
             known_successes=body.known_successes or [],
             known_failures=body.known_failures or [],
         )
-        effective.runtime_state = copy.deepcopy(runtime) if runtime else copy.deepcopy(body.runtime_state)
+        effective.runtime_state = (
+            copy.deepcopy(runtime) if runtime else copy.deepcopy(body.runtime_state)
+        )
         effective.effective_body_hash = effective.compute_hash()
         return effective
 
@@ -185,10 +190,25 @@ class EffectiveBodyCompiler:
                         blocked.add("visual_navigation")
                         enabled.discard("visual_navigation")
 
-        # Calibration status can degrade precision skills
+        # Calibration status can degrade precision skills and dexterous gestures
         cal_status = body.calibration.get("status", "uncalibrated")
         if cal_status != "validated":
             degraded.add("precision_grasp")
+            for cap in list(enabled):
+                if "gesture" in cap.lower():
+                    degraded.add(cap)
+                    enabled.discard(cap)
+
+        # Experimental / real-robot-blocked assets keep manipulation capabilities
+        # as simulation-only until the safety policy explicitly allows real execution.
+        real_allowed = eurdf.safety.get("environment", {}).get("real_robot_execution_allowed", True)
+        if not real_allowed:
+            for cap in list(enabled):
+                # Leave read-only / introspection capabilities enabled; degrade motion capabilities.
+                if cap.lower() in {"get_state", "read_state", "list_joints", "report_faults"}:
+                    continue
+                degraded.add(cap)
+                enabled.discard(cap)
 
         base = {
             "enabled": sorted(enabled - blocked),
@@ -241,11 +261,16 @@ class EffectiveBodyCompiler:
                     faults[fid] = dict(fault, id=fid)
 
         for event in maintenance_events or []:
-            if event.type in ("incident", "fault", "safety") and event.severity in ("warning", "critical", "high"):
+            if event.type in ("incident", "fault", "safety") and event.severity in (
+                "warning",
+                "critical",
+                "high",
+            ):
                 fault_id = event.result.get("fault_id") or event.event_id or f"fault-{_utc_now()}"
                 faults[fault_id] = {
                     "id": fault_id,
-                    "component": event.component or (event.affects[0] if event.affects else "unknown"),
+                    "component": event.component
+                    or (event.affects[0] if event.affects else "unknown"),
                     "severity": event.severity,
                     "status": "open" if event.type in ("incident", "fault") else "resolved",
                     "summary": event.summary or event.message,
@@ -256,7 +281,9 @@ class EffectiveBodyCompiler:
                 if fault_id in faults:
                     faults[fault_id]["status"] = "resolved"
                     if event.summary:
-                        faults[fault_id]["summary"] = f"{faults[fault_id].get('summary', '')} → resolved: {event.summary}"
+                        faults[fault_id]["summary"] = (
+                            f"{faults[fault_id].get('summary', '')} → resolved: {event.summary}"
+                        )
 
         return list(faults.values())
 
