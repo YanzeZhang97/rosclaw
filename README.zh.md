@@ -121,7 +121,7 @@ rosclaw firstboot --yes --profile offline --no-telemetry
 3. 写入根据所选 profile 生成的 `rosclaw.yaml`。
 4. 如果启用 MCP，生成 `mcp.json`。
 5. 创建遥测偏好配置（默认关闭）。
-6. 在 `state/install.json` 记录安装元数据。
+6. 在 `~/.rosclaw/state/install.json` 记录安装元数据。
 7. 运行 `rosclaw doctor --bootstrap`。
 8. 打印下一步操作提示。
 9. 在明确选择加入之前，保持只读、不连接真实机器人。
@@ -262,19 +262,18 @@ ROSClaw 可以从声明式 manifest 自动安装硬件 MCP Server，并持续检
 # 离线安装内置硬件 MCP
 ./rosclaw mcp install unitree-g1 --offline
 
-# 从公共 ROSClaw Hub 安装（需要网络）
-./rosclaw mcp install ros-claw/g1-mcp
+# 预览公共 Hub 包（去掉 --offline 即可从网络获取）
+./rosclaw mcp install ros-claw/g1-mcp --dry-run --offline
 
 # 使用自定义/私有 Hub 端点
-ROSCLAW_MCP_HUB=https://my-hub.example.com ./rosclaw mcp install ros-claw/g1-mcp
+ROSCLAW_MCP_HUB=https://my-hub.example.com ./rosclaw mcp install ros-claw/g1-mcp --dry-run --offline
 
 # 列出已安装/可用 Server
-./rosclaw mcp list
-./rosclaw mcp list --offline          # 跳过远程 Hub
-./rosclaw mcp list --json             # 机器可读输出
+./rosclaw mcp list --offline
+./rosclaw mcp list --offline --json
 
 # 健康检查
-./rosclaw mcp health                  # 所有已安装 Server
+./rosclaw mcp health
 ./rosclaw mcp health unitree-g1
 ./rosclaw mcp health unitree-g1 --full --json
 ```

@@ -189,7 +189,7 @@ See [QUICKSTART.md](QUICKSTART.md) for four guided paths: local simulation, agen
 3. Writes `rosclaw.yaml` with chosen profile.
 4. Generates `mcp.json` if MCP is enabled.
 5. Creates telemetry preferences (default disabled).
-6. Records install metadata in `state/install.json`.
+6. Records install metadata in `~/.rosclaw/state/install.json`.
 7. Runs `rosclaw doctor --bootstrap`.
 8. Prints next-step instructions.
 9. Leaves the system read-only and robot-safe until you opt in.
@@ -332,19 +332,18 @@ built-ins.
 # Install a built-in hardware MCP without touching the network
 ./rosclaw mcp install unitree-g1 --offline
 
-# Install from the public ROSClaw Hub (requires network)
-./rosclaw mcp install ros-claw/g1-mcp
+# Preview a public Hub package (use without --offline to fetch from the network)
+./rosclaw mcp install ros-claw/g1-mcp --dry-run --offline
 
 # Use a private/custom hub endpoint
-ROSCLAW_MCP_HUB=https://my-hub.example.com ./rosclaw mcp install ros-claw/g1-mcp
+ROSCLAW_MCP_HUB=https://my-hub.example.com ./rosclaw mcp install ros-claw/g1-mcp --dry-run --offline
 
 # List installed and available servers
-./rosclaw mcp list
-./rosclaw mcp list --offline          # skip remote hub
-./rosclaw mcp list --json             # machine-readable output
+./rosclaw mcp list --offline
+./rosclaw mcp list --offline --json
 
 # Health-check installed servers
-./rosclaw mcp health                  # all installed
+./rosclaw mcp health
 ./rosclaw mcp health unitree-g1
 ./rosclaw mcp health unitree-g1 --full --json
 ```
