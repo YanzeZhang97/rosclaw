@@ -46,21 +46,30 @@ class SafetyInvariantEngine:
                     "sandbox_required; degraded until validation policy is added."
                 )
 
-        # Invariant 2: critical forbidden capabilities must block real-robot execution.
+        # Invariant 2: critical forbidden capabilities must block real-robot execution
+        # and be removed from the enabled set.
         for forbidden in body.forbidden_capabilities or []:
             sev = forbidden.get("severity", "critical")
+            cap_id = forbidden.get("id") or forbidden.get("capability")
+            if not cap_id:
+                continue
+            enforcement = forbidden.get("enforcement", {})
             if sev == "critical":
-                enforcement = forbidden.get("enforcement", {})
                 if not enforcement.get("real_robot_block", False):
-                    cap_id = forbidden.get("id") or forbidden.get("capability")
                     warnings.append(
                         f"Invariant: forbidden capability '{cap_id}' is critical but "
                         "real_robot_block is not enforced; this is a configuration error."
                     )
+                # Always enforce blocking for critical forbidden capabilities.
+                disabled.add(cap_id)
+                enabled.discard(cap_id)
+                degraded.discard(cap_id)
+                warnings.append(f"Invariant: critical forbidden capability '{cap_id}' is disabled.")
 
         # Invariant 3: open critical fault degrades/blocks safety-sensitive capabilities.
         open_critical_faults = [
-            f for f in (body.known_faults.get("faults", []) if body.known_faults else [])
+            f
+            for f in (body.known_faults.get("faults", []) if body.known_faults else [])
             if f.get("status") == "open" and f.get("severity") in ("high", "critical")
         ]
         if open_critical_faults:
@@ -103,7 +112,8 @@ class SafetyInvariantEngine:
             if isinstance(cap, dict) and cap.get("risk_level") in ("high", "critical"):
                 high_critical.add(str(cap.get("id") or cap.get("name") or ""))
             elif isinstance(cap, str) and any(
-                kw in cap.lower() for kw in ("run", "jump", "climb", "throw", "lift", "force", "fast")
+                kw in cap.lower()
+                for kw in ("run", "jump", "climb", "throw", "lift", "force", "fast")
             ):
                 # Heuristic: certain capability names imply high risk
                 high_critical.add(cap)
@@ -130,8 +140,17 @@ class SafetyInvariantEngine:
         explicit = set(body.agent_policy.get("safety_sensitive_capabilities", []))
         # Heuristic fallback
         heuristic = {
-            "walk", "run", "jump", "climb_stairs", "balance", "locomotion",
-            "dual_arm_coordination", "reach", "manipulate", "grasp", "precision_grasp",
+            "walk",
+            "run",
+            "jump",
+            "climb_stairs",
+            "balance",
+            "locomotion",
+            "dual_arm_coordination",
+            "reach",
+            "manipulate",
+            "grasp",
+            "precision_grasp",
         }
         return explicit | heuristic
 
@@ -143,4 +162,6 @@ class SafetyInvariantEngine:
             "scan_workspace",
             "force_guided_manipulation",
             "hand_eye_coordination",
+            "ok_gesture",
+            "countdown_gesture",
         }

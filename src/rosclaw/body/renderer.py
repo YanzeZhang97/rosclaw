@@ -63,12 +63,7 @@ class EmbodimentRenderer:
         if preserve_human_notes:
             human_notes = f"\n{self.HUMAN_NOTES_START}\n\n{self.HUMAN_NOTES_END}\n"
 
-        return (
-            f"{self.GENERATED_START}\n"
-            f"{generated}\n"
-            f"{self.GENERATED_END}\n"
-            f"{human_notes}"
-        )
+        return f"{self.GENERATED_START}\n{generated}\n{self.GENERATED_END}\n{human_notes}"
 
     def render_into_existing(
         self,
@@ -82,7 +77,12 @@ class EmbodimentRenderer:
         """Re-render generated region while preserving human notes."""
         human_notes = self._extract_human_notes(existing_md)
         new_generated = self.render(
-            body, body_yaml, compatibility, maintenance_events, calibration, preserve_human_notes=False
+            body,
+            body_yaml,
+            compatibility,
+            maintenance_events,
+            calibration,
+            preserve_human_notes=False,
         )
         if human_notes:
             return f"{new_generated}\n{self.HUMAN_NOTES_START}\n{human_notes}\n{self.HUMAN_NOTES_END}\n"
@@ -94,7 +94,7 @@ class EmbodimentRenderer:
         end = existing_md.find(self.HUMAN_NOTES_END)
         if start == -1 or end == -1 or end <= start:
             return ""
-        return existing_md[start + len(self.HUMAN_NOTES_START):end].strip()
+        return existing_md[start + len(self.HUMAN_NOTES_START) : end].strip()
 
     # ── Sections ──
 
@@ -110,18 +110,18 @@ class EmbodimentRenderer:
             "---",
             "schema: rosclaw.embodiment.v1",
             "generated_by: rosclaw body init",
-            f"generated_at: \"{body.compiled_at}\"",
-            f"robot_instance_id: \"{body.body_instance_id}\"",
-            f"robot_model: \"{identity.get('robot_model') or body_yaml.body_instance.get('robot_model', 'unknown')}\"",
-            f"robot_vendor: \"{identity.get('robot_vendor') or 'unknown'}\"",
-            f"eurdf_profile: \"{body_yaml.model_ref.get('profile_id', 'unknown')}\"",
-            f"eurdf_profile_path: \"{eurdf_profile_path}\"",
-            f"eurdf_checksum: \"{eurdf_checksum}\"",
-            f"body_yaml: \"{body_yaml_path}\"",
-            f"calibration_yaml: \"{calibration_yaml_path}\"",
-            f"maintenance_log: \"{maintenance_log_path}\"",
+            f'generated_at: "{body.compiled_at}"',
+            f'robot_instance_id: "{body.body_instance_id}"',
+            f'robot_model: "{identity.get("robot_model") or body_yaml.body_instance.get("robot_model", "unknown")}"',
+            f'robot_vendor: "{identity.get("robot_vendor") or "unknown"}"',
+            f'eurdf_profile: "{body_yaml.model_ref.get("profile_id", "unknown")}"',
+            f'eurdf_profile_path: "{eurdf_profile_path}"',
+            f'eurdf_checksum: "{eurdf_checksum}"',
+            f'body_yaml: "{body_yaml_path}"',
+            f'calibration_yaml: "{calibration_yaml_path}"',
+            f'maintenance_log: "{maintenance_log_path}"',
             f"body_state_generation: {body.generation}",
-            f"safety_status: \"{safety_status}\"",
+            f'safety_status: "{safety_status}"',
             "agent_readability: true",
             "do_not_edit_generated_sections: true",
             "---",
@@ -170,6 +170,17 @@ class EmbodimentRenderer:
             "6. Run sandbox / firewall validation before execution.",
             "",
         ]
+
+        real_allowed = body.safety.get("environment", {}).get("real_robot_execution_allowed", True)
+        if not real_allowed:
+            lines.extend(
+                [
+                    "> **⚠️ Real-robot execution is disabled for this asset.**",
+                    "> All manipulation and motion capabilities are simulation/sandbox-only until the safety policy is explicitly updated and clearance calibration is validated.",
+                    "",
+                ]
+            )
+
         return "\n".join(lines)
 
     def _render_eurdf_profile_reference(self, body: EffectiveBody, body_yaml: BodyYaml) -> str:
@@ -216,13 +227,17 @@ class EmbodimentRenderer:
         lines.append("")
 
         # Joint groups
-        lines.extend([
-            "### 4.2 Joint Groups",
-            "",
-            "| Group | Joints | Status | Notes |",
-            "|---|---|---|---|",
-        ])
-        groups = body_yaml.body_structure.get("joint_groups", []) if body_yaml.body_structure else []
+        lines.extend(
+            [
+                "### 4.2 Joint Groups",
+                "",
+                "| Group | Joints | Status | Notes |",
+                "|---|---|---|---|",
+            ]
+        )
+        groups = (
+            body_yaml.body_structure.get("joint_groups", []) if body_yaml.body_structure else []
+        )
         if not groups:
             groups = self._infer_joint_groups(body)
         for group in groups:
@@ -269,24 +284,28 @@ class EmbodimentRenderer:
             calibrated = "valid" if sensor.get("extrinsics") else "missing"
             mounted_on = sensor.get("mounted_on", "unknown")
             notes = sensor.get("notes", "")
-            lines.append(f"| {name} | {sensor_type} | {mounted_on} | {frame} | {status} | {calibrated} | {notes} |")
+            lines.append(
+                f"| {name} | {sensor_type} | {mounted_on} | {frame} | {status} | {calibrated} | {notes} |"
+            )
         if not body.sensors:
             lines.append("| _none_ | | | | | | |")
         lines.append("")
 
         # Sensor readiness
         readiness = self._sensor_readiness(body)
-        lines.extend([
-            "### Sensor Readiness",
-            "",
-            f"- Vision: `{readiness.get('vision', 'unknown')}`",
-            f"- Depth: `{readiness.get('depth', 'unknown')}`",
-            f"- IMU: `{readiness.get('imu', 'unknown')}`",
-            f"- Force / Torque: `{readiness.get('force_torque', 'unknown')}`",
-            f"- Audio: `{readiness.get('audio', 'unknown')}`",
-            f"- Proprioception: `{readiness.get('proprioception', 'unknown')}`",
-            "",
-        ])
+        lines.extend(
+            [
+                "### Sensor Readiness",
+                "",
+                f"- Vision: `{readiness.get('vision', 'unknown')}`",
+                f"- Depth: `{readiness.get('depth', 'unknown')}`",
+                f"- IMU: `{readiness.get('imu', 'unknown')}`",
+                f"- Force / Torque: `{readiness.get('force_torque', 'unknown')}`",
+                f"- Audio: `{readiness.get('audio', 'unknown')}`",
+                f"- Proprioception: `{readiness.get('proprioception', 'unknown')}`",
+                "",
+            ]
+        )
         return "\n".join(lines)
 
     def _render_actuators_and_tools(self, body: EffectiveBody) -> str:
@@ -342,52 +361,58 @@ class EmbodimentRenderer:
         lines.append("")
 
         # Detailed YAML blocks
-        lines.extend([
-            "### 8.1 Enabled Capabilities",
-            "",
-            "```yaml",
-            "enabled:",
-        ])
+        lines.extend(
+            [
+                "### 8.1 Enabled Capabilities",
+                "",
+                "```yaml",
+                "enabled:",
+            ]
+        )
         for cap in sorted(enabled):
-            lines.append(f"  - id: \"{cap}\"")
-            lines.append(f"    name: \"{cap}\"")
-            lines.append("    scope: \"unknown\"")
+            lines.append(f'  - id: "{cap}"')
+            lines.append(f'    name: "{cap}"')
+            lines.append('    scope: "unknown"')
             lines.append("    preconditions: []")
             lines.append("    validation:")
             lines.append("      sandbox_required: true")
             lines.append("      human_approval_required: false")
-            lines.append("      max_risk: \"medium\"")
+            lines.append('      max_risk: "medium"')
         if not enabled:
             lines.append("  []")
         lines.append("```")
         lines.append("")
 
-        lines.extend([
-            "### 8.2 Degraded Capabilities",
-            "",
-            "```yaml",
-            "degraded:",
-        ])
+        lines.extend(
+            [
+                "### 8.2 Degraded Capabilities",
+                "",
+                "```yaml",
+                "degraded:",
+            ]
+        )
         for cap in sorted(degraded):
-            lines.append(f"  - id: \"{cap}\"")
-            lines.append("    reason: \"calibration/maintenance/runtime\"")
-            lines.append("    allowed_mode: \"slow\"")
+            lines.append(f'  - id: "{cap}"')
+            lines.append('    reason: "calibration/maintenance/runtime"')
+            lines.append('    allowed_mode: "slow"')
             lines.append("    blocked_subactions: []")
         if not degraded:
             lines.append("  []")
         lines.append("```")
         lines.append("")
 
-        lines.extend([
-            "### 8.3 Disabled Capabilities",
-            "",
-            "```yaml",
-            "disabled:",
-        ])
+        lines.extend(
+            [
+                "### 8.3 Disabled Capabilities",
+                "",
+                "```yaml",
+                "disabled:",
+            ]
+        )
         for cap in sorted(blocked):
-            lines.append(f"  - id: \"{cap}\"")
-            lines.append("    reason: \"prohibited or unavailable\"")
-            lines.append("    since: \"\"")
+            lines.append(f'  - id: "{cap}"')
+            lines.append('    reason: "prohibited or unavailable"')
+            lines.append('    since: ""')
             lines.append("    reenable_requires: []")
         if not blocked:
             lines.append("  []")
@@ -406,16 +431,18 @@ class EmbodimentRenderer:
             "degraded:",
         ]
         for cap in sorted(degraded):
-            lines.append(f"  - id: \"{cap}\"")
-            lines.append("    reason: \"calibration / maintenance / runtime\"")
-            lines.append("    allowed_mode: \"slow / constrained\"")
+            lines.append(f'  - id: "{cap}"')
+            lines.append('    reason: "calibration / maintenance / runtime"')
+            lines.append('    allowed_mode: "slow / constrained"')
             lines.append("    requires_human_approval: true")
         if not degraded:
             lines.append("  []")
-        lines.extend([
-            "```",
-            "",
-        ])
+        lines.extend(
+            [
+                "```",
+                "",
+            ]
+        )
         return "\n".join(lines)
 
     def _render_forbidden_capabilities(self, body: EffectiveBody, body_yaml: BodyYaml) -> str:
@@ -429,10 +456,10 @@ class EmbodimentRenderer:
         ]
         forbidden = body.forbidden_capabilities or body_yaml.forbidden_capabilities or []
         for item in forbidden:
-            lines.append(f"  - id: \"{item.get('id', item.get('capability', 'unknown'))}\"")
-            lines.append(f"    description: \"{item.get('description', item.get('reason', ''))}\"")
-            lines.append(f"    reason: \"{item.get('reason', 'safety')}\"")
-            lines.append(f"    severity: \"{item.get('severity', 'critical')}\"")
+            lines.append(f'  - id: "{item.get("id", item.get("capability", "unknown"))}"')
+            lines.append(f'    description: "{item.get("description", item.get("reason", ""))}"')
+            lines.append(f'    reason: "{item.get("reason", "safety")}"')
+            lines.append(f'    severity: "{item.get("severity", "critical")}"')
             enforcement = item.get("enforcement", {})
             lines.append("    enforcement:")
             lines.append(f"      policy_block: {enforcement.get('policy_block', True)}")
@@ -440,21 +467,23 @@ class EmbodimentRenderer:
             lines.append(f"      real_robot_block: {enforcement.get('real_robot_block', True)}")
         if not forbidden:
             lines.append("  []")
-        lines.extend([
-            "```",
-            "",
-            "Examples of forbidden capability classes:",
-            "",
-            "- Running or jumping without validated locomotion policy.",
-            "- High-speed motion near humans.",
-            "- Forceful manipulation without force feedback.",
-            "- Stair climbing without validated stair profile.",
-            "- Lifting objects above rated payload.",
-            "- Using disabled limbs or known faulty joints.",
-            "- Executing uncalibrated camera-guided grasping.",
-            "- Bypassing sandbox / firewall validation.",
-            "",
-        ])
+        lines.extend(
+            [
+                "```",
+                "",
+                "Examples of forbidden capability classes:",
+                "",
+                "- Running or jumping without validated locomotion policy.",
+                "- High-speed motion near humans.",
+                "- Forceful manipulation without force feedback.",
+                "- Stair climbing without validated stair profile.",
+                "- Lifting objects above rated payload.",
+                "- Using disabled limbs or known faulty joints.",
+                "- Executing uncalibrated camera-guided grasping.",
+                "- Bypassing sandbox / firewall validation.",
+                "",
+            ]
+        )
         return "\n".join(lines)
 
     def _render_safety(self, body: EffectiveBody) -> str:
@@ -487,14 +516,16 @@ class EmbodimentRenderer:
             elif isinstance(value, bool):
                 value = str(value).lower()
             lines.append(f"  {key}: {value}")
-        lines.extend([
-            "```",
-            "",
-            "### 11.2 Workspace Limits",
-            "",
-            "| Workspace | Frame | Bounds | Allowed | Notes |",
-            "|---|---|---|---|---|",
-        ])
+        lines.extend(
+            [
+                "```",
+                "",
+                "### 11.2 Workspace Limits",
+                "",
+                "| Workspace | Frame | Bounds | Allowed | Notes |",
+                "|---|---|---|---|---|",
+            ]
+        )
         workspaces = safety.get("workspace_limits", []) or []
         for ws in workspaces:
             lines.append(
@@ -505,12 +536,14 @@ class EmbodimentRenderer:
             lines.append("| _No workspace limits defined._ | | | | |")
         lines.append("")
 
-        lines.extend([
-            "### 11.3 Contact / Force Limits",
-            "",
-            "| Body Part | Max Force | Max Torque | Contact Allowed | Notes |",
-            "|---|--:|--:|---|---|",
-        ])
+        lines.extend(
+            [
+                "### 11.3 Contact / Force Limits",
+                "",
+                "| Body Part | Max Force | Max Torque | Contact Allowed | Notes |",
+                "|---|--:|--:|---|---|",
+            ]
+        )
         contacts = safety.get("contact_limits", []) or []
         for contact in contacts:
             lines.append(
@@ -522,22 +555,24 @@ class EmbodimentRenderer:
             lines.append("| _No contact limits defined._ | | | | |")
         lines.append("")
 
-        lines.extend([
-            "### 11.4 Safety Gates",
-            "",
-            "Before physical execution, the Agent must pass:",
-            "",
-            "1. Body capability check.",
-            "2. Forbidden capability check.",
-            "3. Fault check.",
-            "4. Calibration validity check.",
-            "5. Runtime state check.",
-            "6. Sandbox validation.",
-            "7. Firewall / risk policy validation.",
-            "8. Human approval when required.",
-            "9. Practice Timeline logging.",
-            "",
-        ])
+        lines.extend(
+            [
+                "### 11.4 Safety Gates",
+                "",
+                "Before physical execution, the Agent must pass:",
+                "",
+                "1. Body capability check.",
+                "2. Forbidden capability check.",
+                "3. Fault check.",
+                "4. Calibration validity check.",
+                "5. Runtime state check.",
+                "6. Sandbox validation.",
+                "7. Firewall / risk policy validation.",
+                "8. Human approval when required.",
+                "9. Practice Timeline logging.",
+                "",
+            ]
+        )
         return "\n".join(lines)
 
     def _render_known_faults(self, body: EffectiveBody) -> str:
@@ -563,23 +598,27 @@ class EmbodimentRenderer:
             lines.append("| _No known faults._ | | | | | | | |")
         lines.append("")
 
-        lines.extend([
-            "### Fault-derived Capability Changes",
-            "",
-            "```yaml",
-            "fault_capability_overrides:",
-        ])
+        lines.extend(
+            [
+                "### Fault-derived Capability Changes",
+                "",
+                "```yaml",
+                "fault_capability_overrides:",
+            ]
+        )
         if open_faults:
             for fault in open_faults:
-                lines.append(f"  - fault_id: \"{fault.get('id', 'unknown')}\"")
+                lines.append(f'  - fault_id: "{fault.get("id", "unknown")}"')
                 lines.append(f"    disables: {fault.get('disables', []) or []}")
                 lines.append(f"    degrades: {fault.get('degrades', []) or []}")
         else:
             lines.append("  []")
-        lines.extend([
-            "```",
-            "",
-        ])
+        lines.extend(
+            [
+                "```",
+                "",
+            ]
+        )
         return "\n".join(lines)
 
     def _render_skill_compatibility(self, compatibility: SkillCompatibilityReport) -> str:
@@ -605,13 +644,15 @@ class EmbodimentRenderer:
             lines.append(f"  {skill_id}:")
             lines.append(f"    status: {result.status}")
             if result.reason:
-                lines.append(f"    reason: \"{result.reason}\"")
+                lines.append(f'    reason: "{result.reason}"')
         if not skills:
             lines.append("  {}")
-        lines.extend([
-            "```",
-            "",
-        ])
+        lines.extend(
+            [
+                "```",
+                "",
+            ]
+        )
         return "\n".join(lines)
 
     def _render_known_successes(self, body: EffectiveBody) -> str:
@@ -633,18 +674,20 @@ class EmbodimentRenderer:
             lines.append("| _No recorded successes._ | | | | | |")
         lines.append("")
 
-        lines.extend([
-            "### Recommended Reuse Policy",
-            "",
-            "```yaml",
-            "experience_reuse:",
-            "  same_body: \"can_reuse_after_state_check\"",
-            "  same_model: \"verify_in_sandbox_first\"",
-            "  different_model_same_profile_family: \"require_transfer_validation\"",
-            "  different_morphology: \"do_not_reuse_directly\"",
-            "```",
-            "",
-        ])
+        lines.extend(
+            [
+                "### Recommended Reuse Policy",
+                "",
+                "```yaml",
+                "experience_reuse:",
+                '  same_body: "can_reuse_after_state_check"',
+                '  same_model: "verify_in_sandbox_first"',
+                '  different_model_same_profile_family: "require_transfer_validation"',
+                '  different_morphology: "do_not_reuse_directly"',
+                "```",
+                "",
+            ]
+        )
         return "\n".join(lines)
 
     def _render_known_failures(self, body: EffectiveBody) -> str:
@@ -675,7 +718,10 @@ class EmbodimentRenderer:
             "|---|---|---|---|---|",
         ]
         items = [
-            ("Joint zero offsets", cal.joints if cal.joints else body_yaml.calibration.get("joint_offsets", {})),
+            (
+                "Joint zero offsets",
+                cal.joints if cal.joints else body_yaml.calibration.get("joint_offsets", {}),
+            ),
             ("Camera intrinsics", cal.sensors if cal.sensors else {}),
             ("Camera extrinsics", cal.sensor_extrinsics if cal.sensor_extrinsics else {}),
             ("IMU bias", cal.sensors if cal.sensors else {}),
@@ -690,20 +736,24 @@ class EmbodimentRenderer:
         warnings = []
         if overall not in ("valid", "validated"):
             warnings.append(f"Calibration overall status is '{overall}'.")
-        lines.extend([
-            "### Calibration Warnings",
-            "",
-            "```yaml",
-            "warnings:",
-        ])
+        lines.extend(
+            [
+                "### Calibration Warnings",
+                "",
+                "```yaml",
+                "warnings:",
+            ]
+        )
         for warning in warnings:
-            lines.append(f"  - \"{warning}\"")
+            lines.append(f'  - "{warning}"')
         if not warnings:
             lines.append("  []")
-        lines.extend([
-            "```",
-            "",
-        ])
+        lines.extend(
+            [
+                "```",
+                "",
+            ]
+        )
         return "\n".join(lines)
 
     def _render_maintenance_history(self, maintenance_events: list[MaintenanceEvent]) -> str:
@@ -763,17 +813,21 @@ class EmbodimentRenderer:
             "",
         ]
         if policy:
-            lines.extend([
-                "### 18.4 Instance Policy",
-                "",
-                "```yaml",
-            ])
+            lines.extend(
+                [
+                    "### 18.4 Instance Policy",
+                    "",
+                    "```yaml",
+                ]
+            )
             for key, value in sorted(policy.items()):
                 lines.append(f"  {key}: {value}")
-            lines.extend([
-                "```",
-                "",
-            ])
+            lines.extend(
+                [
+                    "```",
+                    "",
+                ]
+            )
         return "\n".join(lines)
 
     def _render_machine_readable_summary(
@@ -785,16 +839,21 @@ class EmbodimentRenderer:
         cal = calibration or CalibrationYaml()
         identity = body_yaml.get_identity()
         caps = body.capabilities
-        forbidden = [item.get("id", item.get("capability", "unknown")) for item in (body.forbidden_capabilities or body_yaml.forbidden_capabilities or [])]
-        open_faults = [f.get("id", "unknown") for f in (body.known_faults or []) if f.get("status") == "open"]
+        forbidden = [
+            item.get("id", item.get("capability", "unknown"))
+            for item in (body.forbidden_capabilities or body_yaml.forbidden_capabilities or [])
+        ]
+        open_faults = [
+            f.get("id", "unknown") for f in (body.known_faults or []) if f.get("status") == "open"
+        ]
         lines = [
             "## 19. Machine-readable Summary",
             "",
             "```yaml",
-            f"robot_instance_id: \"{body.body_instance_id}\"",
-            f"robot_model: \"{identity.get('robot_model') or body_yaml.body_instance.get('robot_model', 'unknown')}\"",
-            f"eurdf_profile: \"{body_yaml.model_ref.get('profile_id', 'unknown')}\"",
-            f"safety_status: \"{body_yaml.get_safety_status()}\"",
+            f'robot_instance_id: "{body.body_instance_id}"',
+            f'robot_model: "{identity.get("robot_model") or body_yaml.body_instance.get("robot_model", "unknown")}"',
+            f'eurdf_profile: "{body_yaml.model_ref.get("profile_id", "unknown")}"',
+            f'safety_status: "{body_yaml.get_safety_status()}"',
             "capabilities:",
             f"  enabled: {caps.get('enabled', [])}",
             f"  degraded: {caps.get('degraded', [])}",
@@ -802,7 +861,7 @@ class EmbodimentRenderer:
             f"forbidden: {forbidden}",
             f"known_faults_open: {open_faults}",
             "calibration:",
-            f"  overall_status: \"{cal.overall_status()}\"",
+            f'  overall_status: "{cal.overall_status()}"',
             "agent_action_policy:",
             "  physical_execution_requires_sandbox: true",
             "  direct_real_robot_execution_allowed: false",
@@ -865,7 +924,16 @@ class EmbodimentRenderer:
                 key = "torso"
             else:
                 key = "base"
-            parts.setdefault(key, {"id": key, "name": key.replace("_", " ").title(), "type": key, "links": [], "joints": []})
+            parts.setdefault(
+                key,
+                {
+                    "id": key,
+                    "name": key.replace("_", " ").title(),
+                    "type": key,
+                    "links": [],
+                    "joints": [],
+                },
+            )
             parts[key]["joints"].append(joint_name)
         return list(parts.values())
 

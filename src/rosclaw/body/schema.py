@@ -16,6 +16,7 @@ from rosclaw.runtime.eurdf_loader import RobotCompleteProfile
 
 # ── e-URDF Profile (normalized from RobotCompleteProfile) ──
 
+
 @dataclass
 class EurdfProfile:
     """Normalized e-URDF profile — model-level Physical DNA."""
@@ -34,6 +35,7 @@ class EurdfProfile:
     sensors: list[dict[str, Any]] = field(default_factory=list)
     actuators: list[dict[str, Any]] = field(default_factory=list)
     capability_hints: dict[str, list[str]] = field(default_factory=dict)
+    forbidden_capabilities: list[dict[str, Any]] = field(default_factory=list)
     safety: dict[str, Any] = field(default_factory=dict)
     provider_interfaces: dict[str, Any] = field(default_factory=dict)
     sandbox: dict[str, Any] = field(default_factory=dict)
@@ -48,9 +50,15 @@ class EurdfProfile:
 
         capability_hints: dict[str, list[str]] = {}
         if capability.capabilities:
-            capability_hints["all"] = sorted({
-                c.get("name", "") for c in capability.capabilities if c.get("name")
-            })
+            capability_hints["all"] = sorted(
+                {c.get("name", "") for c in capability.capabilities if c.get("name")}
+            )
+
+        forbidden_capabilities: list[dict[str, Any]] = []
+        if capability.skill_registry:
+            forbidden_capabilities = (
+                capability.skill_registry.get("forbidden_capabilities", []) or []
+            )
 
         provider_interfaces: dict[str, Any] = {
             "state": {"required": ["joint_states"], "optional": []},
@@ -70,13 +78,16 @@ class EurdfProfile:
             description=profile.description.strip(),
             assets={"urdf": "robot.urdf", "mjcf": "robot.mjcf.xml"},
             identity={
-                "robot_class": _infer_robot_class(profile.robot_id, embodiment.dof, capability.capabilities),
+                "robot_class": _infer_robot_class(
+                    profile.robot_id, embodiment.dof, capability.capabilities
+                ),
             },
             frames={"root": "base_link", "world": "world"},
             joints=embodiment.joints,
             sensors=embodiment.sensors,
             actuators=embodiment.actuators,
             capability_hints=capability_hints,
+            forbidden_capabilities=forbidden_capabilities,
             safety={
                 "safety_level": safety.safety_level,
                 "joint_soft_limits": safety.joint_soft_limits,
@@ -107,6 +118,7 @@ class EurdfProfile:
 
 
 # ── Body Registry ──
+
 
 @dataclass
 class BodyRegistryEntry:
@@ -159,6 +171,7 @@ class BodyRegistry:
 
 
 # ── Body Instance Ledger ──
+
 
 @dataclass
 class BodyYaml:
@@ -287,6 +300,7 @@ class CalibrationYaml:
 
 # ── Maintenance / Notes ──
 
+
 @dataclass
 class MaintenanceEvent:
     """Single structured maintenance/incident/note event (JSONL line).
@@ -340,6 +354,7 @@ class MaintenanceEvent:
 
 
 # ── Effective Body Model ──
+
 
 @dataclass
 class EffectiveBody:
@@ -400,6 +415,7 @@ class EffectiveBody:
 
 # ── Validation ──
 
+
 @dataclass
 class ValidationResult:
     """One validation check result."""
@@ -430,6 +446,7 @@ class BodyValidationReport:
 
 
 # ── Skill Manifest ──
+
 
 @dataclass
 class SkillManifest:
@@ -528,10 +545,7 @@ class SkillCompatibilityReport:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SkillCompatibilityReport:
-        skills = {
-            k: SkillCompatibilityResult(**v)
-            for k, v in data.get("skills", {}).items()
-        }
+        skills = {k: SkillCompatibilityResult(**v) for k, v in data.get("skills", {}).items()}
         return cls(
             body_instance_id=data.get("body_instance_id", ""),
             effective_body_hash=data.get("effective_body_hash", ""),
@@ -564,8 +578,7 @@ class FleetCompatibilityReport:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> FleetCompatibilityReport:
         per_body = {
-            k: SkillCompatibilityReport.from_dict(v)
-            for k, v in data.get("per_body", {}).items()
+            k: SkillCompatibilityReport.from_dict(v) for k, v in data.get("per_body", {}).items()
         }
         return cls(
             workspace=data.get("workspace", ""),
@@ -577,6 +590,7 @@ class FleetCompatibilityReport:
 
 
 # ── Diff ──
+
 
 @dataclass
 class BodyChange:
@@ -634,7 +648,9 @@ def _utc_now_compact() -> str:
 def _infer_robot_class(robot_id: str, dof: int, capabilities: list[dict[str, Any]]) -> str:
     """Best-effort robot_class inference from existing profile data."""
     rid = robot_id.lower()
-    if "humanoid" in rid or any("walk" in str(c.get("name", "")).lower() for c in capabilities if dof >= 10):
+    if "humanoid" in rid or any(
+        "walk" in str(c.get("name", "")).lower() for c in capabilities if dof >= 10
+    ):
         return "humanoid"
     if "quad" in rid or "go2" in rid or "dog" in rid:
         return "quadruped"

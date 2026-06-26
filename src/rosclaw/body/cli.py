@@ -42,10 +42,11 @@ def add_body_subparser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
 
     # init
     init_parser = body_subparsers.add_parser("init", help="Initialize a new body instance from an e-URDF profile")
-    init_parser.add_argument("--robot", required=True, help="Robot profile ID (e.g., unitree-g1)")
+    init_parser.add_argument("--robot", required=True, help="Robot profile ID (e.g., unitree-g1 or dexhands/inspire_hand/right)")
     init_parser.add_argument("--profile", default="default", help="Alias for --robot; ignored if --robot given")
     init_parser.add_argument("--name", default=None, help="Body instance ID")
     init_parser.add_argument("--workspace", default=None, help="ROSClaw workspace")
+    init_parser.add_argument("--zoo-path", default=None, help="e-URDF-Zoo robots directory (for manifest asset IDs)")
     init_parser.add_argument("--force", action="store_true", help="Overwrite existing body link")
     init_parser.add_argument("--no-alias", action="store_true", help="Skip creating BODY.md alias")
     init_parser.add_argument("--render", action="store_true", default=True, help="Render EMBODIMENT.md (default)")
@@ -347,6 +348,7 @@ def cmd_body_init(args: argparse.Namespace) -> int:
             switch_active=True,
             render_agent_view=True,
             force=args.force,
+            zoo_path=Path(args.zoo_path) if args.zoo_path else None,
         )
     except BodyRegistryError as exc:
         print(f"[ROSClaw] {exc}")
