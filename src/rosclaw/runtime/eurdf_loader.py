@@ -189,6 +189,7 @@ class RobotCompleteProfile:
     simulation: RobotSimulationProfile
     semantic: RobotSemanticProfile
     benchmark: RobotBenchmarkProfile
+    identity: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -197,6 +198,7 @@ class RobotCompleteProfile:
             "vendor": self.vendor,
             "version": self.version,
             "description": self.description,
+            "identity": self.identity,
             "embodiment": self.embodiment.to_dict(),
             "safety": self.safety.to_dict(),
             "capability": self.capability.to_dict(),
@@ -323,6 +325,7 @@ class EURDFLoader:
             vendor=embodiment.vendor,
             version=embodiment.version,
             description=embodiment.description,
+            identity=eurdf.get("identity", {}),
             embodiment=embodiment,
             safety=safety_profile,
             capability=capability_profile,
