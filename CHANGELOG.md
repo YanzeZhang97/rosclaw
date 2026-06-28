@@ -60,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     evidence paths.
   - Extensive unit-test coverage under `tests/test_*realsense*.py` and
     `tests/test_bench_realsense_rs_data_collect_parser.py`.
+  - Memory CLI (`rosclaw memory ingest/query`) now persists real practice
+    evidence and returns actual SeekDB results by default; `--demo` re-enables
+    the mock fallback.
 
 ### Changed
 
