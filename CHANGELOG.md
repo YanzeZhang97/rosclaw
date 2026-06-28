@@ -71,12 +71,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `RobotRegistry` falls back to builtin Python profiles when a profile is
     not found in the e-URDF-Zoo directory layout.
   - Wired hyphenated aliases (`realsense-d405`, `realsense-d435i`,
-    `realsense-dual`) through `body/cli.py`, `body/registry.py`, and
-    `body/service.py`.
+    `realsense-dual`) through `src/rosclaw/body/cli.py`,
+    `src/rosclaw/body/registry.py`, and `src/rosclaw/body/service.py`.
   - Added `tests/integration/test_realsense_profiles.py` covering embodiment,
     safety, capability, simulation, semantic, and benchmark profiles.
   - Kept PR #48 RealSense skills compatible by aligning builtin profile
     capabilities with the `realsense_capture_rgbd` skill manifest.
+
+- **RealSense practice event pipeline + offline hub catalog (PR #48 follow-up)**
+  - Rewrote `rosclaw practice run` to emit the full event sequence
+    (`runtime.start`, `skill.start/result`, `camera.rgbd_frame`,
+    `provider.request/result`, `sandbox.decision`, `runtime.stop`) and copy
+    skill artifacts into `artifacts/frames/`.
+  - Deferred event emission until the skill succeeds, so zero events now
+    correctly yield `FAILED`.
+  - Added PNG-IHDR fallback for image dimensions when PIL is missing.
+  - Added built-in offline Hub catalog so `rosclaw hub search realsense`
+    works without login.
+  - Added `tests/test_hub_search_offline.py`.
 
 ### Changed
 
