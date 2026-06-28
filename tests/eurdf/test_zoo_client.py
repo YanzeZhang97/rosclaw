@@ -12,7 +12,7 @@ from rosclaw.eurdf.zoo_client import EurdfZooClient, EurdfZooClientError
 @pytest.fixture
 def zoo_path() -> Path:
     """Path to the project-root e-URDF-Zoo robots directory."""
-    return Path(__file__).parent.parent.parent.parent / "e-urdf-zoo" / "robots"
+    return Path(__file__).parent.parent.parent / "e-urdf-zoo" / "robots"
 
 
 @pytest.fixture

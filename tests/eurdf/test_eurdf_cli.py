@@ -17,7 +17,7 @@ from rosclaw.eurdf.cli import (
 
 @pytest.fixture
 def zoo_path() -> Path:
-    return Path(__file__).parent.parent.parent.parent / "e-urdf-zoo" / "robots"
+    return Path(__file__).parent.parent.parent / "e-urdf-zoo" / "robots"
 
 
 @pytest.fixture

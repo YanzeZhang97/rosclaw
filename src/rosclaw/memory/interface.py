@@ -12,9 +12,11 @@ Optional integration with powermem.EmbodiedMemory for:
 Sprint 5 of DESIGN_SPRINT3_5.
 """
 
+import json
 import logging
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 from rosclaw.core.event_bus import Event, EventBus
@@ -459,7 +461,9 @@ class MemoryInterface(LifecycleMixin):
             if sim > 0
         ]
         if not scored:
-            return []
+            return self._keyword_search(
+                experiences, self._tokenize(query), limit
+            )
 
         scored.sort(key=lambda x: x[0], reverse=True)
         return [exp for _, exp in scored[:limit]]
@@ -626,7 +630,9 @@ class MemoryInterface(LifecycleMixin):
             if sim > 0
         ]
         if not scored:
-            return []
+            return self._keyword_search(
+                experiences, self._tokenize(query), limit
+            )
 
         scored.sort(key=lambda x: x[0], reverse=True)
         return [exp for _, exp in scored[:limit]]
@@ -999,6 +1005,116 @@ class MemoryInterface(LifecycleMixin):
             record = failure.to_seekdb_record()
         record = self._enrich_record_with_body_sense(record)
         return self._client.insert("failures", record)
+
+    def ingest_episode(
+        self,
+        episode_id: str,
+        data_root: str | Path | None = None,
+    ) -> dict[str, Any]:
+        """Ingest a recorded practice episode into memory.
+
+        Reads the episode.json (or manifest.yaml fallback), raw events, and
+        provider result from disk and stores a summary experience plus artifact
+        records in SeekDB.
+        """
+        from rosclaw.practice.storage.layout import PracticeLayout
+
+        root = Path(data_root or "/data/rosclaw/practice")
+        layout = PracticeLayout(root)
+        session_dir = layout.session_dir(episode_id)
+        if not session_dir.exists():
+            return {"status": "error", "reason": f"session not found: {session_dir}"}
+
+        episode_path = session_dir / "episode.json"
+        manifest_path = layout.manifest_path(episode_id)
+        events_path = layout.events_jsonl_path(episode_id)
+        provider_path = session_dir / "provider" / "provider_result.json"
+
+        episode: dict[str, Any] = {}
+        if episode_path.exists():
+            try:
+                episode = json.loads(episode_path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                return {"status": "error", "reason": f"failed to parse episode.json: {exc}"}
+        elif manifest_path.exists():
+            try:
+                import yaml
+
+                episode = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+            except Exception as exc:
+                return {"status": "error", "reason": f"failed to parse manifest.yaml: {exc}"}
+
+        events: list[dict[str, Any]] = []
+        if events_path.exists():
+            try:
+                with open(events_path, encoding="utf-8") as f:
+                    events = [json.loads(line) for line in f if line.strip()]
+            except Exception as exc:
+                return {"status": "error", "reason": f"failed to parse events.jsonl: {exc}"}
+
+        provider_data: dict[str, Any] | None = None
+        if provider_path.exists():
+            try:
+                provider_data = json.loads(provider_path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                logger.warning("Failed to parse provider result for %s: %s", episode_id, exc)
+
+        task = episode.get("task", {}) or {}
+        task_label = (
+            task.get("skill_id")
+            or task.get("task_name")
+            or task.get("task_id")
+            or "unknown"
+        )
+        instruction = f"Practice episode {episode_id}: {task_label}"
+        outcome = str(episode.get("outcome", episode.get("status", {}).get("outcome", "unknown"))).lower()
+        duration_ms = episode.get("duration_ms", 0)
+        duration_sec = duration_ms / 1000.0 if isinstance(duration_ms, (int, float)) else 0.0
+
+        robot_type = str(episode.get("robot_type") or "unknown")
+        robot_id = str(episode.get("robot_id") or "unknown")
+        tags = ["practice", robot_type, robot_id]
+        if task.get("skill_id"):
+            tags.append(str(task["skill_id"]))
+
+        record_id = self.store_experience(
+            event_id=episode_id,
+            event_type="practice_episode",
+            instruction=instruction,
+            outcome=outcome,
+            duration_sec=duration_sec,
+            tags=tags,
+            metadata={
+                "episode": episode,
+                "events": events,
+                "provider": provider_data,
+            },
+        )
+
+        # Index the RGB frame artifact for retrieval.
+        for ev in events:
+            payload = ev.get("payload", {})
+            rgb_ref = payload.get("rgb_ref")
+            if rgb_ref:
+                artifact_id = f"{episode_id}_{ev.get('event_type', 'frame')}"
+                self._client.insert(
+                    "artifacts",
+                    {
+                        "id": artifact_id,
+                        "episode_id": episode_id,
+                        "artifact_type": "rgb_frame",
+                        "uri": str(rgb_ref),
+                        "created_at": time.time(),
+                        "metadata": ev,
+                    },
+                )
+
+        return {
+            "status": "success",
+            "experience_id": record_id,
+            "event_count": len(events),
+            "outcome": outcome,
+        }
 
     def retrieve_similar_episode(
         self,
