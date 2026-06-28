@@ -45,7 +45,7 @@ async def test_redact_for_audit_masks_secrets() -> None:
 
 async def test_audit_log_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     log_dir = tmp_path / ".rosclaw/logs/mcp"
-    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setenv("ROSCLAW_HOME", str(tmp_path / ".rosclaw"))
     response = {"ok": True, "data": {"robot_id": "test"}}
     _audit("trace-123", "get_robot_state", {}, response, 12.3)
     audit_file = log_dir / "audit.jsonl"

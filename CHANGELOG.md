@@ -90,6 +90,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     works without login.
   - Added `tests/test_hub_search_offline.py`.
 
+- **RealSense doctor/bench reporting + workspace isolation (PR #48 follow-up)**
+  - `rosclaw bench realsense` report now includes camera info, serial,
+    firmware, USB speed, profile, and status fields.
+  - `rosclaw doctor` default path now includes RealSense SDK, ROS2, USB speed,
+    MCP, and profile checks.
+  - Refactored `_run_doctor_realsense` to share `_collect_realsense_checks`
+    with the default doctor path.
+  - `hub.lockfile.DEFAULT_LOCKFILE_PATH` is now lazy/respects `ROSCLAW_HOME`.
+  - Workspace isolation helpers in `firstboot/workspace.py` so tests can use
+    a custom home directory.
+  - New tests: `tests/test_doctor_default_realsense.py`,
+    `tests/test_dashboard_realsense_api.py`,
+    `tests/test_practice_records_events.py`,
+    `tests/test_workspace_isolation.py`.
+
 ### Changed
 
 - `SkillExecutor._check_body_compatibility()` is now **fail-closed**: resolver
