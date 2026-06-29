@@ -82,6 +82,7 @@ class PracticeConfig:
     # Runtime knobs
     mock: bool = False
     duration_sec: float | None = None
+    sample_hz: float = 1.0
     publish_to_event_bus: bool = True
 
     # Optional pre-built objects (used by Runtime and tests)

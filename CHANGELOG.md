@@ -98,12 +98,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Refactored `_run_doctor_realsense` to share `_collect_realsense_checks`
     with the default doctor path.
   - `hub.lockfile.DEFAULT_LOCKFILE_PATH` is now lazy/respects `ROSCLAW_HOME`.
-  - Workspace isolation helpers in `firstboot/workspace.py` so tests can use
+  - Workspace isolation helpers in `src/rosclaw/firstboot/workspace.py` so tests can use
     a custom home directory.
   - New tests: `tests/test_doctor_default_realsense.py`,
     `tests/test_dashboard_realsense_api.py`,
     `tests/test_practice_records_events.py`,
     `tests/test_workspace_isolation.py`.
+
+- **RealSense practice events, dashboard streams, bench semantics (PR #48 follow-up)**
+  - `PracticeCoordinator` now emits `runtime.start`/`runtime.stop` and tracks
+    source vs lifecycle events.
+  - Empty source list disables all sources; runtime-only sessions succeed.
+  - Skill failures record failure labels and force `FAILED` outcome.
+  - `practice start` defaults the camera skill from the body profile ID.
+  - Dashboard registers `/api/realsense/*` before the greedy artifact route.
+  - `bench realsense` exposes per-stream FPS and aggregate metrics.
+  - `practice validate/show` print episode summaries with frame/provider/decision
+    counts and timeline/runtime/source checks.
+  - New tests: `tests/test_practice_runtime_source.py`,
+    `tests/test_practice_validate_show.py`,
+    `tests/test_bench_realsense_metric_semantics.py`.
+
+- **Practice provider resolution + dashboard glob fix (PR #48 follow-up)**
+  - Restored `Robot:` line in `rosclaw practice show` output.
+  - `rosclaw practice start` no longer hard-codes provider mapping; it uses
+    `ROSCLAW_PRACTICE_DEFAULT_PROVIDER` or scans `ProviderRegistry` for a
+    provider advertising the requested capability.
+  - Dashboard provider route globs `provider_result_*.json` and serves the
+    latest, matching the new result filename convention.
 
 ### Changed
 

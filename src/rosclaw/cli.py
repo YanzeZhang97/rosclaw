@@ -1149,36 +1149,70 @@ def cmd_practice_list(args: argparse.Namespace) -> int:
 
 
 def cmd_practice_show(args: argparse.Namespace) -> int:
-    """Show practice session details from the local catalog."""
+    """Show practice episode details from the local episode.json."""
     practice_id = args.episode_id
     data_root = Path(getattr(args, "data_root", "/data/rosclaw/practice"))
     layout = PracticeLayout(data_root)
-    catalog = PracticeCatalog(layout.catalog_db_path)
-    record = catalog.get_practice(practice_id)
+    session_dir = layout.session_dir(practice_id)
 
-    if record is None:
-        print(f"[ROSClaw] Practice '{practice_id}' not found.", file=sys.stderr)
+    # Support passing a direct path as the episode id.
+    if not session_dir.exists() and Path(practice_id).exists():
+        session_dir = Path(practice_id)
+
+    if not session_dir.exists():
+        print(f"[ROSClaw] Episode '{practice_id}' not found.", file=sys.stderr)
         return 1
 
-    event_count = catalog.count_events(practice_id)
+    episode_path = session_dir / "episode.json"
+    if not episode_path.exists():
+        print(f"[ROSClaw] episode.json missing for '{practice_id}'.", file=sys.stderr)
+        return 1
+
+    try:
+        episode = json.loads(episode_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        print(f"[ROSClaw] Failed to read episode.json: {exc}", file=sys.stderr)
+        return 1
+
+    # Derive per-source counts from the timeline.
+    timeline_path = session_dir / "timeline.jsonl"
+    timeline: list[dict[str, Any]] = []
+    if timeline_path.exists():
+        with open(timeline_path, encoding="utf-8") as f:
+            timeline = [json.loads(line) for line in f if line.strip()]
+
+    camera_frames = sum(1 for ev in timeline if ev.get("event_type") == "rgbd_frame")
+    provider_results = sum(1 for ev in timeline if ev.get("event_type") == "provider.result")
+    sandbox_decisions = sum(1 for ev in timeline if ev.get("event_type") == "decision")
+
+    frames_dir = session_dir / "artifacts" / "frames"
+    color_artifacts = sorted(frames_dir.glob("color_*.png")) if frames_dir.exists() else []
+    depth_artifacts = sorted(frames_dir.glob("depth_*.png")) if frames_dir.exists() else []
+
     if args.json:
-        record["event_count"] = event_count
-        print(json.dumps(record, indent=2, default=str))
+        print(json.dumps(episode, indent=2, default=str))
         return 0
 
     print("=" * 60)
-    print(f"Practice: {practice_id}")
+    print(f"Episode: {practice_id}")
     print("=" * 60)
-    print(f"Robot:        {record.get('robot_id', 'N/A')} ({record.get('robot_type', 'unknown')})")
-    print(f"Task:         {record.get('task_name') or record.get('task_id', 'N/A')}")
-    print(f"Status:       {record.get('outcome', 'UNKNOWN')}")
-    print(f"Reward:       {record.get('reward', 'N/A')}")
-    print(f"Duration:     {record.get('duration_ms', 'N/A')} ms")
-    print(f"Events:       {event_count}")
-    print(f"Start:        {record.get('start_time', 'N/A')}")
-    print(f"End:          {record.get('end_time', 'N/A')}")
-    print(f"Manifest:     {record.get('manifest_path', 'N/A')}")
-    print(f"Events JSONL: {record.get('events_jsonl_path', 'N/A')}")
+    print(f"Outcome:           {episode.get('outcome', 'UNKNOWN')}")
+    print(f"Robot:             {episode.get('robot_id', 'UNKNOWN')}")
+    print(f"Events:            {episode.get('event_count', len(timeline))}")
+    print(f"Camera frames:     {camera_frames}")
+    print(f"Provider results:  {provider_results}")
+    print(f"Sandbox decisions: {sandbox_decisions}")
+    print("Artifacts:")
+    if color_artifacts:
+        print(f"  color: {color_artifacts[0].relative_to(session_dir)}")
+    else:
+        print("  color: (none)")
+    if depth_artifacts:
+        print(f"  depth: {depth_artifacts[0].relative_to(session_dir)}")
+    else:
+        print("  depth: (none)")
+    if episode.get("failure_labels"):
+        print(f"Failure labels:    {', '.join(episode['failure_labels'])}")
     print("=" * 60)
     return 0
 
@@ -1302,13 +1336,99 @@ def _parse_duration(value: str | None) -> float | None:
 
 
 def _parse_sources(value: str | None) -> SourceConfig:
+    """Parse a comma-separated source list into a SourceConfig.
+
+    An empty or whitespace-only string disables all sources.  When a list is
+    provided, only the named sources are enabled; the dataclass defaults are
+    intentionally cleared so ``--sources runtime`` means *only* runtime.
+    """
     sources = SourceConfig()
-    if not value:
+    # Start from all-False so callers get exactly what they asked for.
+    for name in vars(sources):
+        setattr(sources, name, False)
+
+    if not value or not value.strip():
         return sources
     for name in [p.strip() for p in value.split(",") if p.strip()]:
         if hasattr(sources, name):
             setattr(sources, name, True)
     return sources
+
+
+def _resolve_practice_body_id(home: Path, robot: str) -> str:
+    """Resolve ``--robot`` to a registered body id.
+
+    The CLI accepts either a body instance id (e.g. ``d405_latest``) or a
+    robot/profile identifier (e.g. ``realsense-d405``).  When the literal
+    identifier is not a registered body, we fall back to the first workspace
+    body whose profile matches.
+    """
+    from rosclaw.body.registry import BodyRegistryError
+    from rosclaw.body.resolver import BodyResolver
+
+    robot_norm = robot.strip().lower().replace("-", "_")
+
+    # 1. Try literal body id.
+    try:
+        resolver = BodyResolver(workspace=home, body_id=robot)
+        if resolver.is_linked():
+            return robot
+    except BodyRegistryError:
+        pass
+
+    # 2. Fall back to profile id match.
+    for entry in BodyResolver.list_workspace_bodies(home):
+        entry_profile = entry.profile_id.strip().lower().replace("-", "_")
+        if entry_profile == robot_norm:
+            return entry.body_id
+
+    # 3. Return original and let downstream body checks produce a clear error.
+    return robot
+
+
+def _resolve_default_provider(home: Path, capability: str) -> str | None:
+    """Resolve a default provider for the requested capability.
+
+    Resolution order:
+    1. ``ROSCLAW_PRACTICE_DEFAULT_PROVIDER`` environment variable.
+    2. First provider found in the workspace ``providers/`` directory or GPU
+       environment config that advertises ``capability``.
+
+    Returns the provider id, or ``None`` if no default can be found.
+    """
+    import os
+
+    env_default = os.environ.get("ROSCLAW_PRACTICE_DEFAULT_PROVIDER")
+    if env_default:
+        return env_default
+
+    try:
+        from rosclaw.provider.core.registry import ProviderRegistry
+        from rosclaw.provider.loader import ProviderLoader
+
+        registry = ProviderRegistry()
+        loader = ProviderLoader(registry)
+        loader.scan_directory(home / "providers")
+        _register_gpu_providers(registry)
+
+        candidates = registry.find_by_capability(capability, healthy_only=False)
+        if candidates:
+            return candidates[0].manifest.name
+    except Exception:
+        pass
+
+    return None
+
+
+# Default camera skill when a RealSense source is requested without --skill.
+_DEFAULT_CAMERA_SKILL_BY_ROBOT: dict[str, str] = {
+    "realsense-d405": "realsense_capture_rgbd",
+    "realsense_d405": "realsense_capture_rgbd",
+    "realsense-d435i": "realsense_capture_rgbd",
+    "realsense_d435i": "realsense_capture_rgbd",
+    "realsense-dual": "realsense_capture_rgbd",
+    "realsense_dual": "realsense_capture_rgbd",
+}
 
 
 def cmd_practice_init(args: argparse.Namespace) -> int:
@@ -1342,12 +1462,11 @@ seekdb:
 def cmd_practice_start(args: argparse.Namespace) -> int:
     """Start a practice session using PracticeCoordinator.
 
-    When ``--skill`` is provided, the session immediately executes one skill
-    iteration and records real events (``runtime.start``, ``skill.start``,
-    ``skill.result``, ``camera.rgbd_frame``, provider request/result,
-    ``sandbox.decision``).  The session then keeps running until the requested
-    duration expires or a signal is received.  Without ``--skill`` the session
-    remains passive and will record zero events.
+    The session always writes ``runtime.start`` and ``runtime.stop`` when the
+    ``runtime`` source is enabled.  If ``camera`` is requested without an
+    explicit ``--skill``, a default RealSense capture skill is used.  The skill
+    is executed periodically according to ``--sample-hz`` until the requested
+    duration expires or a signal is received.
     """
     import signal
 
@@ -1357,6 +1476,10 @@ def cmd_practice_start(args: argparse.Namespace) -> int:
     skill_id = getattr(args, "skill", None)
     provider_id = getattr(args, "provider", None)
     capability = getattr(args, "capability", "vlm.risk_assessment")
+    sample_hz = getattr(args, "sample_hz", None) or 1.0
+    sample_hz = float(sample_hz)
+    if sample_hz <= 0:
+        sample_hz = 1.0
 
     try:
         duration_sec = _parse_duration(args.duration)
@@ -1364,20 +1487,70 @@ def cmd_practice_start(args: argparse.Namespace) -> int:
         print(f"[rosclaw-practice] Invalid duration: {exc}", file=sys.stderr)
         return 1
 
-    # If a skill is requested, force the sources that record real evidence.
+    sources = _parse_sources(args.sources)
+
+    # If a skill is explicitly requested, force the evidence sources it needs.
     if skill_id:
-        sources = SourceConfig(
-            camera=True,
-            provider=bool(provider_id),
-            sandbox=True,
-            runtime=True,
-            agent=False,
+        sources.camera = True
+        sources.provider = sources.provider or bool(provider_id)
+        sources.sandbox = True
+        sources.runtime = True
+        sources.agent = False
+
+    home = get_rosclaw_home()
+    resolved_body_id = _resolve_practice_body_id(home, args.robot)
+
+    # Default camera skill for RealSense bodies when camera source is enabled.
+    if sources.camera and not skill_id:
+        robot_norm = args.robot.strip().lower()
+        skill_id = _DEFAULT_CAMERA_SKILL_BY_ROBOT.get(robot_norm)
+        if not skill_id:
+            # Fall back to the registered body's profile id.
+            try:
+                from rosclaw.body.resolver import BodyResolver
+                from rosclaw.body.schema import EurdfProfile
+
+                resolver = BodyResolver(workspace=home, body_id=resolved_body_id)
+                if resolver.is_linked() and resolver.eurdf_profile_path.exists():
+                    profile = EurdfProfile.from_yaml(resolver.eurdf_profile_path)
+                    profile_norm = profile.profile_id.strip().lower()
+                    skill_id = _DEFAULT_CAMERA_SKILL_BY_ROBOT.get(profile_norm)
+            except Exception:
+                pass
+        if skill_id:
+            print(
+                f"[rosclaw-practice] No --skill provided; using default camera skill "
+                f"'{skill_id}' for {args.robot}."
+            )
+
+    if sources.camera and not skill_id:
+        print(
+            "[rosclaw-practice] camera source requires --skill or a registered camera source adapter.",
+            file=sys.stderr,
         )
-    else:
-        sources = _parse_sources(args.sources)
+        return 1
+
+    # Default provider selection when provider source is enabled.
+    if provider_id:
+        sources.provider = True
+    elif sources.provider:
+        provider_id = _resolve_default_provider(home, capability)
+        if provider_id:
+            print(
+                f"[rosclaw-practice] No --provider provided; using default provider "
+                f"'{provider_id}' for capability '{capability}'."
+            )
+        else:
+            print(
+                "[rosclaw-practice] provider source requires --provider, "
+                "ROSCLAW_PRACTICE_DEFAULT_PROVIDER, or a registered provider "
+                f"supporting '{capability}'.",
+                file=sys.stderr,
+            )
+            return 1
 
     config = PracticeConfig(
-        robot_id=args.robot,
+        robot_id=resolved_body_id,
         robot_type=args.robot_type,
         task_id=args.task,
         task_name=args.task,
@@ -1386,6 +1559,7 @@ def cmd_practice_start(args: argparse.Namespace) -> int:
         sources=sources,
         mock=args.mock,
         duration_sec=duration_sec,
+        sample_hz=sample_hz,
         publish_to_event_bus=True,
     )
     config.seekdb.enabled = seekdb_enabled
@@ -1403,7 +1577,7 @@ def cmd_practice_start(args: argparse.Namespace) -> int:
 
             bridge = SeekDBBridge(seekdb_url=seekdb_url, fallback_dir=fallback_dir)
             recorder = EpisodeRecorder(
-                robot_id=args.robot,
+                robot_id=resolved_body_id,
                 event_bus=coordinator.event_bus,
                 seekdb_bridge=bridge,
             )
@@ -1420,28 +1594,6 @@ def cmd_practice_start(args: argparse.Namespace) -> int:
 
     print(f"[rosclaw-practice] Started session {practice_id}")
 
-    # Execute a single skill iteration up-front when --skill is given.
-    if skill_id:
-        home = get_rosclaw_home()
-        result = _run_practice_skill_iteration(
-            coordinator,
-            home=home,
-            robot_id=args.robot,
-            skill_id=skill_id,
-            provider_id=provider_id,
-            capability=capability,
-            task_id=args.task,
-            robot_type=args.robot_type,
-            data_root=args.data_root,
-        )
-        if result != 0:
-            coordinator.stop()
-            if recorder is not None:
-                recorder.stop()
-            if pid_file.exists():
-                pid_file.unlink()
-            return 1
-
     stop_requested = False
 
     def _handle_signal(signum, frame):
@@ -1451,27 +1603,61 @@ def cmd_practice_start(args: argparse.Namespace) -> int:
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
 
-    try:
-        if config.duration_sec:
-            deadline = time.time() + config.duration_sec
-            while not stop_requested and time.time() < deadline:
-                time.sleep(0.1)
-        else:
-            while not stop_requested:
-                time.sleep(0.1)
-    finally:
-        coordinator.stop()
-        if recorder is not None:
-            recorder.stop()
-        if pid_file.exists():
-            pid_file.unlink()
+    # Execute the capture skill periodically for the requested duration.
+    if skill_id:
+        interval = 1.0 / sample_hz
+        next_run = time.time()
+        deadline = time.time() + duration_sec if duration_sec else None
+        iteration = 0
+        while not stop_requested and (deadline is None or time.time() < deadline):
+            now = time.time()
+            if now >= next_run:
+                result = _run_practice_skill_iteration(
+                    coordinator,
+                    home=home,
+                    robot_id=resolved_body_id,
+                    skill_id=skill_id,
+                    provider_id=provider_id,
+                    capability=capability,
+                    task_id=args.task,
+                    robot_type=args.robot_type,
+                    data_root=args.data_root,
+                    iteration_index=iteration,
+                )
+                if result != 0:
+                    coordinator.record_failure(["skill_failure"])
+                    print(
+                        f"[rosclaw-practice] Skill iteration {iteration} failed; stopping session.",
+                        file=sys.stderr,
+                    )
+                    break
+                iteration += 1
+                next_run += interval
+            time.sleep(0.05)
+    else:
+        try:
+            if config.duration_sec:
+                deadline = time.time() + config.duration_sec
+                while not stop_requested and time.time() < deadline:
+                    time.sleep(0.1)
+            else:
+                while not stop_requested:
+                    time.sleep(0.1)
+        except KeyboardInterrupt:
+            pass
+
+    coordinator.stop()
+    if recorder is not None:
+        recorder.stop()
+    if pid_file.exists():
+        pid_file.unlink()
 
     summary = coordinator.summary
     if summary:
         print(f"[rosclaw-practice] Stopped {summary.practice_id}")
         print(f"  events:   {summary.event_count}")
-        print(f"  duration: {summary.duration_ms:.1f} ms")
-        print(f"  outcome:  {summary.outcome}")
+        print(f"  duration:  {summary.duration_ms:.1f} ms")
+        print(f"  outcome:   {summary.outcome}")
         print(f"  artifacts: {summary.artifact_dir}")
     return 0
 
@@ -1531,15 +1717,14 @@ def _run_practice_skill_iteration(
     task_id: str | None = None,
     robot_type: str | None = None,
     data_root: str = "/data/rosclaw/practice",
+    iteration_index: int = 0,
 ) -> int:
     """Execute one skill iteration and emit practice events into a live session.
 
     The coordinator session must already be started.  This helper emits
-    ``runtime.start``, ``skill.start``, ``skill.result``, ``camera.rgbd_frame``,
-    provider request/result (when ``provider_id`` is given), and ``sandbox.decision``
-    events.  It does **not** emit ``runtime.stop`` or stop the coordinator, so the
-    caller can keep the session open (``practice start``) or finalize it
-    immediately (``practice run``).
+    ``skill.start``, ``skill.result``, ``camera.rgbd_frame``, provider
+    request/result (when ``provider_id`` is given), and ``sandbox.decision``
+    events.  Runtime start/stop are owned by the coordinator lifecycle.
 
     Returns 0 on success, 1 on failure.
     """
@@ -1643,25 +1828,6 @@ def _run_practice_skill_iteration(
         return 1
 
     # ------------------------------------------------------------------
-    # runtime.start
-    # ------------------------------------------------------------------
-    _emit(
-        "runtime",
-        "runtime.start",
-        {
-            "phase": "start",
-            "data_root": str(data_root),
-            "sources": {
-                "camera": True,
-                "provider": bool(provider_id),
-                "sandbox": True,
-                "runtime": True,
-            },
-        },
-        tags=["runtime", "start"],
-    )
-
-    # ------------------------------------------------------------------
     # skill.start
     # ------------------------------------------------------------------
     _emit(
@@ -1693,9 +1859,11 @@ def _run_practice_skill_iteration(
     # ------------------------------------------------------------------
     frames_dir = session_dir / "artifacts" / "frames"
     frames_dir.mkdir(parents=True, exist_ok=True)
-    sequence = 1
+    existing_color_frames = len(list(frames_dir.glob("color_*.png")))
+    sequence = max(iteration_index + 1, existing_color_frames + 1)
 
     def _copy_frame(src: str | None, suffix: str) -> str | None:
+        nonlocal sequence
         if not src:
             return None
         src_path = Path(src)
@@ -1705,6 +1873,7 @@ def _run_practice_skill_iteration(
         import shutil
 
         shutil.copy2(src_path, dst)
+        sequence += 1
         return _relative_artifact_ref(str(dst), session_dir)
 
     color_ref = _copy_frame(color_path, "color")
@@ -1737,20 +1906,22 @@ def _run_practice_skill_iteration(
     if provider_id and color_path and Path(color_path).exists():
         provider_dir = session_dir / "provider"
         provider_dir.mkdir(parents=True, exist_ok=True)
-        provider_out = provider_dir / "provider_result.json"
+        provider_out = provider_dir / f"provider_result_{iteration_index:06d}.json"
         requests_jsonl = provider_dir / "requests.jsonl"
         responses_jsonl = provider_dir / "responses.jsonl"
         question = "Analyze physical risks in this RealSense image."
 
+        request_event_id = f"{practice_id}_provider_request_{iteration_index:06d}"
         request_record = {
-            "event_id": f"{practice_id}_provider_request",
+            "event_id": request_event_id,
             "provider": provider_id,
             "capability": capability,
             "input_artifact": color_ref,
             "question": question,
             "timestamp": _utc_now_iso(),
         }
-        requests_jsonl.write_text(json.dumps(request_record) + "\n", encoding="utf-8")
+        with requests_jsonl.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(request_record) + "\n")
 
         prov_args = argparse.Namespace(
             provider_id=provider_id,
@@ -1771,15 +1942,16 @@ def _run_practice_skill_iteration(
             provider_data = {"normalized": {}, "latency_ms": 0, "errors": [str(exc)]}
 
         response_record = {
-            "event_id": f"{practice_id}_provider_response",
+            "event_id": f"{practice_id}_provider_response_{iteration_index:06d}",
             "provider": provider_id,
             "input_artifact": color_ref,
-            "request_event_id": request_record["event_id"],
+            "request_event_id": request_event_id,
             "response_path": _relative_artifact_ref(str(provider_out), session_dir),
             "timestamp": _utc_now_iso(),
             "result": provider_data,
         }
-        responses_jsonl.write_text(json.dumps(response_record) + "\n", encoding="utf-8")
+        with responses_jsonl.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(response_record) + "\n")
 
         normalized = provider_data.get("normalized", {})
         provider_event_id = _emit(
@@ -1819,7 +1991,7 @@ def _run_practice_skill_iteration(
     sandbox_action = {"type": "provider_reasoning" if provider_id else "capture_rgbd"}
     sandbox_result = _evaluate_sandbox_policy(profile_id, sandbox_action)
     sandbox_payload = SandboxDecisionPayload(
-        decision_id=f"{practice_id}_sandbox",
+        decision_id=f"{practice_id}_sandbox_{iteration_index:06d}",
         action_id=skill_id,
         requested_action=sandbox_action,
         decision=sandbox_result["decision"],
@@ -1855,7 +2027,6 @@ def cmd_practice_run(args: argparse.Namespace) -> int:
     from rosclaw.firstboot.workspace import resolve_home
     from rosclaw.practice.config import PracticeConfig, SourceConfig
     from rosclaw.practice.coordinator import PracticeCoordinator
-    from rosclaw.practice.schemas import PracticeEventEnvelope
 
     home = resolve_home(getattr(args, "workspace", None))
     robot_id = args.robot
@@ -1863,6 +2034,8 @@ def cmd_practice_run(args: argparse.Namespace) -> int:
     provider_id = getattr(args, "provider", None)
     capability = getattr(args, "capability", "vlm.risk_assessment")
     data_root = getattr(args, "output_root", None) or getattr(args, "data_root", None) or "/data/rosclaw/practice"
+
+    resolved_body_id = _resolve_practice_body_id(home, robot_id)
 
     sources = SourceConfig(
         camera=True,
@@ -1872,7 +2045,7 @@ def cmd_practice_run(args: argparse.Namespace) -> int:
         agent=False,
     )
     config = PracticeConfig(
-        robot_id=robot_id,
+        robot_id=resolved_body_id,
         robot_type=getattr(args, "robot_type", None),
         task_id=getattr(args, "task", None),
         task_name=getattr(args, "task", None),
@@ -1890,7 +2063,7 @@ def cmd_practice_run(args: argparse.Namespace) -> int:
     result = _run_practice_skill_iteration(
         coordinator,
         home=home,
-        robot_id=robot_id,
+        robot_id=resolved_body_id,
         skill_id=skill_id,
         provider_id=provider_id,
         capability=capability,
@@ -1900,22 +2073,10 @@ def cmd_practice_run(args: argparse.Namespace) -> int:
     )
 
     if result != 0:
+        coordinator.record_failure(["skill_failure"])
         coordinator.stop()
         return 1
 
-    # Finalize the single-shot episode.
-    coordinator.emit_event(
-        PracticeEventEnvelope(
-            practice_id=coordinator.session.practice_id,
-            robot_id=robot_id,
-            source="runtime",
-            event_type="runtime.stop",
-            skill_id=skill_id,
-            trace_id=coordinator.session.practice_id,
-            payload={"phase": "stop"},
-            tags=["runtime", "stop"],
-        )
-    )
     coordinator.stop()
 
     summary = coordinator.summary
@@ -2008,12 +2169,14 @@ def cmd_practice_validate(args: argparse.Namespace) -> int:
             errors.append(f"failed to parse events.jsonl: {exc}")
 
     timeline: list[dict[str, Any]] = []
-    if timeline_path.exists():
+    if not timeline_path.exists():
+        errors.append(f"missing timeline.jsonl: {timeline_path}")
+    else:
         try:
             with open(timeline_path, encoding="utf-8") as f:
                 timeline = [json.loads(line) for line in f if line.strip()]
         except Exception as exc:
-            warnings.append(f"failed to parse timeline.jsonl: {exc}")
+            errors.append(f"failed to parse timeline.jsonl: {exc}")
 
     event_count = episode.get("event_count", len(events))
     checks["event_count"] = event_count
@@ -2032,14 +2195,46 @@ def cmd_practice_validate(args: argparse.Namespace) -> int:
     if timeline and len(timeline) != len(events):
         warnings.append(f"timeline count ({len(timeline)}) does not match events count ({len(events)})")
 
+    # Event-type and source checks.
+    timeline_types = {ev.get("event_type") for ev in timeline}
+    checks["event_types"] = sorted(timeline_types)
+    if "runtime.start" not in timeline_types:
+        errors.append("missing runtime.start event")
+    if "runtime.stop" not in timeline_types:
+        errors.append("missing runtime.stop event")
+
+    sources = episode.get("sources", {}) if episode else {}
+    checks["sources_requested"] = sources
+    if sources.get("camera") and "rgbd_frame" not in timeline_types:
+        errors.append("camera source enabled but no camera.rgbd_frame event")
+    if sources.get("provider") and "provider.result" not in timeline_types:
+        errors.append("provider source enabled but no provider.result event")
+    if sources.get("sandbox") and "decision" not in timeline_types:
+        errors.append("sandbox source enabled but no sandbox.decision event")
+
+    # Artifact existence checks.
+    if sources.get("camera"):
+        frames_dir = session_dir / "artifacts" / "frames"
+        color_frames = list(frames_dir.glob("color_*.png")) if frames_dir.exists() else []
+        depth_frames = list(frames_dir.glob("depth_*.png")) if frames_dir.exists() else []
+        checks["color_frame_count"] = len(color_frames)
+        checks["depth_frame_count"] = len(depth_frames)
+        if not color_frames:
+            errors.append("camera source enabled but no color frame artifact found")
+        if not depth_frames:
+            warnings.append("no depth frame artifact found")
+    else:
+        checks["color_frame_count"] = 0
+        checks["depth_frame_count"] = 0
+
     if strict:
-        sources = {ev.get("source") for ev in events}
-        checks["sources"] = sorted(sources)
-        if "camera" not in sources:
+        present_sources = {ev.get("source") for ev in events}
+        checks["sources_present"] = sorted(present_sources)
+        if "camera" not in present_sources:
             errors.append("strict validation requires a camera event")
-        if "sandbox" not in sources:
+        if "sandbox" not in present_sources:
             errors.append("strict validation requires a sandbox event")
-        if "provider" not in sources:
+        if "provider" not in present_sources:
             errors.append("strict validation requires a provider event")
 
     valid = len(errors) == 0
@@ -4316,15 +4511,21 @@ def cmd_bench_realsense(args: argparse.Namespace) -> int:
         print(json.dumps(report, indent=2, default=str))
         return 0
 
+    streams = report.get("streams", {})
+    color = streams.get("color", {})
+    depth = streams.get("depth", {})
+    aggregate = report.get("aggregate", {})
+
     print("=" * 60)
     print("ROSClaw Bench — RealSense Capture")
     print("=" * 60)
     print(f"Duration:      {report.get('duration_requested_sec')}s")
     print(f"Backend:       {report.get('backend') or 'none'}")
-    print(f"Color frames:  {report.get('color_frames')}")
-    print(f"Depth frames:  {report.get('depth_frames')}")
-    print(f"FPS:           {report.get('fps')}")
-    print(f"Drops:         {report.get('drops')}")
+    print(f"Color frames:  {color.get('frame_count')} @ {color.get('fps')} fps")
+    print(f"Depth frames:  {depth.get('frame_count')} @ {depth.get('fps')} fps")
+    print(f"Total frames:  {aggregate.get('total_frame_count')}")
+    print(f"Average FPS:   {aggregate.get('average_fps')}")
+    print(f"Drops:         {aggregate.get('drop_count')}")
     print(f"USB mode:      {report.get('usb_mode')}")
     print(f"Degraded:      {report.get('degraded')}")
     print(f"Report:        {output_dir}/report.json")
@@ -4937,6 +5138,7 @@ def main() -> int:
     )
     practice_start_parser.add_argument("--mock", action="store_true", help="Use mock adapters")
     practice_start_parser.add_argument("--duration", default=None, help="Duration like 5s, 2m, 1h")
+    practice_start_parser.add_argument("--sample-hz", type=float, default=1.0, help="Capture frequency when camera source is enabled")
     practice_start_parser.add_argument("--seekdb", action="store_true", help="Enable SeekDB commit")
     practice_start_parser.add_argument("--data-root", default="/data/rosclaw/practice", help="Practice data root")
 
