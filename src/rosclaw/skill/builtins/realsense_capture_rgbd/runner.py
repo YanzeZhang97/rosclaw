@@ -24,8 +24,8 @@ def _utc_now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
-def _load_body(params: dict[str, Any]) -> tuple[Path | None, str | None, dict[str, Any]]:
-    """Resolve body workspace and id from parameters."""
+def _load_body(params: dict[str, Any]) -> tuple[Path | None, str | None, dict[str, Any], dict[str, Any]]:
+    """Resolve body workspace, id, body yaml, and eurdf profile from parameters."""
     from rosclaw.body.resolver import BodyResolver
     from rosclaw.firstboot.workspace import resolve_home
 
@@ -41,26 +41,51 @@ def _load_body(params: dict[str, Any]) -> tuple[Path | None, str | None, dict[st
     if resolver is None:
         resolver = BodyResolver(workspace=home)
     if not resolver.is_linked():
-        return home, body_id, {}
+        return home, body_id, {}, {}
     try:
         body = resolver.get_current_body_yaml().to_dict()
     except Exception:
         body = {}
-    return home, body_id, body
+    profile: dict[str, Any] = {}
+    try:
+        import yaml
+
+        profile_text = resolver.eurdf_profile_path.read_text(encoding="utf-8")
+        profile = yaml.safe_load(profile_text) or {}
+    except Exception:
+        profile = {}
+    return home, body_id, body, profile
 
 
-def _is_perception_only(body: dict[str, Any]) -> bool:
-    """Check whether the active body is a perception-only camera rig."""
+def _is_perception_only(body: dict[str, Any], profile: dict[str, Any] | None = None) -> bool:
+    """Check whether the active body is a perception-only camera rig.
+
+    The body yaml may not carry the perception-only marker if it was generated
+    from an older body service; fall back to the linked e-URDF profile.
+    """
     safety = body.get("safety", {})
     if isinstance(safety, dict):
         env = safety.get("environment", {})
         if env.get("perception_only") or env.get("no_actuation"):
             return True
+        limits = safety.get("safety_limits", {})
+        if limits.get("perception_only") or limits.get("no_actuation"):
+            return True
     meta = body.get("metadata", {})
     if meta.get("perception_only") or meta.get("no_actuation"):
         return True
     forbidden = body.get("forbidden_capabilities", []) or []
-    return "actuation" in forbidden or "motion" in forbidden
+    if "actuation" in forbidden or "motion" in forbidden:
+        return True
+    if profile:
+        identity = profile.get("identity", {})
+        if identity.get("robot_class") in ("perception_only_camera", "realsense_d405", "realsense_d435i"):
+            return True
+        profile_safety = profile.get("safety", {})
+        limits = profile_safety.get("safety_limits", {}) if isinstance(profile_safety, dict) else {}
+        if limits.get("perception_only") or limits.get("no_actuation"):
+            return True
+    return False
 
 
 def _discover_realsense_mcp(home: Path | None) -> tuple[str, str] | tuple[None, None]:
@@ -83,7 +108,7 @@ def _discover_realsense_mcp(home: Path | None) -> tuple[str, str] | tuple[None, 
 
     for _prio, server_name in candidates:
         try:
-            tools = list_server_tools(server_name, home=home, timeout=5.0)
+            tools = list_server_tools(server_name, home=home, timeout=20.0)
             tool_names = {t.get("name") for t in tools}
             if "capture_aligned_rgbd" in tool_names:
                 return server_name, "capture_aligned_rgbd"
@@ -116,7 +141,7 @@ def _resolve_serial(body: dict[str, Any], params: dict[str, Any], home: Path | N
         if "realsense" not in rec.server_name.lower():
             continue
         try:
-            result = call_server_tool(rec.server_name, "list_devices", {}, home=resolved_home, timeout=10.0)
+            result = call_server_tool(rec.server_name, "list_devices", {}, home=resolved_home, timeout=20.0)
             content = result.get("content", [])
             text = content[0].get("text", "{}") if content else "{}"
             data = json.loads(text)
@@ -151,9 +176,9 @@ def run(params: dict[str, Any]) -> dict[str, Any]:
     from rosclaw.mcp.onboarding.stdio_client import McpServerSession, McpStdioError
 
     t0 = time.time()
-    home, body_id, body = _load_body(params)
+    home, body_id, body, profile = _load_body(params)
 
-    if body_id and not _is_perception_only(body):
+    if body_id and not _is_perception_only(body, profile):
         return {
             "status": "blocked",
             "reason": "Skill requires a perception-only RealSense body",

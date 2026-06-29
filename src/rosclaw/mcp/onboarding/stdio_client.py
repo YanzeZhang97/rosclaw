@@ -207,7 +207,7 @@ def call_server_tool(
     client: McpStdioClient | None = None
     try:
         client = McpStdioClient(command, args, env=env)
-        client.start(timeout=min(timeout, 10.0))
+        client.start(timeout=min(timeout, 20.0))
         response = client.call_tool(tool_name, arguments or {}, timeout=timeout)
         if "error" in response:
             raise McpStdioError(f"Tool error: {response['error']}")
@@ -220,7 +220,7 @@ def call_server_tool(
 def list_server_tools(
     server_name: str,
     home: Path | str | None = None,
-    timeout: float = 10.0,
+    timeout: float = 20.0,
 ) -> list[dict[str, Any]]:
     """List tools advertised by an installed MCP server."""
     config = load_runtime_config(server_name, home=home)
@@ -242,7 +242,7 @@ def list_server_tools(
             client.stop()
 
 
-def health_smoke(server_name: str, home: Path | str | None = None, timeout: float = 10.0) -> dict[str, Any]:
+def health_smoke(server_name: str, home: Path | str | None = None, timeout: float = 20.0) -> dict[str, Any]:
     """Run a lightweight health smoke test: handshake and list tools."""
     try:
         tools = list_server_tools(server_name, home=home, timeout=timeout)
