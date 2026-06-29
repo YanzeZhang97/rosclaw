@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
@@ -38,6 +39,8 @@ class PracticeCoordinator(LifecycleMixin):
         self._stop_event = threading.Event()
         self._poll_hz = 10.0
         self._event_count = 0
+        self._source_event_count = 0
+        self._failure_labels: list[str] = []
         self._lock = threading.RLock()
 
     @property
@@ -151,6 +154,21 @@ class PracticeCoordinator(LifecycleMixin):
             except Exception as e:
                 logger.error("Failed to start adapter %s: %s", adapter.source_name, e)
 
+        if self.config.sources.runtime:
+            self._emit(
+                PracticeEventEnvelope(
+                    practice_id=practice_id,
+                    robot_id=self.config.robot_id,
+                    source="runtime",
+                    event_type="runtime.start",
+                    timestamp_ns=start_ns,
+                    timestamp_utc=start_utc,
+                    trace_id=practice_id,
+                    payload={"phase": "start", "sources": self._sources_dict()},
+                    tags=["runtime", "start"],
+                )
+            )
+
         if self.config.publish_to_event_bus:
             self._event_bus.publish(
                 Event(
@@ -189,7 +207,36 @@ class PracticeCoordinator(LifecycleMixin):
         if self._session is not None:
             duration_ms = (time.monotonic_ns() - self._session.start_time_ns) / 1_000_000.0
 
+        if self.config.sources.runtime and self._session is not None:
+            self._emit(
+                PracticeEventEnvelope(
+                    practice_id=self._session.practice_id,
+                    robot_id=self.config.robot_id,
+                    source="runtime",
+                    event_type="runtime.stop",
+                    trace_id=self._session.practice_id,
+                    payload={"phase": "stop", "event_count": self._event_count, "duration_ms": duration_ms},
+                    tags=["runtime", "stop"],
+                )
+            )
+
+        # Determine outcome. A session that wrote no events at all is never
+        # considered successful. Runtime lifecycle events alone are not enough
+        # when real data sources were requested.
+        requested_sources = self._sources_dict()
+        requested_non_runtime = {
+            k: v for k, v in requested_sources.items() if k != "runtime" and v
+        }
+
         if self._event_count == 0:
+            outcome = "FAILED"
+            reward = 0.0
+            failure_labels = ["zero_events"]
+        elif self._failure_labels:
+            outcome = "FAILED"
+            reward = 0.0
+            failure_labels = list(self._failure_labels)
+        elif requested_non_runtime and self._source_event_count == 0:
             outcome = "FAILED"
             reward = 0.0
             failure_labels = ["zero_events"]
@@ -280,10 +327,19 @@ class PracticeCoordinator(LifecycleMixin):
         """Public entry for external callers to inject events."""
         self._emit(event)
 
+    def record_failure(self, labels: list[str]) -> None:
+        """Record failure labels that will force the session outcome to FAILED."""
+        with self._lock:
+            for label in labels:
+                if label not in self._failure_labels:
+                    self._failure_labels.append(label)
+
     def _emit(self, event: PracticeEventEnvelope) -> None:
         with self._lock:
             self._event_count += 1
             event.sequence_id = self._event_count
+            if event.event_type not in {"runtime.start", "runtime.stop"}:
+                self._source_event_count += 1
 
         # Local JSONL
         if self._writer is not None:

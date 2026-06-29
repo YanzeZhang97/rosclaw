@@ -555,19 +555,6 @@ class DashboardWebServer:
                 "decisions": sandbox_events,
             }
 
-        @self.app.get("/api/artifacts/{path:path}")
-        async def serve_artifact(path: str, data_root: str | None = None) -> Any:
-            root = _practice_data_root(data_root)
-            base = (root / "sessions").resolve()
-            artifact_path = (base / path).resolve()
-            try:
-                artifact_path.relative_to(base)
-            except ValueError as exc:
-                raise HTTPException(status_code=403, detail="Access denied") from exc
-            if not artifact_path.exists() or not artifact_path.is_file():
-                raise HTTPException(status_code=404, detail="Artifact not found")
-            return FileResponse(artifact_path)
-
         # ── RealSense page and API ──────────────────────────────────────
 
         @self.app.get("/realsense")
@@ -621,6 +608,23 @@ class DashboardWebServer:
             data_root: str | None = None, limit: int = 50
         ) -> dict[str, Any]:
             return _list_realsense_frames(_practice_data_root(data_root), limit=limit)
+
+        # ── Artifact serving ────────────────────────────────────────────
+        # Registered AFTER the RealSense routes so the greedy {path:path}
+        # pattern does not shadow /api/realsense/streams or /api/realsense/frames.
+
+        @self.app.get("/api/artifacts/{path:path}")
+        async def serve_artifact(path: str, data_root: str | None = None) -> Any:
+            root = _practice_data_root(data_root)
+            base = (root / "sessions").resolve()
+            artifact_path = (base / path).resolve()
+            try:
+                artifact_path.relative_to(base)
+            except ValueError as exc:
+                raise HTTPException(status_code=403, detail="Access denied") from exc
+            if not artifact_path.exists() or not artifact_path.is_file():
+                raise HTTPException(status_code=404, detail="Artifact not found")
+            return FileResponse(artifact_path)
 
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket) -> None:

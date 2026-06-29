@@ -24,7 +24,7 @@ class TestPracticeZeroEventsNotSuccess:
             task_id="test",
             skill_id="realsense_capture_rgbd",
             data_root=str(tmp_path),
-            sources=SourceConfig(camera=True, sandbox=True),
+            sources=SourceConfig(camera=True, sandbox=True, runtime=False),
             publish_to_event_bus=False,
         )
         coordinator = PracticeCoordinator(config)
@@ -102,8 +102,9 @@ class TestPracticeZeroEventsNotSuccess:
             session_dir = next((output_root / "sessions").iterdir())
             episode = json.loads((session_dir / "episode.json").read_text())
             assert episode["outcome"] == "FAILED"
-            assert episode["event_count"] == 0
-            assert "zero_events" in episode["failure_labels"]
+            assert "skill_failure" in episode["failure_labels"]
+            # Runtime lifecycle events are still recorded even when the skill fails.
+            assert episode["event_count"] >= 2
 
             validate_args = SimpleNamespace(
                 episode_id=session_dir.name,

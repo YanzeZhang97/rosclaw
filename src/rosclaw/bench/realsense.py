@@ -95,14 +95,25 @@ def _capture_with_pyrealsense2(duration_sec: float) -> dict[str, Any]:
         pipeline.stop()
 
     elapsed = time.time() - t0
+    color_fps = round(color_frames / elapsed, 2) if elapsed > 0 else 0.0
+    depth_fps = round(depth_frames / elapsed, 2) if elapsed > 0 else 0.0
     return {
         "backend": "pyrealsense2",
         "color_frames": color_frames,
         "depth_frames": depth_frames,
-        "fps": round(color_frames / elapsed, 2) if elapsed > 0 else 0.0,
+        "fps": round((color_fps + depth_fps) / 2, 2) if (color_frames or depth_frames) else 0.0,
         "drops": dropped,
         "usb_mode": usb_mode,
         "degraded": "USB2" in str(usb_mode).upper(),
+        "streams": {
+            "color": {"frame_count": color_frames, "fps": color_fps},
+            "depth": {"frame_count": depth_frames, "fps": depth_fps},
+        },
+        "aggregate": {
+            "total_frame_count": color_frames + depth_frames,
+            "average_fps": round((color_fps + depth_fps) / 2, 2) if (color_frames or depth_frames) else 0.0,
+            "drop_count": dropped,
+        },
         **device_info,
     }
 
@@ -169,7 +180,51 @@ def parse_rs_data_collect(stdout: str) -> dict[str, Any]:
             result["usb_mode"] = usb_match.group(1)
 
     result["degraded"] = "USB2" in str(result["usb_mode"]).upper()
+
+    # Stream-level metrics (per-stream fps may be refined by the caller once
+    # the requested duration is known).
+    stream_fps = result["fps"] if result["fps"] else 0.0
+    result["streams"] = {
+        "color": {"frame_count": result["color_frames"], "fps": stream_fps},
+        "depth": {"frame_count": result["depth_frames"], "fps": stream_fps},
+    }
+    result["aggregate"] = {
+        "total_frame_count": result["color_frames"] + result["depth_frames"],
+        "average_fps": stream_fps,
+        "drop_count": result["drops"],
+    }
     return result
+
+
+def _compute_stream_fps(report: dict[str, Any], duration_sec: float) -> None:
+    """Fill or refine per-stream fps and aggregate metrics using duration."""
+    if "streams" not in report:
+        report["streams"] = {
+            "color": {"frame_count": report.get("color_frames", 0), "fps": 0.0},
+            "depth": {"frame_count": report.get("depth_frames", 0), "fps": 0.0},
+        }
+    streams = report["streams"]
+    for stream_name in ("color", "depth"):
+        stream = streams.setdefault(stream_name, {})
+        stream.setdefault("frame_count", report.get(f"{stream_name}_frames", 0))
+        count = stream.get("frame_count", 0)
+        if duration_sec > 0 and count > 0 and not stream.get("fps"):
+            stream["fps"] = round(count / duration_sec, 2)
+        elif "fps" not in stream:
+            stream["fps"] = 0.0
+
+    color_fps = streams.get("color", {}).get("fps", 0.0)
+    depth_fps = streams.get("depth", {}).get("fps", 0.0)
+    color_count = streams.get("color", {}).get("frame_count", 0)
+    depth_count = streams.get("depth", {}).get("frame_count", 0)
+
+    report["aggregate"] = {
+        "total_frame_count": color_count + depth_count,
+        "average_fps": round((color_fps + depth_fps) / 2, 2) if (color_count or depth_count) else 0.0,
+        "drop_count": report.get("drops", 0),
+    }
+    if report.get("fps") == 0.0:
+        report["fps"] = report["aggregate"]["average_fps"]
 
 
 def _capture_with_rs_data_collect(duration_sec: float) -> dict[str, Any]:
@@ -289,9 +344,8 @@ def bench_realsense(duration_sec: float, output_dir: str | Path) -> dict[str, An
             report["errors"].append(f"rs-data-collect capture failed: {exc}")
             logger.debug("rs-data-collect capture failed: %s", exc)
 
-    # Derive FPS from frame count and duration if the parser did not provide it.
-    if report["fps"] == 0.0 and report["color_frames"] > 0 and duration_sec > 0:
-        report["fps"] = round(report["color_frames"] / duration_sec, 2)
+    # Ensure per-stream fps and aggregate metrics are explicit.
+    _compute_stream_fps(report, duration_sec)
 
     if report["camera"] == "unknown":
         report.update(_enumerate_device_info())

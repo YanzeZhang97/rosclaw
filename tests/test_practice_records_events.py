@@ -162,7 +162,7 @@ def test_practice_start_records_real_events(practice_home, monkeypatch):
 
 
 def test_practice_start_without_skill_records_zero_events(practice_home):
-    args = _start_args(practice_home, skill=None, duration="1s")
+    args = _start_args(practice_home, skill=None, sources="", duration="1s")
     assert cmd_practice_start(args) == 0
 
     session_dir = next((practice_home / "practice_output" / "sessions").iterdir())
