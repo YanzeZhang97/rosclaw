@@ -2409,23 +2409,20 @@ def cmd_provider_invoke(args: argparse.Namespace) -> int:
             response = run_sync(provider.infer(request))
             raw_text = json.dumps(response.result, ensure_ascii=False) if response.result else ""
         else:
-            # Direct HTTP fallback using COSMOS_ENDPOINT / VGGT_ENDPOINT / env endpoint.
-            endpoint = _resolve_provider_endpoint(provider_id)
-            if endpoint:
-                raw_text = _call_provider_http(endpoint, provider_id, args.capability, input_payload, image_b64, image_mime)
-            else:
-                raw_text = json.dumps({
-                    "scene": "unknown",
-                    "objects": [],
-                    "physical_risks": [{
-                        "description": f"Provider '{provider_id}' is not registered and no endpoint is configured.",
-                        "severity": "info",
-                    }],
-                    "risk_score": 0.0,
-                    "executable": False,
-                    "requires_guard": True,
-                    "reasoning": "No provider runtime available; returning safe fallback.",
-                }, ensure_ascii=False)
+            # PhysicalReasoner abstraction: works for Cosmos/Gemini/Qwen and
+            # falls back gracefully when the endpoint is not reachable.
+            from rosclaw.provider.reasoner import get_reasoner
+
+            reasoner = registry.get_reasoner(provider_id)
+            response = reasoner.reason(
+                question=input_payload.get("question", ""),
+                image=image_b64,
+                image_mime=image_mime,
+                capability=args.capability or "vlm.risk_assessment",
+            )
+            raw_text = json.dumps(response.result, ensure_ascii=False) if response.result else ""
+            if response.errors:
+                error = "; ".join(response.errors)
     except Exception as exc:
         error = str(exc)
         raw_text = json.dumps({
@@ -4565,6 +4562,41 @@ def cmd_runtime_backends(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_runtime_doctor(args: argparse.Namespace) -> int:
+    """Run runtime health checks and print the report."""
+    from rosclaw.runtime.doctor import RuntimeDoctor
+    from rosclaw.runtime.plugins import (
+        DexHandDoctor,
+        RealSenseDoctor,
+        UnitreeDoctor,
+        URDoctor,
+    )
+
+    doctor = RuntimeDoctor()
+    doctor.register_plugin(RealSenseDoctor())
+    doctor.register_plugin(UnitreeDoctor())
+    doctor.register_plugin(URDoctor())
+    doctor.register_plugin(DexHandDoctor())
+
+    summary = doctor.summary()
+    if getattr(args, "json", False):
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+    else:
+        print("=" * 60)
+        print("ROSClaw Runtime Doctor")
+        print("=" * 60)
+        for check in summary["checks"]:
+            icon = {"ok": "✅", "warn": "⚠️", "error": "❌"}.get(check["status"], "❓")
+            print(f"{icon} [{check['plugin']}/{check['check']}] {check['status']}")
+            print(f"   {check['message']}")
+        print("=" * 60)
+        print(
+            f"Summary: {summary['ok']} ok, {summary['warn']} warn, "
+            f"{summary['error']} error ({summary['total']} total)"
+        )
+    return 0 if summary["error"] == 0 else 1
+
+
 def cmd_forge_sdk_to_mcp(args: argparse.Namespace) -> int:
     """Convert an SDK description to an MCP bundle."""
     from rosclaw.forge.bundle_compiler import BundleCompiler
@@ -5083,6 +5115,8 @@ def main() -> int:
     runtime_parser = subparsers.add_parser("runtime", help="Runtime backend commands")
     runtime_subparsers = runtime_parser.add_subparsers(dest="runtime_command")
     runtime_subparsers.add_parser("backends", help="List available runtime backends")
+    doctor_parser = runtime_subparsers.add_parser("doctor", help="Run runtime health checks")
+    doctor_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # firewall subcommand
     firewall_parser = subparsers.add_parser("firewall", help="Firewall safety checks")
@@ -5484,6 +5518,8 @@ def main() -> int:
         elif args.command == "runtime":
             if args.runtime_command == "backends":
                 return cmd_runtime_backends(args)
+            elif args.runtime_command == "doctor":
+                return cmd_runtime_doctor(args)
             else:
                 runtime_parser.print_help()
                 return 1
