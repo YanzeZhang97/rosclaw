@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from rosclaw.core.event_bus import EventBus
@@ -68,7 +69,7 @@ def test_legacy_handler_falls_back_when_no_runtime_handler() -> None:
     assert result["handler_result"]["source"] == "legacy"
 
 
-def test_builtin_camera_handlers_are_registered() -> None:
+def test_builtin_camera_handlers_are_registered(tmp_path) -> None:
     # The autouse fixture clears the global plugin before each test, so
     # re-import the camera handler module to re-register its decorators.
     import importlib
@@ -82,9 +83,50 @@ def test_builtin_camera_handlers_are_registered() -> None:
     assert "scene_risk_scan" in plugin.list_handlers()
     handler = plugin.get_handler("realsense_capture_rgbd")
     assert handler is not None
-    result = handler({})
-    assert result["status"] == "success"
-    assert "frames" in result
+
+    # The handler talks to a real ROS2/MCP server; for a unit test we mock the
+    # MCP capture result so the test is hermetic and does not require live
+    # RealSense hardware.
+    color_path = tmp_path / "color.png"
+    depth_path = tmp_path / "depth.png"
+    color_path.write_bytes(b"\x89PNG\r\n\x1a\n")
+    depth_path.write_bytes(b"\x89PNG\r\n\x1a\n")
+
+    import rosclaw.mcp.onboarding.stdio_client as stdio_client
+
+    original_call = stdio_client.call_server_tool
+
+    def _fake_call(server_name, tool_name, arguments, home=None, timeout=None):
+        return {
+            "structuredContent": {
+                "result": json.dumps({
+                    "success": True,
+                    "color": {
+                        "path": str(color_path),
+                        "topic": "/camera/d435i/color/image_raw",
+                        "width": 424,
+                        "height": 240,
+                        "encoding": "rgb8",
+                    },
+                    "depth": {
+                        "path": str(depth_path),
+                        "topic": "/camera/d435i/depth/image_rect_raw",
+                        "width": 424,
+                        "height": 240,
+                        "encoding": "16UC1",
+                    },
+                })
+            }
+        }
+
+    stdio_client.call_server_tool = _fake_call
+    try:
+        result = handler({"output_dir": str(tmp_path / "out")})
+        assert result["status"] == "success"
+        assert "frames" in result
+        assert "artifacts" in result
+    finally:
+        stdio_client.call_server_tool = original_call
 
 
 def test_runtime_handler_failure_is_recorded() -> None:

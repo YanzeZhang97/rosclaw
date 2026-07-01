@@ -7,6 +7,7 @@ The ``SkillExecutor`` queries this registry before falling back to the legacy
 
 from __future__ import annotations
 
+import importlib
 import importlib.metadata
 import logging
 from collections.abc import Callable, Iterable
@@ -50,6 +51,7 @@ class RuntimeSkillPlugin:
         Each entry point should be a module that imports and therefore
         registers its decorated handlers at import time.
         """
+        loaded_any = False
         try:
             eps = importlib.metadata.entry_points()
             group: Iterable[Any] | None
@@ -58,18 +60,30 @@ class RuntimeSkillPlugin:
             else:
                 group = eps.get(entry_point_group)
                 if group is None:
-                    return
+                    group = []
         except Exception as exc:
             logger.warning("Failed to discover runtime handlers: %s", exc)
-            return
+            group = []
 
         group_iter: Iterable[Any] = group
         for ep in group_iter:
             try:
                 ep.load()
+                loaded_any = True
                 logger.debug("Loaded runtime handler module: %s", ep.value)
             except Exception as exc:
                 logger.warning("Failed to load runtime handler module %s: %s", ep.value, exc)
+
+        # Fallback: when running from source (no installed package), entry points
+        # are not visible to importlib.metadata. Ensure the built-in handler
+        # modules are imported so their decorators register handlers.
+        if not loaded_any:
+            for module_name in ("rosclaw.runtime.handlers", "rosclaw.runtime.handlers.camera"):
+                try:
+                    importlib.import_module(module_name)
+                    logger.debug("Loaded runtime handler module via fallback import: %s", module_name)
+                except Exception as exc:
+                    logger.debug("Fallback handler import %s failed: %s", module_name, exc)
 
 
 # Global plugin instance used by decorators and the executor.
