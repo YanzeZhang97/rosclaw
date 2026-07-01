@@ -51,6 +51,11 @@ class SkillExecutor(LifecycleMixin):
             except Exception:
                 logger.warning("Failed to initialize SkillRequirementsAdapter", exc_info=True)
         self._body_resolver = body_resolver
+        # Ensure runtime skill handlers are discovered from entry points.
+        try:
+            get_runtime_plugin().discover_handlers()
+        except Exception:
+            logger.warning("Failed to discover runtime skill handlers", exc_info=True)
 
     def _do_initialize(self) -> None:
         logger.info("Initialized")
