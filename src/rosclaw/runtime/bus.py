@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import fnmatch
 import logging
+import uuid
 from collections.abc import Callable, Coroutine
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -94,6 +95,44 @@ class RuntimeBus:
             topic_pattern = f"{topic_pattern}.*"
         return topic_pattern
 
+    def _runtime_event_from_bus_event(self, bus_event: Event) -> RuntimeEvent:
+        """Convert a legacy EventBus event into a canonical RuntimeEvent.
+
+        Events published through RuntimeBus.publish carry the full RuntimeEvent
+        envelope in their payload. Legacy publishers (e.g. SkillExecutor) emit
+        raw payloads; we wrap those so subscribers still receive a valid
+        RuntimeEvent with the correct type, source, and payload.
+        """
+        payload = bus_event.payload or {}
+        if (
+            isinstance(payload, dict)
+            and "type" in payload
+            and "payload" in payload
+            and "timestamp" in payload
+        ):
+            return RuntimeEvent.from_event_bus_payload(payload, topic=bus_event.topic)
+
+        # Raw legacy event: preserve the original topic name as the event type
+        # and wrap the payload as-is.
+        event_type = bus_event.topic if bus_event.topic else "unknown"
+        if event_type.startswith("rosclaw."):
+            event_type = event_type[len("rosclaw.") :]
+        ts = bus_event.timestamp
+        if isinstance(ts, (int, float)):
+            ts = datetime.fromtimestamp(ts, tz=UTC)
+        elif not isinstance(ts, datetime):
+            ts = datetime.now(UTC)
+        return RuntimeEvent(
+            id=getattr(bus_event, "event_id", None) or str(uuid.uuid4()),
+            timestamp=ts,
+            source=bus_event.source or "system",
+            robot=None,
+            body_id=None,
+            type=event_type,
+            payload=payload if isinstance(payload, dict) else {"value": payload},
+            metadata=dict(bus_event.metadata or {}),
+        )
+
     # ------------------------------------------------------------------
     # Publishing
     # ------------------------------------------------------------------
@@ -132,9 +171,7 @@ class RuntimeBus:
 
         def wrapper(bus_event: Event) -> None:
             try:
-                runtime_event = RuntimeEvent.from_event_bus_payload(
-                    bus_event.payload, topic=bus_event.topic
-                )
+                runtime_event = self._runtime_event_from_bus_event(bus_event)
             except Exception as exc:
                 logger.warning("Failed to deserialize runtime event: %s", exc)
                 return
@@ -156,9 +193,7 @@ class RuntimeBus:
 
         def wrapper(bus_event: Event) -> None:
             try:
-                runtime_event = RuntimeEvent.from_event_bus_payload(
-                    bus_event.payload, topic=bus_event.topic
-                )
+                runtime_event = self._runtime_event_from_bus_event(bus_event)
             except Exception as exc:
                 logger.warning("Failed to deserialize runtime event: %s", exc)
                 return
@@ -177,9 +212,7 @@ class RuntimeBus:
 
         async def wrapper(bus_event: Event) -> None:
             try:
-                runtime_event = RuntimeEvent.from_event_bus_payload(
-                    bus_event.payload, topic=bus_event.topic
-                )
+                runtime_event = self._runtime_event_from_bus_event(bus_event)
             except Exception as exc:
                 logger.warning("Failed to deserialize runtime event: %s", exc)
                 return
@@ -213,7 +246,7 @@ class RuntimeBus:
         result: list[RuntimeEvent] = []
         for ev in events:
             try:
-                result.append(RuntimeEvent.from_event_bus_payload(ev.payload, topic=ev.topic))
+                result.append(self._runtime_event_from_bus_event(ev))
             except Exception as exc:
                 logger.debug("Skipping unparseable history event: %s", exc)
         return result

@@ -27,6 +27,10 @@ class RecorderConfig:
     mcap_chunk_size_bytes: int = 4 * 1024 * 1024
 
     frames_enabled: bool = False
+
+    # Continuous telemetry sampling
+    telemetry_enabled: bool = True
+    telemetry_hz: float = 5.0
     rgb_format: str = "jpg"
     depth_format: str = "png16"
 
@@ -120,6 +124,7 @@ class PracticeSession:
     start_time_utc: str
     robot_type: str | None = None
     session_id: str | None = None
+    episode_id: str | None = None
     tags: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -135,5 +140,6 @@ class PracticeSummary:
     duration_ms: float | None = None
     event_count: int = 0
     artifact_dir: Path | None = None
+    mcap_path: Path | None = None
     seekdb_committed: bool | None = None
     failure_labels: list[str] = field(default_factory=list)

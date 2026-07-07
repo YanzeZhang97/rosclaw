@@ -91,4 +91,11 @@ def test_coordinator_catalog_indexed():
         assert record["outcome"] == "SUCCESS"
         # event_count is tracked in the summary, not the practices table
         assert coord.summary.event_count > 0
-        assert coord.catalog.count_events(coord.summary.practice_id) == coord.summary.event_count
+        assert (
+            coord.catalog.count_source_events(coord.summary.practice_id)
+            == coord._source_event_count
+        )
+        assert (
+            coord.catalog.count_events(coord.summary.practice_id)
+            == coord.summary.event_count
+        )

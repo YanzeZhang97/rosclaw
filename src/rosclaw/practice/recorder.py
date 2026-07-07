@@ -24,11 +24,19 @@ from typing import Any
 
 from rosclaw.core.event_bus import Event, EventBus, EventPriority
 from rosclaw.data.flywheel import DataFlywheel, EventType
-from rosclaw.practice.config import DEFAULT_DATA_ROOT, PracticeSession, PracticeSummary
-from rosclaw.practice.schemas import SCHEMA_VERSION, PracticeEventEnvelope
+from rosclaw.practice.artifact_store import ArtifactStore
+from rosclaw.practice.config import (
+    DEFAULT_DATA_ROOT,
+    PracticeSession,
+    PracticeSummary,
+    RecorderConfig,
+)
+from rosclaw.practice.ids import generate_episode_id
+from rosclaw.practice.schemas import SCHEMA_VERSION, EpisodeSummaryPayload, PracticeEventEnvelope
 from rosclaw.practice.storage.catalog import PracticeCatalog
 from rosclaw.practice.storage.layout import PracticeLayout, generate_practice_id
 from rosclaw.practice.writers.jsonl_writer import JsonlWriter
+from rosclaw.practice.writers.mcap_writer import McapWriter
 from rosclaw.runtime.bus import RuntimeBus
 from rosclaw.runtime.component import RuntimeConsumer
 from rosclaw.runtime.event import RuntimeEvent
@@ -73,6 +81,7 @@ class PracticeRecorder(RuntimeConsumer):
         data_root: str | Path = DEFAULT_DATA_ROOT,
         publish_to_event_bus: bool = True,
         auto_start_on_skill: bool = True,
+        config: RecorderConfig | None = None,
     ) -> None:
         # Resolve the RuntimeBus and robot id from the first argument.
         if isinstance(runtime_bus_or_robot_id, RuntimeBus):
@@ -87,11 +96,15 @@ class PracticeRecorder(RuntimeConsumer):
         self._legacy_event_bus = event_bus
         self._publish_to_event_bus = publish_to_event_bus
         self._auto_start_on_skill = auto_start_on_skill
+        self._config = config or RecorderConfig()
 
         # Runtime Kernel v2 recording state.
         self.layout = PracticeLayout(data_root)
         self._catalog: PracticeCatalog | None = None
+        self._artifact_store: ArtifactStore | None = None
         self._writer: JsonlWriter | None = None
+        self._mcap_writer: McapWriter | None = None
+        self._mcap_path: Path | None = None
         self._session: PracticeSession | None = None
         self._summary: PracticeSummary | None = None
         self._event_count = 0
@@ -109,6 +122,11 @@ class PracticeRecorder(RuntimeConsumer):
         }
         self._knowledge_ingest_log: list[dict] = []
         self._legacy_subscriptions: list[tuple[str, Any]] = []
+
+    @property
+    def config(self) -> RecorderConfig:
+        """Return the recorder's active configuration."""
+        return self._config
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -230,6 +248,7 @@ class PracticeRecorder(RuntimeConsumer):
         task_name = payload.get("task_name") or event.metadata.get("task_name")
         skill_id = payload.get("skill_id") or event.metadata.get("skill_id")
         session_id = payload.get("session_id") or event.id
+        episode_id = payload.get("episode_id") or generate_episode_id()
 
         session_dir = (
             Path(payload["session_dir"])
@@ -250,21 +269,41 @@ class PracticeRecorder(RuntimeConsumer):
             start_time_utc=start_time_utc,
             robot_type=robot_type,
             session_id=session_id,
+            episode_id=episode_id,
             tags=list(event.metadata.get("tags", [])),
             metadata=dict(event.metadata.get("session_metadata", {})),
         )
+        if event.body_id:
+            self._session.metadata["body_id"] = event.body_id
 
         self._event_count = 0
         self._source_event_count = 0
         self._failure_labels = []
+        self._summary = None
 
         self._writer = JsonlWriter(self.layout.events_jsonl_path(practice_id), rotate_mb=None)
         self._catalog = PracticeCatalog(self.layout.catalog_db_path)
+        self._artifact_store = ArtifactStore(self.layout.data_root, layout=self.layout)
+
+        if self._config.mcap_enabled and McapWriter.is_available():
+            try:
+                self._mcap_path = self.layout.mcap_path(practice_id)
+                self._mcap_writer = McapWriter(
+                    self._mcap_path,
+                    compression=self._config.mcap_compression,
+                    chunk_size_bytes=self._config.mcap_chunk_size_bytes,
+                )
+                logger.info("MCAP recording enabled: %s", self._mcap_path)
+            except Exception as e:
+                logger.warning("Failed to enable MCAP recording: %s", e)
+                self._mcap_writer = None
+                self._mcap_path = None
 
         self._catalog.insert_practice(
             {
                 "practice_id": practice_id,
                 "session_id": session_id,
+                "episode_id": episode_id,
                 "robot_id": robot_id,
                 "robot_type": robot_type,
                 "task_id": task_id,
@@ -308,6 +347,7 @@ class PracticeRecorder(RuntimeConsumer):
             duration_ms=duration_ms,
             event_count=event_count,
             artifact_dir=self._session.session_dir,
+            mcap_path=self._mcap_path,
             failure_labels=failure_labels,
         )
 
@@ -337,6 +377,7 @@ class PracticeRecorder(RuntimeConsumer):
             duration_ms=duration_ms,
             event_count=event_count,
             artifact_dir=self._session.session_dir,
+            mcap_path=self._mcap_path,
             failure_labels=failure_labels or list(self._failure_labels),
         )
 
@@ -351,9 +392,21 @@ class PracticeRecorder(RuntimeConsumer):
                 },
             )
 
+        # Write v2 episode summary artifacts and catalog records.
+        self._write_v2_episode_summary(outcome, reward, duration_ms, event_count, failure_labels)
+
         if self._writer is not None:
             self._writer.close()
             self._writer = None
+
+        if self._mcap_writer is not None:
+            try:
+                self._mcap_writer.close()
+            except Exception as e:
+                logger.error("Failed to close MCAP writer: %s", e)
+                self._mcap_path = None
+            finally:
+                self._mcap_writer = None
 
         sources = self._session.metadata.get("sources", {}) if self._session.metadata else {}
         seekdb_enabled = self._session.metadata.get("seekdb_enabled", False) if self._session.metadata else False
@@ -369,13 +422,117 @@ class PracticeRecorder(RuntimeConsumer):
         logger.info("PracticeRecorder stopped session: %s (%s)", self._session.practice_id, outcome)
 
         self._session = None
-        self._summary = None
         if self._catalog is not None:
             self._catalog.close()
             self._catalog = None
 
+    def _write_v2_episode_summary(
+        self,
+        outcome: str,
+        reward: float | None,
+        duration_ms: float | None,
+        event_count: int,
+        failure_labels: list[str] | None,
+    ) -> None:
+        """Write episode summary to ArtifactStore and catalog v2 tables."""
+        if self._session is None or self._artifact_store is None or self._catalog is None:
+            return
+
+        session_id = self._session.session_id or self._session.practice_id
+        episode_id = self._session.episode_id
+        started_at = self._session.start_time_utc
+        ended_at = _utc_now_iso()
+        labels = failure_labels or list(self._failure_labels)
+
+        summary_payload = EpisodeSummaryPayload(
+            episode_id=episode_id,
+            session_id=session_id,
+            body_id=self._session.metadata.get("body_id"),
+            skill_id=self._session.skill_id,
+            policy_id=self._session.metadata.get("policy_id"),
+            outcome=outcome.lower() if outcome in {"SUCCESS", "FAILED", "PARTIAL"} else "unknown",
+            success=outcome == "SUCCESS",
+            failure_labels=labels,
+            event_count=event_count,
+            metrics={
+                "duration_ms": duration_ms,
+                "reward": reward,
+                "source_event_count": self._source_event_count,
+            },
+        )
+
+        try:
+            record = self._artifact_store.write_yaml(
+                f"summary_{episode_id}",
+                summary_payload.model_dump(mode="json"),
+                session_id=session_id,
+                episode_id=episode_id,
+                artifact_type="summary",
+                metadata={"schema_version": EpisodeSummaryPayload.__name__},
+            )
+            if self._catalog is not None:
+                self._catalog.insert_artifact_v2(
+                    {
+                        "artifact_id": record.artifact_id,
+                        "session_id": session_id,
+                        "episode_id": episode_id,
+                        "artifact_type": record.artifact_type,
+                        "path": record.path,
+                        "sha256": record.sha256,
+                        "size_bytes": record.size_bytes,
+                        "schema_name": record.schema_name,
+                        "created_at": record.created_at,
+                        "metadata": record.metadata,
+                    }
+                )
+        except Exception as e:
+            logger.error("Failed to write episode summary YAML: %s", e)
+
+        try:
+            self._catalog.insert_session(
+                {
+                    "session_id": session_id,
+                    "practice_id": self._session.practice_id,
+                    "body_id": self._session.metadata.get("body_id"),
+                    "task_name": self._session.task_name,
+                    "started_at": started_at,
+                    "ended_at": ended_at,
+                    "status": "closed",
+                    "outcome": outcome,
+                    "event_count": event_count,
+                    "artifact_count": len(self._artifact_store.list_artifacts(session_id, episode_id)),
+                    "metadata": dict(self._session.metadata),
+                }
+            )
+        except Exception as e:
+            logger.error("Failed to insert session into catalog v2: %s", e)
+
+        try:
+            self._catalog.insert_episode(
+                {
+                    "episode_id": episode_id,
+                    "session_id": session_id,
+                    "body_id": self._session.metadata.get("body_id"),
+                    "skill_id": self._session.skill_id,
+                    "policy_id": self._session.metadata.get("policy_id"),
+                    "started_at": started_at,
+                    "ended_at": ended_at,
+                    "outcome": outcome,
+                    "success": outcome == "SUCCESS",
+                    "failure_labels": labels,
+                    "metrics": summary_payload.metrics,
+                }
+            )
+        except Exception as e:
+            logger.error("Failed to insert episode into catalog v2: %s", e)
+
     def _record_event(self, event: RuntimeEvent) -> None:
         envelope = self._runtime_to_envelope(event)
+
+        # Capture body_id from incoming events so the episode summary can be
+        # indexed by body even when the session was started without one.
+        if envelope.body_id and self._session is not None:
+            self._session.metadata.setdefault("body_id", envelope.body_id)
 
         with self._lock:
             self._event_count += 1
@@ -388,6 +545,12 @@ class PracticeRecorder(RuntimeConsumer):
                 self._writer.write(envelope.model_dump(mode="json"))
             except Exception as e:
                 logger.error("Failed to write event to JSONL: %s", e)
+
+        if self._mcap_writer is not None:
+            try:
+                self._mcap_writer.write(envelope.model_dump(mode="json"))
+            except Exception as e:
+                logger.error("Failed to write event to MCAP: %s", e)
 
         if self._catalog is not None:
             try:
@@ -436,10 +599,16 @@ class PracticeRecorder(RuntimeConsumer):
         ts_ns = _datetime_to_ns(event.timestamp)
         ts_utc = _format_utc(event.timestamp)
 
+        body_id = event.body_id or self._session.metadata.get("body_id")
+        if event.body_id and "body_id" not in self._session.metadata:
+            self._session.metadata["body_id"] = event.body_id
+
         return PracticeEventEnvelope(
             practice_id=self._session.practice_id,
             session_id=self._session.session_id,
+            episode_id=self._session.episode_id,
             robot_id=event.robot or self._session.robot_id,
+            body_id=body_id,
             source=source,
             event_type=event.type,
             timestamp_ns=ts_ns,
