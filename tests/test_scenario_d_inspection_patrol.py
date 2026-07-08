@@ -134,7 +134,11 @@ async def test_scenario_d_full_patrol_closed_loop(runtime_with_go2):
     runtime = runtime_with_go2
 
     all_events = []
-    for topic in ["rosclaw.provider.inference.completed", "rosclaw.sandbox.action.allowed", "rosclaw.dashboard.trace.updated"]:
+    for topic in [
+        "rosclaw.provider.inference.completed",
+        "rosclaw.sandbox.action.allowed",
+        "rosclaw.dashboard.trace.updated",
+    ]:
         runtime.event_bus.subscribe(topic, lambda e, t=topic: all_events.append(t))
 
     # Patrol all 3 points

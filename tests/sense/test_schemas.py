@@ -1,7 +1,5 @@
 """Tests for rosclaw.sense.schemas."""
 
-
-
 from rosclaw.sense.schemas import (
     BodyEvent,
     BodyReadiness,

@@ -11,7 +11,9 @@ from rosclaw.core.runtime import Runtime, RuntimeConfig
 from rosclaw.practice.episode_recorder import EpisodeRecorder
 
 
-def _publish_praxis_completed(bus: EventBus, episode_id: str, instruction: str = "pick the cup") -> None:
+def _publish_praxis_completed(
+    bus: EventBus, episode_id: str, instruction: str = "pick the cup"
+) -> None:
     bus.publish(
         Event(
             topic="agent.command",
@@ -151,7 +153,9 @@ class TestRuntimeSeekDBAssembly:
         def _raise_import_error(*_args, **_kwargs):
             raise ImportError("rosclaw-practice is required")
 
-        fake_module.__getattr__ = lambda name: _raise_import_error() if name == "SeekDBBridge" else None
+        fake_module.__getattr__ = lambda name: (
+            _raise_import_error() if name == "SeekDBBridge" else None
+        )
         monkeypatch.delitem(sys.modules, "rosclaw.practice.seekdb_bridge", raising=False)
         monkeypatch.setitem(sys.modules, "rosclaw.practice.seekdb_bridge", fake_module)
         monkeypatch.setenv("ROSCLAW_SEEKDB_URL", "http://localhost:2881")

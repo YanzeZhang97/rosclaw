@@ -16,6 +16,7 @@ logger = logging.getLogger("rosclaw.sdk_to_mcp.compiler")
 @dataclass
 class CompiledAsset:
     """Result of compiling a ROSClaw SDK asset to MCP format."""
+
     name: str
     asset_type: str  # tool, resource, prompt
     mcp_schema: dict[str, Any]
@@ -52,13 +53,15 @@ class AssetCompiler:
             "description": skill.get("description", f"Execute {skill_name} skill"),
             "inputSchema": self._build_input_schema(skill.get("parameters", {})),
         }
-        assets.append(CompiledAsset(
-            name=skill_name,
-            asset_type="tool",
-            mcp_schema=tool_schema,
-            source_path=str(path),
-            metadata={"category": skill.get("category", "manipulation")},
-        ))
+        assets.append(
+            CompiledAsset(
+                name=skill_name,
+                asset_type="tool",
+                mcp_schema=tool_schema,
+                source_path=str(path),
+                metadata={"category": skill.get("category", "manipulation")},
+            )
+        )
 
         # Safety check prompt
         if skill.get("safety_checks"):
@@ -67,12 +70,14 @@ class AssetCompiler:
                 "description": f"Safety pre-checks for {skill_name}",
                 "arguments": [{"name": "context", "description": "Execution context"}],
             }
-            assets.append(CompiledAsset(
-                name=f"safety_{skill_name}",
-                asset_type="prompt",
-                mcp_schema=prompt_schema,
-                source_path=str(path),
-            ))
+            assets.append(
+                CompiledAsset(
+                    name=f"safety_{skill_name}",
+                    asset_type="prompt",
+                    mcp_schema=prompt_schema,
+                    source_path=str(path),
+                )
+            )
 
         return assets
 
@@ -91,12 +96,14 @@ class AssetCompiler:
                 "mimeType": "application/json",
                 "description": f"Capability {cap_name} from provider {provider_name}",
             }
-            assets.append(CompiledAsset(
-                name=cap_name,
-                asset_type="resource",
-                mcp_schema=resource_schema,
-                metadata={"provider": provider_name},
-            ))
+            assets.append(
+                CompiledAsset(
+                    name=cap_name,
+                    asset_type="resource",
+                    mcp_schema=resource_schema,
+                    metadata={"provider": provider_name},
+                )
+            )
 
         return assets
 
@@ -114,12 +121,14 @@ class AssetCompiler:
             "description": f"Get current state of {name}",
             "inputSchema": {"type": "object", "properties": {}},
         }
-        assets.append(CompiledAsset(
-            name=f"{robot_id}_state",
-            asset_type="tool",
-            mcp_schema=state_tool,
-            metadata={"robot_id": robot_id},
-        ))
+        assets.append(
+            CompiledAsset(
+                name=f"{robot_id}_state",
+                asset_type="tool",
+                mcp_schema=state_tool,
+                metadata={"robot_id": robot_id},
+            )
+        )
 
         # Capability tools
         capability = getattr(profile, "capability", None)
@@ -130,20 +139,26 @@ class AssetCompiler:
                 cap_tool = {
                     "name": f"robot_{robot_id}_{cap_name}",
                     "description": f"Execute {cap_name} on {name}",
-                    "inputSchema": self._build_input_schema(cap.get("parameters", {}) if isinstance(cap, dict) else {}),
+                    "inputSchema": self._build_input_schema(
+                        cap.get("parameters", {}) if isinstance(cap, dict) else {}
+                    ),
                 }
-                assets.append(CompiledAsset(
-                    name=f"{robot_id}_{cap_name}",
-                    asset_type="tool",
-                    mcp_schema=cap_tool,
-                    metadata={"robot_id": robot_id, "capability": cap_name},
-                ))
+                assets.append(
+                    CompiledAsset(
+                        name=f"{robot_id}_{cap_name}",
+                        asset_type="tool",
+                        mcp_schema=cap_tool,
+                        metadata={"robot_id": robot_id, "capability": cap_name},
+                    )
+                )
 
         return assets
 
     # ── Batch Compilation ──
 
-    def compile_directory(self, directory: str | Path, pattern: str = "*.yaml") -> list[CompiledAsset]:
+    def compile_directory(
+        self, directory: str | Path, pattern: str = "*.yaml"
+    ) -> list[CompiledAsset]:
         """Compile all matching files in a directory."""
         directory = Path(directory)
         assets = []

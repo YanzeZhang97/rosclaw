@@ -1,4 +1,5 @@
 """Base runner interface for experiment execution."""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
@@ -7,6 +8,7 @@ from typing import Any
 @dataclass
 class RunnerResult:
     """Result of running an experiment."""
+
     success: bool = False
     metrics: dict = field(default_factory=dict)
     logs: list[str] = field(default_factory=list)
@@ -61,10 +63,16 @@ class BaseRunner(ABC):
         fast smoke testing.  Sandbox and Darwin runners enforce stricter
         checks.
         """
-        safety = getattr(experiment_spec, "safety", {}) if hasattr(experiment_spec, "safety") else {}
+        safety = (
+            getattr(experiment_spec, "safety", {}) if hasattr(experiment_spec, "safety") else {}
+        )
         violations = []
         # Only non-local runners reject sandbox_required mismatch
-        if safety.get("sandbox_required", False) and self.name not in ("sandbox", "darwin", "local"):
+        if safety.get("sandbox_required", False) and self.name not in (
+            "sandbox",
+            "darwin",
+            "local",
+        ):
             violations.append("Sandbox required but running on non-sandbox runner")
         if safety.get("max_force", 999) < 5:
             violations.append("Max force limit too restrictive for meaningful experiment")

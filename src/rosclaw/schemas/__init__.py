@@ -4,6 +4,7 @@ All public dataclasses / Pydantic models used across modules are exported
 from here so callers can import a single canonical shape instead of
 depending on private module internals.
 """
+
 from __future__ import annotations
 
 # Hardware MCP onboarding

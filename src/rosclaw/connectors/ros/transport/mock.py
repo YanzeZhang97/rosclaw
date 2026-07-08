@@ -62,9 +62,7 @@ class MockTransport:
         self.responses.append(result)
 
     def queue_json(self, data: dict[str, Any], request_id: str | None = None) -> None:
-        self.responses.append(
-            RosTransportResult(ok=True, data=data, request_id=request_id)
-        )
+        self.responses.append(RosTransportResult(ok=True, data=data, request_id=request_id))
 
     def _next_response(self) -> RosTransportResult | None:
         if self.responses:
@@ -78,9 +76,7 @@ class MockTransport:
         service_type: str | None = None,
         timeout_sec: float | None = None,
     ) -> RosTransportResult:
-        return self.request(
-            {"op": "call_service", "service": service, "args": args}
-        )
+        return self.request({"op": "call_service", "service": service, "args": args})
 
     def advertise(
         self,
@@ -89,9 +85,7 @@ class MockTransport:
         latch: bool = False,
         queue_size: int = 1,
     ) -> RosTransportResult:
-        return self.request(
-            {"op": "advertise", "topic": topic, "type": msg_type}
-        )
+        return self.request({"op": "advertise", "topic": topic, "type": msg_type})
 
     def unadvertise(self, topic: str) -> RosTransportResult:
         return self.request({"op": "unadvertise", "topic": topic})

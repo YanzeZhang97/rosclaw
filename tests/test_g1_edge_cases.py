@@ -58,7 +58,9 @@ class TestZeroVelocity:
     def test_groot_zero_cmd_selects_balance_policy(self):
         """GR00T controller should select balance policy when cmd magnitude < 0.05."""
         walk_state = WalkState()
-        ctrl = compute_gait_control(walk_state, 0.0, np.array([0.0, 0.0, 0.60]), np.array([1.0, 0.0, 0.0, 0.0]))
+        ctrl = compute_gait_control(
+            walk_state, 0.0, np.array([0.0, 0.0, 0.60]), np.array([1.0, 0.0, 0.0, 0.0])
+        )
         assert np.all(np.abs(ctrl) < 1.0), f"Zero-velocity control should be small, got {ctrl}"
 
     def test_holosoma_zero_cmd_standing_phase(self):
@@ -141,7 +143,10 @@ class TestFallRecoveryIntegration:
         state = WalkState()
         q = np.array([np.cos(np.radians(25)), 0.0, np.sin(np.radians(25)), 0.0])
         assert check_fall(state, 0.5, q, np.array([0.0, 0.0, 0.4])) is True
-        assert check_fall(state, 0.6, np.array([1.0, 0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.5])) is True
+        assert (
+            check_fall(state, 0.6, np.array([1.0, 0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.5]))
+            is True
+        )
         assert state.fall_detected is True
 
     def test_fall_reason_preserved(self):
@@ -175,7 +180,10 @@ class TestBoundaryConditions:
         """Pelvis height exactly at threshold should NOT trigger fall."""
         state = WalkState()
         state.min_pelvis_height = 0.30
-        assert check_fall(state, 0.30, np.array([1.0, 0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.30])) is False
+        assert (
+            check_fall(state, 0.30, np.array([1.0, 0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.30]))
+            is False
+        )
 
     def test_exactly_at_max_tilt(self):
         """Tilt exactly at 45° triggers fall due to floating-point rounding in quat_to_rpy.
@@ -204,6 +212,8 @@ class TestBoundaryConditions:
     def test_gait_control_zero_time(self):
         """Gait at t=0 should produce deterministic initial pose."""
         walk_state = WalkState()
-        ctrl = compute_gait_control(walk_state, 0.0, np.array([0.0, 0.0, 0.60]), np.array([1.0, 0.0, 0.0, 0.0]))
+        ctrl = compute_gait_control(
+            walk_state, 0.0, np.array([0.0, 0.0, 0.60]), np.array([1.0, 0.0, 0.0, 0.0])
+        )
         assert abs(ctrl[2]) < 1e-6, f"Expected near-zero hip pitch at t=0, got {ctrl[2]}"
         assert abs(ctrl[8]) < 1e-6, f"Expected near-zero hip pitch at t=0, got {ctrl[8]}"

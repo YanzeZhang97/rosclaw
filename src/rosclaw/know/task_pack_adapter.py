@@ -9,6 +9,7 @@ absent, the adapter returns a safe empty pack and logs a one-time
 warning.  Existing curated patterns in :class:`KnowledgeInterface`
 keep working.
 """
+
 from __future__ import annotations
 
 import logging

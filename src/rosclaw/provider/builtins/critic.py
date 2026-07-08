@@ -81,16 +81,34 @@ class MockCriticProvider(Provider):
         if target is not None and actual is not None:
             pos_err = self._position_error(target, actual)
             pos_ok = pos_err <= thresholds["position_error_m"]
-            checks.append({"check": "position_error", "value": round(pos_err, 4), "threshold": thresholds["position_error_m"], "passed": pos_ok})
+            checks.append(
+                {
+                    "check": "position_error",
+                    "value": round(pos_err, 4),
+                    "threshold": thresholds["position_error_m"],
+                    "passed": pos_ok,
+                }
+            )
             if not pos_ok:
                 all_passed = False
 
         target_ori = inputs.get("target_orientation")
         actual_ori = inputs.get("actual_orientation")
-        if target_ori is not None and actual_ori is not None and "orientation_error_deg" in thresholds:
+        if (
+            target_ori is not None
+            and actual_ori is not None
+            and "orientation_error_deg" in thresholds
+        ):
             ori_err = self._orientation_error(target_ori, actual_ori)
             ori_ok = ori_err <= thresholds["orientation_error_deg"]
-            checks.append({"check": "orientation_error", "value": round(ori_err, 2), "threshold": thresholds["orientation_error_deg"], "passed": ori_ok})
+            checks.append(
+                {
+                    "check": "orientation_error",
+                    "value": round(ori_err, 2),
+                    "threshold": thresholds["orientation_error_deg"],
+                    "passed": ori_ok,
+                }
+            )
             if not ori_ok:
                 all_passed = False
 
@@ -107,16 +125,44 @@ class MockCriticProvider(Provider):
             checks.append({"check": "workspace_violation", "value": False, "passed": True})
 
         if elapsed > thresholds.get("timeout_s", 30.0):
-            checks.append({"check": "timeout", "value": elapsed, "threshold": thresholds["timeout_s"], "passed": False})
+            checks.append(
+                {
+                    "check": "timeout",
+                    "value": elapsed,
+                    "threshold": thresholds["timeout_s"],
+                    "passed": False,
+                }
+            )
             all_passed = False
         else:
-            checks.append({"check": "timeout", "value": elapsed, "threshold": thresholds["timeout_s"], "passed": True})
+            checks.append(
+                {
+                    "check": "timeout",
+                    "value": elapsed,
+                    "threshold": thresholds["timeout_s"],
+                    "passed": True,
+                }
+            )
 
         if max_action_norm > 0 and action_norm > max_action_norm:
-            checks.append({"check": "action_norm", "value": action_norm, "threshold": max_action_norm, "passed": False})
+            checks.append(
+                {
+                    "check": "action_norm",
+                    "value": action_norm,
+                    "threshold": max_action_norm,
+                    "passed": False,
+                }
+            )
             all_passed = False
         elif max_action_norm > 0:
-            checks.append({"check": "action_norm", "value": action_norm, "threshold": max_action_norm, "passed": True})
+            checks.append(
+                {
+                    "check": "action_norm",
+                    "value": action_norm,
+                    "threshold": max_action_norm,
+                    "passed": True,
+                }
+            )
 
         if "fall" in thresholds and fall_detected:
             checks.append({"check": "fall_detected", "value": True, "passed": False})
@@ -125,10 +171,24 @@ class MockCriticProvider(Provider):
             checks.append({"check": "fall_detected", "value": False, "passed": True})
 
         if "overshoot_m" in thresholds and overshoot > thresholds["overshoot_m"]:
-            checks.append({"check": "overshoot", "value": overshoot, "threshold": thresholds["overshoot_m"], "passed": False})
+            checks.append(
+                {
+                    "check": "overshoot",
+                    "value": overshoot,
+                    "threshold": thresholds["overshoot_m"],
+                    "passed": False,
+                }
+            )
             all_passed = False
         elif "overshoot_m" in thresholds:
-            checks.append({"check": "overshoot", "value": overshoot, "threshold": thresholds["overshoot_m"], "passed": True})
+            checks.append(
+                {
+                    "check": "overshoot",
+                    "value": overshoot,
+                    "threshold": thresholds["overshoot_m"],
+                    "passed": True,
+                }
+            )
 
         if checks:
             passed_ratio = sum(1 for c in checks if c["passed"]) / len(checks)
@@ -174,7 +234,9 @@ class MockCriticProvider(Provider):
 
             elif check_name == "orientation_error":
                 patches.append({"parameter": "orientation_tolerance", "delta": 2.0, "unit": "deg"})
-                recommendations.append("Increase orientation tolerance or add intermediate waypoint")
+                recommendations.append(
+                    "Increase orientation tolerance or add intermediate waypoint"
+                )
 
             elif check_name == "collision":
                 patches.append({"parameter": "safety_margin", "delta": 0.05, "unit": "m"})
@@ -228,5 +290,5 @@ class MockCriticProvider(Provider):
         if len(target) == len(actual) == 4:
             dot = abs(sum(t * a for t, a in zip(target, actual, strict=False)))
             dot = min(1.0, dot)
-            return 2.0 * (dot ** 0.5) * 57.2958
+            return 2.0 * (dot**0.5) * 57.2958
         return sum(abs(t - a) for t, a in zip(target, actual, strict=False))

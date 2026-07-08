@@ -51,12 +51,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 def spin_nodes(nodes, iterations: int = 20, timeout: float = 0.05):
     for _ in range(iterations):
@@ -78,6 +80,7 @@ def next_name(base: str) -> str:
 # Tests
 # ------------------------------------------------------------------
 
+
 @test("EpisodeRecorder creates and records with ROS2 events")
 def test_recorder_captures_ros2_events():
     """EpisodeRecorder subscribes to EventBus, ROS2 events are recorded."""
@@ -86,31 +89,37 @@ def test_recorder_captures_ros2_events():
     recorder.initialize()
 
     # Publish an episode start event
-    event_bus.publish(Event(
-        topic="rosclaw.sandbox.episode.started",
-        payload={"episode_id": "ep-ros2-001", "robot_id": "ur5e"},
-        source="runtime",
-    ))
+    event_bus.publish(
+        Event(
+            topic="rosclaw.sandbox.episode.started",
+            payload={"episode_id": "ep-ros2-001", "robot_id": "ur5e"},
+            source="runtime",
+        )
+    )
     time.sleep(0.1)
 
     # Publish some ROS2-related praxis events
-    event_bus.publish(Event(
-        topic="rosclaw.sandbox.praxis.executed",
-        payload={
-            "episode_id": "ep-ros2-001",
-            "action": "move_joints",
-            "positions": [0.1] * 6,
-        },
-        source="ros2_driver",
-    ))
+    event_bus.publish(
+        Event(
+            topic="rosclaw.sandbox.praxis.executed",
+            payload={
+                "episode_id": "ep-ros2-001",
+                "action": "move_joints",
+                "positions": [0.1] * 6,
+            },
+            source="ros2_driver",
+        )
+    )
     time.sleep(0.1)
 
     # End episode
-    event_bus.publish(Event(
-        topic="rosclaw.sandbox.episode.finished",
-        payload={"episode_id": "ep-ros2-001", "outcome": "success"},
-        source="runtime",
-    ))
+    event_bus.publish(
+        Event(
+            topic="rosclaw.sandbox.episode.finished",
+            payload={"episode_id": "ep-ros2-001", "outcome": "success"},
+            source="runtime",
+        )
+    )
     time.sleep(0.2)
 
     # Verify episode was recorded
@@ -139,11 +148,13 @@ def test_runtime_recorder_driver_episode():
     runtime.register_driver("ros2", driver)
 
     # Simulate episode start
-    runtime.event_bus.publish(Event(
-        topic="rosclaw.sandbox.episode.started",
-        payload={"episode_id": "ep-full-001", "robot_id": "ur5e"},
-        source="runtime",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="rosclaw.sandbox.episode.started",
+            payload={"episode_id": "ep-full-001", "robot_id": "ur5e"},
+            source="runtime",
+        )
+    )
     time.sleep(0.1)
 
     # Execute some driver commands
@@ -151,11 +162,13 @@ def test_runtime_recorder_driver_episode():
     driver.move_joints([0.2] * 6, duration=1.0)
 
     # Simulate episode end
-    runtime.event_bus.publish(Event(
-        topic="rosclaw.sandbox.episode.finished",
-        payload={"episode_id": "ep-full-001", "outcome": "success"},
-        source="runtime",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="rosclaw.sandbox.episode.finished",
+            payload={"episode_id": "ep-full-001", "outcome": "success"},
+            source="runtime",
+        )
+    )
     time.sleep(0.2)
 
     # Verify Runtime status includes episode info
@@ -173,27 +186,33 @@ def test_emergency_stop_in_episode():
     recorder.initialize()
 
     # Start episode
-    event_bus.publish(Event(
-        topic="rosclaw.sandbox.episode.started",
-        payload={"episode_id": "ep-emerg-001"},
-        source="runtime",
-    ))
+    event_bus.publish(
+        Event(
+            topic="rosclaw.sandbox.episode.started",
+            payload={"episode_id": "ep-emerg-001"},
+            source="runtime",
+        )
+    )
     time.sleep(0.1)
 
     # Emergency stop event
-    event_bus.publish(Event(
-        topic="robot.emergency_stop",
-        payload={"reason": "safety violation", "episode_id": "ep-emerg-001"},
-        source="runtime",
-    ))
+    event_bus.publish(
+        Event(
+            topic="robot.emergency_stop",
+            payload={"reason": "safety violation", "episode_id": "ep-emerg-001"},
+            source="runtime",
+        )
+    )
     time.sleep(0.1)
 
     # End episode
-    event_bus.publish(Event(
-        topic="rosclaw.sandbox.episode.finished",
-        payload={"episode_id": "ep-emerg-001", "outcome": "aborted"},
-        source="runtime",
-    ))
+    event_bus.publish(
+        Event(
+            topic="rosclaw.sandbox.episode.finished",
+            payload={"episode_id": "ep-emerg-001", "outcome": "aborted"},
+            source="runtime",
+        )
+    )
     time.sleep(0.2)
 
     episodes = recorder.list_episodes()
@@ -210,25 +229,31 @@ def test_multiple_episodes():
     recorder.initialize()
 
     for i in range(3):
-        event_bus.publish(Event(
-            topic="rosclaw.sandbox.episode.started",
-            payload={"episode_id": f"ep-seq-{i}"},
-            source="runtime",
-        ))
+        event_bus.publish(
+            Event(
+                topic="rosclaw.sandbox.episode.started",
+                payload={"episode_id": f"ep-seq-{i}"},
+                source="runtime",
+            )
+        )
         time.sleep(0.05)
 
-        event_bus.publish(Event(
-            topic="rosclaw.sandbox.praxis.executed",
-            payload={"episode_id": f"ep-seq-{i}", "action": "move"},
-            source="driver",
-        ))
+        event_bus.publish(
+            Event(
+                topic="rosclaw.sandbox.praxis.executed",
+                payload={"episode_id": f"ep-seq-{i}", "action": "move"},
+                source="driver",
+            )
+        )
         time.sleep(0.05)
 
-        event_bus.publish(Event(
-            topic="rosclaw.sandbox.episode.finished",
-            payload={"episode_id": f"ep-seq-{i}", "outcome": "success"},
-            source="runtime",
-        ))
+        event_bus.publish(
+            Event(
+                topic="rosclaw.sandbox.episode.finished",
+                payload={"episode_id": f"ep-seq-{i}", "outcome": "success"},
+                source="runtime",
+            )
+        )
         time.sleep(0.1)
 
     episodes = recorder.list_episodes()
@@ -240,6 +265,7 @@ def test_multiple_episodes():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     if not rclpy.ok():

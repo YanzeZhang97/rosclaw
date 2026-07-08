@@ -4,7 +4,6 @@ Targets: boost coverage from ~71% to 85%+ by exercising edge cases
 in JointSpec, RobotModel, and EURDFParser.
 """
 
-
 import numpy as np
 import pytest
 
@@ -119,7 +118,10 @@ class TestRobotModelMethods:
     def test_to_llm_context_no_sensors_no_semantic_tags(self):
         model = RobotModel(name="simple")
         model.joints["j1"] = JointSpec(
-            name="j1", joint_type="revolute", parent="base", child="l1",
+            name="j1",
+            joint_type="revolute",
+            parent="base",
+            child="l1",
             limits={"lower": -1.0, "upper": 1.0},
         )
         model.links["l1"] = LinkSpec(name="l1", mass=0.5)
@@ -136,15 +138,16 @@ class TestRobotModelMethods:
     def test_to_llm_context_with_sensors_and_semantic_tags(self):
         model = RobotModel(name="rich")
         model.joints["j1"] = JointSpec(
-            name="j1", joint_type="revolute", parent="base", child="l1",
+            name="j1",
+            joint_type="revolute",
+            parent="base",
+            child="l1",
             limits={"lower": -1.57, "upper": 1.57},
         )
         link = LinkSpec(name="l1", mass=1.2)
         link.semantic_tags = ["gripper", "tool"]
         model.links["l1"] = link
-        model.sensors["cam1"] = SensorSpec(
-            name="cam1", sensor_type="camera", parent_link="l1"
-        )
+        model.sensors["cam1"] = SensorSpec(name="cam1", sensor_type="camera", parent_link="l1")
         ctx = model.to_llm_context()
         assert "rich" in ctx
         assert "l1: mass=1.200kg (gripper, tool)" in ctx
@@ -237,11 +240,13 @@ class TestEURDFParserParseLink:
         parser = EURDFParser(str(urdf))
         link = parser.get_model().links["arm"]
         assert link.mass == 2.5
-        expected = np.array([
-            [0.1, 0.01, 0.02],
-            [0.01, 0.2, 0.03],
-            [0.02, 0.03, 0.3],
-        ])
+        expected = np.array(
+            [
+                [0.1, 0.01, 0.02],
+                [0.01, 0.2, 0.03],
+                [0.02, 0.03, 0.3],
+            ]
+        )
         assert np.allclose(link.inertia, expected)
 
     def test_inertial_defaults(self, tmp_path):

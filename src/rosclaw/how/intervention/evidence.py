@@ -1,4 +1,5 @@
 """EvidenceTrace generation and collection for How interventions."""
+
 from __future__ import annotations
 
 import logging
@@ -59,20 +60,29 @@ class EvidenceCollector:
         if self._bus is not None:
             try:
                 from rosclaw.core.event_bus import Event, EventPriority
-                self._bus.publish(Event(
-                    topic="rosclaw.how.evidence.generated",
-                    payload=trace.to_dict(),
-                    source="rosclaw-how",
-                    priority=EventPriority.NORMAL,
-                ))
+
+                self._bus.publish(
+                    Event(
+                        topic="rosclaw.how.evidence.generated",
+                        payload=trace.to_dict(),
+                        source="rosclaw-how",
+                        priority=EventPriority.NORMAL,
+                    )
+                )
             except Exception as exc:
                 logger.warning("EventBus evidence publish failed: %s", exc)
 
-        logger.info("Evidence recorded: injection=%s pattern=%s delta=%.3f",
-                    injection_id, pattern_id, trace.score_delta)
+        logger.info(
+            "Evidence recorded: injection=%s pattern=%s delta=%.3f",
+            injection_id,
+            pattern_id,
+            trace.score_delta,
+        )
         return trace
 
-    def list_traces(self, run_id: str | None = None, task_name: str | None = None) -> list[EvidenceTrace]:
+    def list_traces(
+        self, run_id: str | None = None, task_name: str | None = None
+    ) -> list[EvidenceTrace]:
         traces = list(self._traces)
         if run_id:
             traces = [t for t in traces if t.run_id == run_id]

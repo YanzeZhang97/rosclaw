@@ -28,7 +28,11 @@ class TestPracticeValidateCli:
         events = [
             {"source": "runtime", "event_type": "runtime.start", "practice_id": session_dir.name},
             {"source": "camera", "event_type": "rgbd_frame", "practice_id": session_dir.name},
-            {"source": "provider", "event_type": "provider.result", "practice_id": session_dir.name},
+            {
+                "source": "provider",
+                "event_type": "provider.result",
+                "practice_id": session_dir.name,
+            },
             {"source": "sandbox", "event_type": "decision", "practice_id": session_dir.name},
             {"source": "runtime", "event_type": "runtime.stop", "practice_id": session_dir.name},
         ]

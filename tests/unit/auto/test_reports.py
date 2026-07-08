@@ -1,4 +1,5 @@
 """Tests for ReportGenerator."""
+
 import shutil
 
 from rosclaw.auto.config import AutoConfig
@@ -58,7 +59,9 @@ class TestReportGenerator:
         gen = ReportGenerator(engine)
 
         task = engine.create_task("pick_cube", "panda", "pick_v1")
-        engine.promote_champion("pick_v1.5", task.id, "sim", {"success_rate": 0.76}, "pick_v1", "p1", "e1")
+        engine.promote_champion(
+            "pick_v1.5", task.id, "sim", {"success_rate": 0.76}, "pick_v1", "p1", "e1"
+        )
 
         md = gen.generate_champion_card_markdown(task.id, "sim")
         assert "Champion Skill Card" in md

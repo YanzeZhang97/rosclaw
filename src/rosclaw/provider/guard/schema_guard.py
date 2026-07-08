@@ -36,11 +36,13 @@ class SchemaGuard(Guard):
         missing = [k for k in required if k not in result]
 
         if missing:
-            checks.append({
-                "name": "schema",
-                "status": "fail",
-                "detail": f"Missing required keys: {missing}",
-            })
+            checks.append(
+                {
+                    "name": "schema",
+                    "status": "fail",
+                    "detail": f"Missing required keys: {missing}",
+                }
+            )
             return {
                 "pass": False,
                 "checks": checks,

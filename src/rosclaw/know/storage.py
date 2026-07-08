@@ -111,7 +111,9 @@ def seed_knowledge_graph(seekdb_client: Any) -> dict[str, int]:
 
     logger.info(
         "[Know] Seeded knowledge_graph: %d capabilities, %d symptoms, %d total",
-        counts["capabilities"], counts["symptoms"], counts["total"],
+        counts["capabilities"],
+        counts["symptoms"],
+        counts["total"],
     )
     return counts
 

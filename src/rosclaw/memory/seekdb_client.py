@@ -10,13 +10,14 @@ Sprint 5 of DESIGN_SPRINT3_5.
 import contextlib
 import json
 import logging
+import sqlite3
 import uuid
 from abc import ABC, abstractmethod
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-SEEKDB_SCHEMAS = {
+SEEKDB_SCHEMAS: dict[str, Any] = {
     "experience_graph": {
         "columns": {
             "id": "TEXT PRIMARY KEY",
@@ -377,20 +378,16 @@ class SeekDBClient(ABC):
     """Abstract interface to SeekDB Knowledge Plane."""
 
     @abstractmethod
-    def connect(self) -> None:
-        ...
+    def connect(self) -> None: ...
 
     @abstractmethod
-    def is_connected(self) -> bool:
-        ...
+    def is_connected(self) -> bool: ...
 
     @abstractmethod
-    def disconnect(self) -> None:
-        ...
+    def disconnect(self) -> None: ...
 
     @abstractmethod
-    def insert(self, table: str, record: dict) -> str:
-        ...
+    def insert(self, table: str, record: dict) -> str: ...
 
     @abstractmethod
     def query(
@@ -399,24 +396,19 @@ class SeekDBClient(ABC):
         filters: dict | None = None,
         order_by: str | None = None,
         limit: int = 100,
-    ) -> list[dict]:
-        ...
+    ) -> list[dict]: ...
 
     @abstractmethod
-    def update(self, table: str, record_id: str, updates: dict) -> bool:
-        ...
+    def update(self, table: str, record_id: str, updates: dict) -> bool: ...
 
     @abstractmethod
-    def count(self, table: str, filters: dict | None = None) -> int:
-        ...
+    def count(self, table: str, filters: dict | None = None) -> int: ...
 
     @abstractmethod
-    def delete(self, table: str, record_id: str) -> bool:
-        ...
+    def delete(self, table: str, record_id: str) -> bool: ...
 
     @abstractmethod
-    def delete_where(self, table: str, filters: dict) -> int:
-        ...
+    def delete_where(self, table: str, filters: dict) -> int: ...
 
 
 class SeekDBMemoryClient(SeekDBClient):
@@ -437,6 +429,7 @@ class SeekDBMemoryClient(SeekDBClient):
         # Inverted indexes: _indices[table][column][value] = set of record_ids
         self._indices: dict[str, dict[str, dict[Any, set[str]]]] = {}
         import threading
+
         self._lock = threading.RLock()
 
     def connect(self) -> None:
@@ -512,8 +505,7 @@ class SeekDBMemoryClient(SeekDBClient):
             # Apply remaining non-indexed filters
             if remaining_filters:
                 records = [
-                    r for r in records
-                    if all(r.get(k) == v for k, v in remaining_filters.items())
+                    r for r in records if all(r.get(k) == v for k, v in remaining_filters.items())
                 ]
 
             if order_by:
@@ -592,12 +584,11 @@ class SeekDBSQLiteClient(SeekDBClient):
 
     def __init__(self, db_path: str = "./seekdb.sqlite"):
         self._db_path = db_path
-        self._conn = None
+        self._conn: sqlite3.Connection | None = None
 
     def connect(self) -> None:
         if self._conn is not None:
             return
-        import sqlite3
         self._conn = sqlite3.connect(self._db_path)
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
@@ -609,6 +600,13 @@ class SeekDBSQLiteClient(SeekDBClient):
         if self._conn:
             self._conn.close()
             self._conn = None
+
+    @property
+    def _connection(self) -> Any:
+        if self._conn is None:
+            self.connect()
+        assert self._conn is not None
+        return self._conn
 
     # Composite indexes for common query patterns
     _COMPOSITE_INDICES = [
@@ -631,8 +629,8 @@ class SeekDBSQLiteClient(SeekDBClient):
     def _create_tables(self) -> None:
         for table_name, schema in SEEKDB_SCHEMAS.items():
             cols = ", ".join(f"{k} {v}" for k, v in schema["columns"].items())
-            self._conn.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({cols})")
-        self._conn.commit()
+            self._connection.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({cols})")
+        self._connection.commit()
         # Add any columns that were added to SEEKDB_SCHEMAS after the table
         # was first created before creating indexes that may reference them.
         self._migrate_missing_columns()
@@ -640,14 +638,14 @@ class SeekDBSQLiteClient(SeekDBClient):
         for table_name, schema in SEEKDB_SCHEMAS.items():
             for idx_col in schema.get("indices", []):
                 idx_name = f"idx_{table_name}_{idx_col}"
-                self._conn.execute(
+                self._connection.execute(
                     f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table_name}({idx_col})"
                 )
         for table_name, idx_name, columns in self._COMPOSITE_INDICES:
-            self._conn.execute(
+            self._connection.execute(
                 f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table_name}({columns})"
             )
-        self._conn.commit()
+        self._connection.commit()
 
     def _migrate_missing_columns(self) -> None:
         """Add columns that were added to SEEKDB_SCHEMAS after table creation.
@@ -657,7 +655,7 @@ class SeekDBSQLiteClient(SeekDBClient):
         enough for inserts/upserts to succeed.
         """
         for table_name, schema in SEEKDB_SCHEMAS.items():
-            cursor = self._conn.execute(f"PRAGMA table_info({table_name})")
+            cursor = self._connection.execute(f"PRAGMA table_info({table_name})")
             existing = {row["name"] for row in cursor.fetchall()}
             if not existing:
                 continue
@@ -667,14 +665,12 @@ class SeekDBSQLiteClient(SeekDBClient):
                 # Strip PRIMARY KEY because ALTER TABLE ADD COLUMN rejects it.
                 safe_type = col_type.replace(" PRIMARY KEY", "").strip()
                 try:
-                    self._conn.execute(
+                    self._connection.execute(
                         f"ALTER TABLE {table_name} ADD COLUMN {col_name} {safe_type}"
                     )
                 except Exception as exc:
-                    logger.warning(
-                        "Failed to add column %s to %s: %s", col_name, table_name, exc
-                    )
-        self._conn.commit()
+                    logger.warning("Failed to add column %s to %s: %s", col_name, table_name, exc)
+        self._connection.commit()
 
     def insert(self, table: str, record: dict) -> str:
         if table not in SEEKDB_SCHEMAS:
@@ -690,17 +686,17 @@ class SeekDBSQLiteClient(SeekDBClient):
         placeholders = ", ".join("?" for _ in serialized)
         values = list(serialized.values())
         try:
-            self._conn.execute(
+            self._connection.execute(
                 f"INSERT INTO {table} ({cols}) VALUES ({placeholders})",
                 values,
             )
         except Exception:
             # Conflict on id — update existing record (explicit upsert)
-            self._conn.execute(
+            self._connection.execute(
                 f"REPLACE INTO {table} ({cols}) VALUES ({placeholders})",
                 values,
             )
-        self._conn.commit()
+        self._connection.commit()
         return serialized["id"]
 
     def query(
@@ -723,7 +719,7 @@ class SeekDBSQLiteClient(SeekDBClient):
             key = order_by.lstrip("-")
             sql += f" ORDER BY {key} {direction}"
         sql += f" LIMIT {limit}"
-        cursor = self._conn.execute(sql, params)
+        cursor = self._connection.execute(sql, params)
         rows = cursor.fetchall()
         results = []
         for row in rows:
@@ -743,11 +739,11 @@ class SeekDBSQLiteClient(SeekDBClient):
             serialized[k] = json.dumps(v) if isinstance(v, (list, dict)) else v
         set_clause = ", ".join(f"{k} = ?" for k in serialized)
         values = list(serialized.values()) + [record_id]
-        cursor = self._conn.execute(
+        cursor = self._connection.execute(
             f"UPDATE {table} SET {set_clause} WHERE id = ?",
             values,
         )
-        self._conn.commit()
+        self._connection.commit()
         return cursor.rowcount > 0
 
     def count(self, table: str, filters: dict | None = None) -> int:
@@ -759,15 +755,15 @@ class SeekDBSQLiteClient(SeekDBClient):
                 conditions.append(f"{k} = ?")
                 params.append(v)
             sql += " WHERE " + " AND ".join(conditions)
-        cursor = self._conn.execute(sql, params)
+        cursor = self._connection.execute(sql, params)
         return cursor.fetchone()[0]
 
     def delete(self, table: str, record_id: str) -> bool:
-        cursor = self._conn.execute(
+        cursor = self._connection.execute(
             f"DELETE FROM {table} WHERE id = ?",
             (record_id,),
         )
-        self._conn.commit()
+        self._connection.commit()
         return cursor.rowcount > 0
 
     def delete_where(self, table: str, filters: dict) -> int:
@@ -779,6 +775,6 @@ class SeekDBSQLiteClient(SeekDBClient):
             conditions.append(f"{k} = ?")
             params.append(v)
         sql = f"DELETE FROM {table} WHERE " + " AND ".join(conditions)
-        cursor = self._conn.execute(sql, params)
-        self._conn.commit()
+        cursor = self._connection.execute(sql, params)
+        self._connection.commit()
         return cursor.rowcount

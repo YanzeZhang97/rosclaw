@@ -75,6 +75,7 @@ def test_get_builtin_manifest_ids() -> None:
 
 # ── Remote Hub fixtures/helpers ────────────────────────────────────────────────
 
+
 def _g1_remote_metadata() -> dict[str, object]:
     return {
         "status": "success",
@@ -95,14 +96,17 @@ def _remote_package_list() -> list[dict[str, object]]:
 
 # ── Remote Hub tests ───────────────────────────────────────────────────────────
 
+
 def test_fetch_remote_manifest_by_canonical_id(fake_home: Path, monkeypatch) -> None:
     hub = HubClient(home=fake_home, offline=False)
+
     def _fake_get(url: str):
         if "registry" in url:
             return _g1_remote_metadata()
         if "mcp-packages" in url:
             return _remote_package_list()
         raise RuntimeError(url)
+
     monkeypatch.setattr(hub, "_http_get", _fake_get)
 
     manifest = hub.fetch_manifest("io.rosclaw.hub.ros-claw.g1-mcp")

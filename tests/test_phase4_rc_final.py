@@ -98,6 +98,7 @@ class TestPhase4ForgeEndToEnd:
                 assert isinstance(data, dict)
             elif fname.endswith(".py"):
                 import ast
+
                 ast.parse(fpath.read_text())
             elif fname.endswith(".md"):
                 assert len(fpath.read_text()) > 100
@@ -114,8 +115,7 @@ class TestPhase4ForgeEndToEnd:
 
         compiler = BundleCompiler()
         bundle = compiler.compile(
-            "SDK: 6-axis force/torque sensor with ROS2 interface",
-            "fts_sensor"
+            "SDK: 6-axis force/torque sensor with ROS2 interface", "fts_sensor"
         )
 
         # Simulate `rosclaw forge install fts_sensor --staging`
@@ -159,11 +159,16 @@ class TestPhase4ForgeEndToEnd:
         from rosclaw.mcp.minimal_server import ROSClawMinimalMCPServer
 
         server = ROSClawMinimalMCPServer()
-        result = asyncio.run(server._handle_system_tool("system.compile_asset_bundle", {
-            "sdk_doc": "Lidar sensor with 360° scanning, 10Hz update rate, ROS2 topic /scan",
-            "bundle_name": "lidar_360",
-            "staging": True,
-        }))
+        result = asyncio.run(
+            server._handle_system_tool(
+                "system.compile_asset_bundle",
+                {
+                    "sdk_doc": "Lidar sensor with 360° scanning, 10Hz update rate, ROS2 topic /scan",
+                    "bundle_name": "lidar_360",
+                    "staging": True,
+                },
+            )
+        )
         assert result["status"] == "generated"
         assert result["staging_ready"] is True
         assert result["production_ready"] is False

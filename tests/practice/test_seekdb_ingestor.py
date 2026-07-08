@@ -222,15 +222,11 @@ def test_ingest_candidates_and_promotions():
         assert report.table_counts.get("skill_candidates") == 1
         assert report.table_counts.get("promotion_results") == 1
 
-        candidates = client.query(
-            "skill_candidates", filters={"id": "cand_1"}
-        )
+        candidates = client.query("skill_candidates", filters={"id": "cand_1"})
         assert len(candidates) == 1
         assert candidates[0]["status"] == "promoted"
 
-        promotions = client.query(
-            "promotion_results", filters={"id": "promo_1"}
-        )
+        promotions = client.query("promotion_results", filters={"id": "promo_1"})
         assert len(promotions) == 1
         assert promotions[0]["passed"] == 1
 

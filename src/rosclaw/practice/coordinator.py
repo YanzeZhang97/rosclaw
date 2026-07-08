@@ -86,7 +86,9 @@ class PracticeCoordinator(LifecycleMixin):
         if self.config.mock:
             if sources.agent:
                 self._adapters.append(
-                    MockAgentAdapter(self.config.robot_id, task=self.config.task_name or "mock task")
+                    MockAgentAdapter(
+                        self.config.robot_id, task=self.config.task_name or "mock task"
+                    )
                 )
             if sources.runtime:
                 self._adapters.append(MockRuntimeAdapter(self.config.robot_id))
@@ -145,7 +147,9 @@ class PracticeCoordinator(LifecycleMixin):
         if self._recorder is None:
             self._writer = JsonlWriter(
                 self.layout.events_jsonl_path(practice_id),
-                rotate_mb=self.config.recorder.jsonl_rotate_mb if self.config.recorder.jsonl_rotate_mb > 0 else None,
+                rotate_mb=self.config.recorder.jsonl_rotate_mb
+                if self.config.recorder.jsonl_rotate_mb > 0
+                else None,
             )
             self.catalog.insert_practice(
                 {
@@ -258,7 +262,11 @@ class PracticeCoordinator(LifecycleMixin):
                     source="runtime",
                     event_type="runtime.stop",
                     trace_id=self._session.practice_id,
-                    payload={"phase": "stop", "event_count": self._event_count, "duration_ms": duration_ms},
+                    payload={
+                        "phase": "stop",
+                        "event_count": self._event_count,
+                        "duration_ms": duration_ms,
+                    },
                     tags=["runtime", "stop"],
                 )
             )
@@ -267,9 +275,7 @@ class PracticeCoordinator(LifecycleMixin):
         # considered successful. Runtime lifecycle events alone are not enough
         # when real data sources were requested.
         requested_sources = self._sources_dict()
-        requested_non_runtime = {
-            k: v for k, v in requested_sources.items() if k != "runtime" and v
-        }
+        requested_non_runtime = {k: v for k, v in requested_sources.items() if k != "runtime" and v}
 
         if self._event_count == 0:
             outcome = "FAILED"
@@ -379,7 +385,10 @@ class PracticeCoordinator(LifecycleMixin):
                     )
                 )
 
-        logger.info("Practice session stopped: %s", self._session.practice_id if self._session else "unknown")
+        logger.info(
+            "Practice session stopped: %s",
+            self._session.practice_id if self._session else "unknown",
+        )
 
     # ------------------------------------------------------------------
     # Event loop
@@ -517,8 +526,6 @@ class PracticeCoordinator(LifecycleMixin):
     @property
     def summary(self) -> PracticeSummary | None:
         return self._summary
-
-
 
 
 def _utc_now_iso() -> str:

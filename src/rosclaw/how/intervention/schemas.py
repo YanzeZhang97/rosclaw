@@ -14,6 +14,7 @@ Design rules:
 * No I/O, no side effects — pure Pydantic.
 * Frozen-style helpers: never mutate; always return new objects.
 """
+
 from __future__ import annotations
 
 from typing import Any, Literal

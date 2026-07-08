@@ -33,7 +33,9 @@ def _write_markdown(path: Path, content: str, *, backup: bool = True) -> None:
         backup_file(path)
     if path.exists():
         existing = path.read_text(encoding="utf-8")
-        merged = managed_block_merge(existing, content, "<!-- ROSCLAW-MANAGED-BEGIN -->", "<!-- ROSCLAW-MANAGED-END -->")
+        merged = managed_block_merge(
+            existing, content, "<!-- ROSCLAW-MANAGED-BEGIN -->", "<!-- ROSCLAW-MANAGED-END -->"
+        )
     else:
         merged = content
     atomic_write_text(path, merged)
@@ -193,7 +195,9 @@ def add_init_parser(subparsers: Any) -> None:
     parser.add_argument("--project-root", type=str, default=None, help="Project root path.")
     parser.add_argument("--profile", type=str, default=None, help="Runtime profile YAML path.")
     parser.add_argument("--robot", type=str, default=None, help="Explicit robot ID.")
-    parser.add_argument("--transport", choices=["stdio", "http", "sse"], default=None, help="MCP transport.")
+    parser.add_argument(
+        "--transport", choices=["stdio", "http", "sse"], default=None, help="MCP transport."
+    )
     parser.add_argument("--host", type=str, default=None, help="MCP HTTP/SSE host.")
     parser.add_argument("--port", type=int, default=None, help="MCP HTTP/SSE port.")
     parser.add_argument(

@@ -22,12 +22,22 @@ def test_fault_add_creates_open_fault_and_increments_generation(linked_body):
     initial = resolver.get_effective_body()
     initial_gen = initial.generation
 
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "fault", "add",
-        "--component", "left_knee_joint",
-        "--severity", "high",
-        "--summary", "temperature abnormal",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "fault",
+            "add",
+            "--component",
+            "left_knee_joint",
+            "--severity",
+            "high",
+            "--summary",
+            "temperature abnormal",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     events = resolver.get_maintenance_events()
@@ -44,23 +54,41 @@ def test_fault_add_creates_open_fault_and_increments_generation(linked_body):
 
 
 def test_fault_resolve_closes_fault(linked_body):
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "fault", "add",
-        "--component", "left_knee_joint",
-        "--severity", "high",
-        "--summary", "temperature abnormal",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "fault",
+            "add",
+            "--component",
+            "left_knee_joint",
+            "--severity",
+            "high",
+            "--summary",
+            "temperature abnormal",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     resolver = BodyResolver()
     fault_event = next(e for e in resolver.get_maintenance_events() if e.type == "fault")
     fault_id = fault_event.result["fault_id"]
 
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "fault", "resolve",
-        fault_id,
-        "--summary", "Replaced actuator",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "fault",
+            "resolve",
+            fault_id,
+            "--summary",
+            "Replaced actuator",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     effective = resolver.get_effective_body()

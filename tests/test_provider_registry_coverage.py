@@ -33,6 +33,7 @@ class TestProviderRegistryRegister:
     def test_register_duplicate_raises(self):
         reg = ProviderRegistry()
         manifest = _make_manifest("dup")
+
         def factory(m):
             return _make_provider("dup")
 
@@ -44,6 +45,7 @@ class TestProviderRegistryRegister:
         reg = ProviderRegistry()
         manifest = _make_manifest("no_load")
         provider = _make_provider("no_load", healthy=False)
+
         def factory(m):
             return provider
 

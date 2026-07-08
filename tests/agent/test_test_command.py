@@ -25,7 +25,9 @@ def _make_init_args(tmp_path: Path) -> argparse.Namespace:
     )
 
 
-def _make_test_args(tmp_path: Path, *, quick: bool = True, verbose: bool = False) -> argparse.Namespace:
+def _make_test_args(
+    tmp_path: Path, *, quick: bool = True, verbose: bool = False
+) -> argparse.Namespace:
     return argparse.Namespace(
         project_root=str(tmp_path),
         quick=quick,

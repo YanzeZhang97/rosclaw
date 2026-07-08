@@ -1,4 +1,5 @@
 """rosclaw-auto CLI."""
+
 import argparse
 import sys
 
@@ -22,7 +23,9 @@ def _find_task_id(engine, task_name: str) -> str | None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="rosclaw-auto", description="ROSClaw Self-Evolution Control Plane")
+    parser = argparse.ArgumentParser(
+        prog="rosclaw-auto", description="ROSClaw Self-Evolution Control Plane"
+    )
     sub = parser.add_subparsers(dest="cmd")
 
     # init
@@ -31,7 +34,9 @@ def main(argv: list[str] | None = None) -> int:
     p_init.add_argument("--robot", default="panda")
     p_init.add_argument("--skill", required=True)
     p_init.add_argument("--env", default="maniskill")
-    p_init.add_argument("--type", default="skill_tuning", choices=["skill_tuning", "failure_repair"])
+    p_init.add_argument(
+        "--type", default="skill_tuning", choices=["skill_tuning", "failure_repair"]
+    )
 
     # run
     p_run = sub.add_parser("run", help="Run auto evolution")
@@ -78,7 +83,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "run":
         task_id = _find_task_id(engine, args.task)
         if not task_id:
-            print(f"Task {args.task} not found. Run `rosclaw-auto init --task {args.task} ...` first.")
+            print(
+                f"Task {args.task} not found. Run `rosclaw-auto init --task {args.task} ...` first."
+            )
             return 1
         report = engine.run(task_id, args.rounds, args.dry_run)
         print(f"Evolution complete: {report.id}")

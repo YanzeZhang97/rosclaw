@@ -98,8 +98,13 @@ class Sandbox:
                 try:
                     self._model = mujoco.MjModel.from_xml_path(str(candidate))
                     self._data = mujoco.MjData(self._model)
-                    logger.info("MuJoCo model loaded: %s (njoints=%s, nq=%s, nv=%s)",
-                                candidate.name, self._model.njnt, self._model.nq, self._model.nv)
+                    logger.info(
+                        "MuJoCo model loaded: %s (njoints=%s, nq=%s, nv=%s)",
+                        candidate.name,
+                        self._model.njnt,
+                        self._model.nq,
+                        self._model.nv,
+                    )
                     return
                 except Exception as e:
                     logger.warning("Failed to load %s: %s", candidate, e)
@@ -110,6 +115,7 @@ class Sandbox:
         """Reset physics state."""
         if self._data is not None and self._model is not None:
             import mujoco
+
             mujoco.mj_resetData(self._model, self._data)
 
     def close(self) -> None:
@@ -203,13 +209,21 @@ class Sandbox:
         for i in range(self._data.ncon):
             c = self._data.contact[i]
             if c.dist < 0.01:  # near contact
-                g1 = mujoco.mj_id2name(self._model, mujoco.mjtObj.mjOBJ_GEOM, c.geom1) or f"geom{c.geom1}"
-                g2 = mujoco.mj_id2name(self._model, mujoco.mjtObj.mjOBJ_GEOM, c.geom2) or f"geom{c.geom2}"
-                contacts.append({
-                    "geom1": g1,
-                    "geom2": g2,
-                    "distance": float(c.dist),
-                })
+                g1 = (
+                    mujoco.mj_id2name(self._model, mujoco.mjtObj.mjOBJ_GEOM, c.geom1)
+                    or f"geom{c.geom1}"
+                )
+                g2 = (
+                    mujoco.mj_id2name(self._model, mujoco.mjtObj.mjOBJ_GEOM, c.geom2)
+                    or f"geom{c.geom2}"
+                )
+                contacts.append(
+                    {
+                        "geom1": g1,
+                        "geom2": g2,
+                        "distance": float(c.dist),
+                    }
+                )
 
         return {
             "joint_positions": qpos.tolist(),

@@ -28,5 +28,7 @@ def test_ros2_firewall_integration():
     print(result.stdout)
     if result.stderr:
         print(result.stderr)
-    assert result.returncode == 0, f"Firewall integration tests failed:\n{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, (
+        f"Firewall integration tests failed:\n{result.stdout}\n{result.stderr}"
+    )
     assert "passed" in result.stdout

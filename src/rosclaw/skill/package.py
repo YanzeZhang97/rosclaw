@@ -164,7 +164,11 @@ def package_skill(
 
     # Update lock hashes.
     lock_path = pkg.root / ".rosclaw" / "lock.yaml"
-    lock = yaml.safe_load(lock_path.read_text(encoding="utf-8")) if lock_path.exists() else {"schema_version": "rosclaw.lock.v1"}
+    lock = (
+        yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+        if lock_path.exists()
+        else {"schema_version": "rosclaw.lock.v1"}
+    )
     lock["hashes"] = hashes["files"]
     pkg.write_lock_yaml(lock)
 

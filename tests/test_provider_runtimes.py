@@ -44,7 +44,13 @@ class TestRuntimeAdapterBase:
 class TestHTTPRuntime:
     @pytest.mark.asyncio
     async def test_init(self):
-        rt = HTTPRuntime("http_test", "http://localhost:8080/api", timeout_sec=5.0, retries=2, headers={"X-Key": "v"})
+        rt = HTTPRuntime(
+            "http_test",
+            "http://localhost:8080/api",
+            timeout_sec=5.0,
+            retries=2,
+            headers={"X-Key": "v"},
+        )
         assert rt.endpoint == "http://localhost:8080/api"
         assert rt.timeout_sec == 5.0
         assert rt.retries == 2
@@ -55,6 +61,7 @@ class TestHTTPRuntime:
     async def test_start_stop_without_aiohttp(self, monkeypatch):
         """start raises when aiohttp is missing."""
         import builtins
+
         real_import = builtins.__import__
 
         def fake_import(name, *args, **kwargs):
@@ -94,7 +101,10 @@ class TestPythonRuntime:
     async def test_bind_after_init(self):
         rt = PythonRuntime("py_test")
         assert rt._fn is None
-        def fn(p): return p  # noqa: E704
+
+        def fn(p):
+            return p  # noqa: E704
+
         rt.bind(fn)
         assert rt._fn is fn
 
@@ -119,7 +129,9 @@ class TestPythonRuntime:
 
     @pytest.mark.asyncio
     async def test_invoke_not_started(self):
-        def fn(p): return p  # noqa: E704
+        def fn(p):
+            return p  # noqa: E704
+
         rt = PythonRuntime("py_test", fn=fn)
         with pytest.raises(RuntimeError, match="not started"):
             await rt.invoke({"x": 1})
@@ -145,7 +157,9 @@ class TestPythonRuntime:
 class TestROS2Runtime:
     @pytest.mark.asyncio
     async def test_init(self):
-        rt = ROS2Runtime("ros2_test", action_name="/move_action", service_name="/srv", timeout_sec=10.0)
+        rt = ROS2Runtime(
+            "ros2_test", action_name="/move_action", service_name="/srv", timeout_sec=10.0
+        )
         assert rt.action_name == "/move_action"
         assert rt.service_name == "/srv"
         assert rt.timeout_sec == 10.0
@@ -155,6 +169,7 @@ class TestROS2Runtime:
     @pytest.mark.asyncio
     async def test_start_without_rclpy(self, monkeypatch):
         import builtins
+
         real_import = builtins.__import__
 
         def fake_import(name, *args, **kwargs):

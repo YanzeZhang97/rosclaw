@@ -65,13 +65,17 @@ def rollback_skill(
     evidence_path = pkg.root / "evidence" / "reports" / f"rollback_{_date_now()}.json"
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
     evidence_path.write_text(
-        json.dumps({
-            "schema_version": "rosclaw.rollback_report.v1",
-            "from_version": current_version,
-            "to_version": to_version,
-            "reason": rollback_record.reason,
-            "at": rollback_record.at,
-        }, indent=2, ensure_ascii=False),
+        json.dumps(
+            {
+                "schema_version": "rosclaw.rollback_report.v1",
+                "from_version": current_version,
+                "to_version": to_version,
+                "reason": rollback_record.reason,
+                "at": rollback_record.at,
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 

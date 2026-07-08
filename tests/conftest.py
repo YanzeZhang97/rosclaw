@@ -54,6 +54,7 @@ if os.environ.get("ROSCLAW_TEST_ROS2"):
 # rosclaw-how service auto-start fixture
 # ------------------------------------------------------------------
 
+
 def _how_service_reachable(url: str, timeout: float = 2.0) -> bool:
     """Best-effort probe of the rosclaw-how health endpoint."""
     try:
@@ -149,11 +150,15 @@ def _rosclaw_how_service(tmp_path_factory):
         seekdb_proc = subprocess.Popen(
             [
                 seekdb_binary,
-                "--base-dir", str(base_dir),
-                "--port", str(free_port),
+                "--base-dir",
+                str(base_dir),
+                "--port",
+                str(free_port),
                 "--nodaemon",
-                "--parameter", "memory_limit=1G",
-                "--parameter", "log_disk_size=2G",
+                "--parameter",
+                "memory_limit=1G",
+                "--parameter",
+                "log_disk_size=2G",
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

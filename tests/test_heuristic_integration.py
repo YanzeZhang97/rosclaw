@@ -71,7 +71,9 @@ class TestHeuristicEngine:
     @pytest.mark.asyncio
     async def test_suggest_recovery_collision_avoidance(self, engine):
         await engine.seed_defaults()
-        recovery = await engine.suggest_recovery("collision avoidance triggered near workspace boundary")
+        recovery = await engine.suggest_recovery(
+            "collision avoidance triggered near workspace boundary"
+        )
         assert recovery is not None
         assert "compliant" in recovery["action"].lower()
         assert recovery["source"] == "heuristic"
@@ -178,8 +180,13 @@ class TestRecoveryFormatter:
 
     def test_to_event_payload(self):
         rule = {
-            "rule_id": "r1", "condition": "collision", "action": "replan",
-            "priority": 2, "source": "heuristic", "success_count": 3, "failure_count": 1,
+            "rule_id": "r1",
+            "condition": "collision",
+            "action": "replan",
+            "priority": 2,
+            "source": "heuristic",
+            "success_count": 3,
+            "failure_count": 1,
         }
         payload = RecoveryFormatter.to_event_payload(rule, request_id="req42")
         assert payload["request_id"] == "req42"
@@ -379,14 +386,17 @@ class TestRuntimeRecoveryHandlers:
         client.connect()
         how = HeuristicEngine(seekdb_client=client)
         import asyncio
+
         asyncio.run(how.seed_defaults())
 
         re = RecoveryEngine(how)
-        hint = asyncio.run(re.generate_recovery_hint(
-            "grasp slippage",
-            context={"request_id": "ep001"},
-            sources=["sandbox_episode"],
-        ))
+        hint = asyncio.run(
+            re.generate_recovery_hint(
+                "grasp slippage",
+                context={"request_id": "ep001"},
+                sources=["sandbox_episode"],
+            )
+        )
         assert hint is not None
         assert hint["failure_type"] == "grasp slippage"
 
@@ -397,13 +407,16 @@ class TestRuntimeRecoveryHandlers:
 
         # Verify publishing works
         from rosclaw.core.event_bus import EventBus
+
         bus = EventBus()
-        bus.publish(Event(
-            topic="rosclaw.how.recovery_hint.generated",
-            payload=payload,
-            source="runtime",
-            priority=EventPriority.HIGH,
-        ))
+        bus.publish(
+            Event(
+                topic="rosclaw.how.recovery_hint.generated",
+                payload=payload,
+                source="runtime",
+                priority=EventPriority.HIGH,
+            )
+        )
         history = bus.get_history("rosclaw.how.recovery_hint.generated")
         assert len(history) >= 1
         last = history[-1]
@@ -495,6 +508,7 @@ class TestRuntimeIntegrationAPIs:
             import asyncio
 
             from rosclaw.how.recovery import RecoveryEngine
+
             re = RecoveryEngine(runtime._how)
             asyncio.run(runtime._how.seed_defaults())
             hint = asyncio.run(re.generate_recovery_hint(check["reason"]))
@@ -770,6 +784,7 @@ class TestHeuristicEngineBodySense:
         engine._on_failure_sync_wrapper(FakeEvent())
         # Give fire_and_forget a moment to run
         import asyncio
+
         await asyncio.sleep(0.05)
 
         assert len(captured) == 1

@@ -21,6 +21,7 @@ from rosclaw.sdk_to_mcp import AssetCompiler, MCPManifestBuilder
 # Scenario F: Forge Bundle Generation
 # ───────────────────────────────
 
+
 class TestScenarioFForgeBundle:
     """Forge generates complete, parseable, safe bundles from SDK docs."""
 
@@ -29,7 +30,7 @@ class TestScenarioFForgeBundle:
         compiler = BundleCompiler()
         bundle = compiler.compile(
             "SDK: motor driver with current feedback, torque limit 2Nm, CAN bus interface",
-            "motor_driver"
+            "motor_driver",
         )
 
         # Must generate all 5 artifact types
@@ -62,8 +63,7 @@ class TestScenarioFForgeBundle:
         """F3: Staging install creates verifiable manifest."""
         compiler = BundleCompiler()
         bundle = compiler.compile(
-            "SDK: 6-axis force/torque sensor with ROS2 topic /ft_sensor",
-            "fts_sensor"
+            "SDK: 6-axis force/torque sensor with ROS2 topic /ft_sensor", "fts_sensor"
         )
 
         install_root = tmp_path / ".rosclaw" / "staging"
@@ -96,11 +96,16 @@ class TestScenarioFForgeBundle:
         from rosclaw.mcp.minimal_server import ROSClawMinimalMCPServer
 
         server = ROSClawMinimalMCPServer()
-        result = asyncio.run(server._handle_system_tool("system.compile_asset_bundle", {
-            "sdk_doc": "Lidar 360°, 10Hz, ROS2 /scan, range 0.1-40m",
-            "bundle_name": "lidar_360",
-            "staging": True,
-        }))
+        result = asyncio.run(
+            server._handle_system_tool(
+                "system.compile_asset_bundle",
+                {
+                    "sdk_doc": "Lidar 360°, 10Hz, ROS2 /scan, range 0.1-40m",
+                    "bundle_name": "lidar_360",
+                    "staging": True,
+                },
+            )
+        )
         assert result["status"] == "generated"
         assert "bundle_name" in result
 
@@ -142,7 +147,7 @@ class TestScenarioFForgeBundle:
         compiler = BundleCompiler()
         bundle = compiler.compile(
             "SDK: Temperature sensor, -40°C to 125°C, I2C, safety: max 150°C shutdown",
-            "temp_sensor"
+            "temp_sensor",
         )
 
         # Stage

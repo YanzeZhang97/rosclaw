@@ -60,12 +60,14 @@ class TestSceneAPID:
 
         for step in range(2000):  # 20 seconds max
             current, cmd = pid.simulate_step(current, target, dt, plant_gain=0.8)
-            trajectory.append({
-                "t": step * dt,
-                "pos": current,
-                "cmd": cmd,
-                "error": target - current,
-            })
+            trajectory.append(
+                {
+                    "t": step * dt,
+                    "pos": current,
+                    "cmd": cmd,
+                    "error": target - current,
+                }
+            )
             if abs(target - current) < 0.01 and step > 100:
                 break
 
@@ -119,6 +121,7 @@ class TestSceneAPID:
 
         # How should generate recovery hint for overshoot / instability
         import asyncio
+
         asyncio.run(runtime._how.seed_defaults())
         hint = asyncio.run(runtime._how.suggest_recovery("joint limit exceeded"))
         assert hint is not None, "How should provide hint for control failure"
@@ -128,43 +131,51 @@ class TestSceneAPID:
         episode_id = "ep_pid_001"
 
         # Agent intent
-        runtime.event_bus.publish(Event(
-            topic="agent.command",
-            payload={"action": "pid_move", "target_x": 1.0, "episode_id": episode_id},
-            source="agent",
-            trace_id="trace_pid_001",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="agent.command",
+                payload={"action": "pid_move", "target_x": 1.0, "episode_id": episode_id},
+                source="agent",
+                trace_id="trace_pid_001",
+            )
+        )
 
         # Provider selection
-        runtime.event_bus.publish(Event(
-            topic="agent.response",
-            payload={"status": "ok", "provider": "pid_controller", "episode_id": episode_id},
-            source="mcp_hub",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="agent.response",
+                payload={"status": "ok", "provider": "pid_controller", "episode_id": episode_id},
+                source="mcp_hub",
+            )
+        )
 
         # Skill execution
-        runtime.event_bus.publish(Event(
-            topic="skill.execution.start",
-            payload={
-                "episode_id": episode_id,
-                "skill_name": "pid_move",
-                "initial_state": {"x": 0.0, "y": 0.0},
-            },
-            source="runtime",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={
+                    "episode_id": episode_id,
+                    "skill_name": "pid_move",
+                    "initial_state": {"x": 0.0, "y": 0.0},
+                },
+                source="runtime",
+            )
+        )
 
         # Simulate PID execution completion
-        runtime.event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "episode_id": episode_id,
-                "skill_name": "pid_move",
-                "result": {"status": "success", "reward": 0.85, "final_error": 0.02},
-                "duration_sec": 4.5,
-                "final_state": {"x": 0.98, "y": 0.0},
-            },
-            source="runtime",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "episode_id": episode_id,
+                    "skill_name": "pid_move",
+                    "result": {"status": "success", "reward": 0.85, "final_error": 0.02},
+                    "duration_sec": 4.5,
+                    "final_state": {"x": 0.98, "y": 0.0},
+                },
+                source="runtime",
+            )
+        )
 
         time.sleep(0.3)
 
@@ -183,14 +194,17 @@ class TestSceneAPID:
         if runtime._memory is None:
             pytest.skip("Memory not available")
 
-        runtime._memory.write("pid_task_001", {
-            "event_type": "pid_move",
-            "instruction": "Move mobile base 1 meter forward using PID control",
-            "outcome": "success",
-            "duration_sec": 4.5,
-            "final_error": 0.02,
-            "tags": ["pid", "mobile_base", "go2", "motion_control"],
-        })
+        runtime._memory.write(
+            "pid_task_001",
+            {
+                "event_type": "pid_move",
+                "instruction": "Move mobile base 1 meter forward using PID control",
+                "outcome": "success",
+                "duration_sec": 4.5,
+                "final_error": 0.02,
+                "tags": ["pid", "mobile_base", "go2", "motion_control"],
+            },
+        )
 
         # Semantic search for PID-related experiences
         results = runtime._memory.search("mobile robot forward motion")
@@ -202,29 +216,35 @@ class TestSceneAPID:
         target_x = 1.0
 
         # 1. Agent intent: move 1 meter forward
-        runtime.event_bus.publish(Event(
-            topic="agent.command",
-            payload={"action": "pid_move", "target_x": target_x, "episode_id": episode_id},
-            source="agent",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="agent.command",
+                payload={"action": "pid_move", "target_x": target_x, "episode_id": episode_id},
+                source="agent",
+            )
+        )
 
         # 2. Provider capability selection
-        runtime.event_bus.publish(Event(
-            topic="agent.response",
-            payload={"status": "ok", "provider": "pid_controller", "episode_id": episode_id},
-            source="mcp_hub",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="agent.response",
+                payload={"status": "ok", "provider": "pid_controller", "episode_id": episode_id},
+                source="mcp_hub",
+            )
+        )
 
         # 3. Skill start
-        runtime.event_bus.publish(Event(
-            topic="skill.execution.start",
-            payload={
-                "episode_id": episode_id,
-                "skill_name": "pid_move",
-                "initial_state": {"x": 0.0, "y": 0.0, "theta": 0.0},
-            },
-            source="runtime",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={
+                    "episode_id": episode_id,
+                    "skill_name": "pid_move",
+                    "initial_state": {"x": 0.0, "y": 0.0, "theta": 0.0},
+                },
+                source="runtime",
+            )
+        )
 
         # 4. Simulate PID control loop (published as telemetry events)
         pid = PIDController(PIDGains(kp=2.0, ki=0.1, kd=0.5))
@@ -235,31 +255,35 @@ class TestSceneAPID:
         for step in range(400):
             current_x, cmd = pid.simulate_step(current_x, target_x, dt, plant_gain=0.8)
             if step % 20 == 0:  # Publish telemetry every 1s
-                runtime.event_bus.publish(Event(
-                    topic="robot.telemetry",
-                    payload={"episode_id": episode_id, "x": current_x, "cmd": cmd},
-                    source="control",
-                ))
+                runtime.event_bus.publish(
+                    Event(
+                        topic="robot.telemetry",
+                        payload={"episode_id": episode_id, "x": current_x, "cmd": cmd},
+                        source="control",
+                    )
+                )
             if abs(target_x - current_x) < 0.05:
                 break
 
         # 5. Skill complete
         final_error = abs(target_x - current_x)
-        runtime.event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "episode_id": episode_id,
-                "skill_name": "pid_move",
-                "result": {
-                    "status": "success" if final_error <= 0.05 else "failure",
-                    "reward": 0.9 if final_error <= 0.05 else 0.2,
-                    "final_error": final_error,
+        runtime.event_bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "episode_id": episode_id,
+                    "skill_name": "pid_move",
+                    "result": {
+                        "status": "success" if final_error <= 0.05 else "failure",
+                        "reward": 0.9 if final_error <= 0.05 else 0.2,
+                        "final_error": final_error,
+                    },
+                    "duration_sec": step * dt,
+                    "final_state": {"x": current_x, "y": 0.0, "theta": 0.0},
                 },
-                "duration_sec": step * dt,
-                "final_state": {"x": current_x, "y": 0.0, "theta": 0.0},
-            },
-            source="runtime",
-        ))
+                source="runtime",
+            )
+        )
 
         time.sleep(0.3)
 

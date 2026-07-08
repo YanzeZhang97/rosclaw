@@ -45,6 +45,7 @@ class TestManiSkillAdapter:
     def test_adapter_import(self):
         """ManiSkill adapter module imports correctly."""
         from rosclaw.mcp_drivers.maniskill_adapter import ManiSkillAdapter
+
         assert ManiSkillAdapter is not None
 
     def test_adapter_supported_tasks(self):

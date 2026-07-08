@@ -33,9 +33,15 @@ class TestFirstbootTelemetryIntegration:
         sys.argv = ["rosclaw", "firstboot", "--yes", "--profile", "offline", "--telemetry"]
         main()
 
-        events_path = home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl"
+        events_path = (
+            home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl"
+        )
         assert events_path.exists()
-        lines = [json.loads(line) for line in events_path.read_text(encoding="utf-8").strip().split("\n") if line.strip()]
+        lines = [
+            json.loads(line)
+            for line in events_path.read_text(encoding="utf-8").strip().split("\n")
+            if line.strip()
+        ]
         types = [e["event_type"] for e in lines]
         assert "firstboot_started" in types
         assert "firstboot_completed" in types

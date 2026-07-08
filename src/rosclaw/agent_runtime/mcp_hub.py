@@ -34,6 +34,7 @@ class AgentContext:
     This provides the "grounding" - the physical understanding
     that allows the LLM to reason about the robot and world.
     """
+
     session_id: str
     robot_id: str
     current_task: str | None = None
@@ -99,6 +100,7 @@ class MCPHub(LifecycleMixin):
         """Initialize MCP server and register tools."""
         try:
             from mcp.server import Server
+
             self._server = Server("rosclaw-mcp")
             self._register_all_tools()
             logger.info("MCP server initialized")
@@ -206,7 +208,15 @@ class MCPHub(LifecycleMixin):
                 "properties": {
                     "skill": {
                         "type": "string",
-                        "enum": ["grasp", "place", "pick_and_place", "push", "pull", "navigate", "inspect"],
+                        "enum": [
+                            "grasp",
+                            "place",
+                            "pick_and_place",
+                            "push",
+                            "pull",
+                            "navigate",
+                            "inspect",
+                        ],
                         "description": "Skill to execute",
                     },
                     "target": {
@@ -361,7 +371,12 @@ class MCPHub(LifecycleMixin):
                 "properties": {
                     "condition": {
                         "type": "string",
-                        "enum": ["torque_overflow", "velocity_divergence", "memory_exhaustion", "numerical_instability"],
+                        "enum": [
+                            "torque_overflow",
+                            "velocity_divergence",
+                            "memory_exhaustion",
+                            "numerical_instability",
+                        ],
                         "description": "The dangerous condition to get a heuristic for",
                     },
                 },
@@ -461,7 +476,11 @@ class MCPHub(LifecycleMixin):
                     "center_x": {"type": "number", "description": "Search center X coordinate"},
                     "center_y": {"type": "number", "description": "Search center Y coordinate"},
                     "center_z": {"type": "number", "description": "Search center Z coordinate"},
-                    "radius": {"type": "number", "description": "Search radius in meters", "default": 2.0},
+                    "radius": {
+                        "type": "number",
+                        "description": "Search radius in meters",
+                        "default": 2.0,
+                    },
                 },
                 "required": ["scene_id"],
             },
@@ -498,6 +517,7 @@ class MCPHub(LifecycleMixin):
     def _register_sense_tools(self) -> None:
         """Register body sense MCP tools when a SenseRuntime is available."""
         from rosclaw.sense.mcp_tools import register_sense_tools
+
         register_sense_tools(self._tools)
 
     # ------------------------------------------------------------------
@@ -599,18 +619,20 @@ class MCPHub(LifecycleMixin):
         future = asyncio.get_event_loop().create_future()
         self._pending_requests[request_id] = future
 
-        self.event_bus.publish(Event(
-            topic="agent.capability.request",
-            payload={
-                "request_id": request_id,
-                "capability": capability,
-                "inputs": inputs,
-                "context": ctx,
-                "constraints": {"safety_level": self.context.safety_level.upper()},
-            },
-            source="mcp_hub",
-            priority=EventPriority.HIGH,
-        ))
+        self.event_bus.publish(
+            Event(
+                topic="agent.capability.request",
+                payload={
+                    "request_id": request_id,
+                    "capability": capability,
+                    "inputs": inputs,
+                    "context": ctx,
+                    "constraints": {"safety_level": self.context.safety_level.upper()},
+                },
+                source="mcp_hub",
+                priority=EventPriority.HIGH,
+            )
+        )
 
         try:
             result = await asyncio.wait_for(future, timeout=self._default_timeout)
@@ -697,7 +719,10 @@ class MCPHub(LifecycleMixin):
 
     async def _handle_observe_scene(self, arguments: dict) -> dict:
         """Handle observe_scene via VLM scene_understanding capability."""
-        inputs = {"camera_topic": arguments.get("image_topic", ""), "text": arguments.get("query", "")}
+        inputs = {
+            "camera_topic": arguments.get("image_topic", ""),
+            "text": arguments.get("query", ""),
+        }
         return await self._route_capability("vlm.scene_understanding", inputs)
 
     async def _handle_locate_object(self, arguments: dict) -> dict:
@@ -855,12 +880,14 @@ class MCPHub(LifecycleMixin):
 
     def _handle_emergency_stop(self) -> dict:
         """Handle emergency_stop tool call."""
-        self.event_bus.publish(Event(
-            topic="robot.emergency_stop",
-            payload={"reason": "LLM emergency stop command"},
-            source="mcp_hub",
-            priority=EventPriority.CRITICAL,
-        ))
+        self.event_bus.publish(
+            Event(
+                topic="robot.emergency_stop",
+                payload={"reason": "LLM emergency stop command"},
+                source="mcp_hub",
+                priority=EventPriority.CRITICAL,
+            )
+        )
         return {"status": "emergency_stop_triggered"}
 
     # ------------------------------------------------------------------
@@ -877,21 +904,24 @@ class MCPHub(LifecycleMixin):
 
         # Publish query event to EventBus for decoupled world-state access
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="world.objects.query",
-                payload={
-                    "scene_id": scene_id,
-                    "radius": radius,
-                    "center": {"x": cx, "y": cy, "z": cz},
-                },
-                source="mcp_hub",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="world.objects.query",
+                    payload={
+                        "scene_id": scene_id,
+                        "radius": radius,
+                        "center": {"x": cx, "y": cy, "z": cz},
+                    },
+                    source="mcp_hub",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
         # Fallback: direct Runtime access when no subscriber responded
         if self.runtime is not None and hasattr(self.runtime, "search_world_objects"):
             try:
                 from rosclaw.e_urdf.parser import Vec3
+
                 center = Vec3(cx, cy, cz)
             except ImportError:
                 center = {"x": cx, "y": cy, "z": cz}
@@ -910,12 +940,14 @@ class MCPHub(LifecycleMixin):
         scene_id = arguments.get("scene_id", "")
 
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="world.scene_graph.query",
-                payload={"scene_id": scene_id},
-                source="mcp_hub",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="world.scene_graph.query",
+                    payload={"scene_id": scene_id},
+                    source="mcp_hub",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
         if self.runtime is not None and hasattr(self.runtime, "get_scene_graph"):
             objects, relations = self.runtime.get_scene_graph(scene_id)
@@ -936,12 +968,14 @@ class MCPHub(LifecycleMixin):
         limit = arguments.get("limit", 10)
 
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="memory.cognitive.query",
-                payload={"query": query, "limit": limit},
-                source="mcp_hub",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="memory.cognitive.query",
+                    payload={"query": query, "limit": limit},
+                    source="mcp_hub",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
         if self.runtime is not None and hasattr(self.runtime, "cognitive_search"):
             results = self.runtime.cognitive_search(query, limit=limit)
@@ -1120,16 +1154,19 @@ class MCPHub(LifecycleMixin):
     def _handle_get_body_sense(self, arguments: dict) -> dict:
         """Handle get_body_sense tool call."""
         from rosclaw.sense.mcp_tools import handle_get_body_sense
+
         return handle_get_body_sense(self, arguments)
 
     def _handle_get_body_readiness(self, arguments: dict) -> dict:
         """Handle get_body_readiness tool call."""
         from rosclaw.sense.mcp_tools import handle_get_body_readiness
+
         return handle_get_body_readiness(self, arguments)
 
     def _handle_explain_body_block(self, arguments: dict) -> dict:
         """Handle explain_body_block tool call."""
         from rosclaw.sense.mcp_tools import handle_explain_body_block
+
         return handle_explain_body_block(self, arguments)
 
     @staticmethod

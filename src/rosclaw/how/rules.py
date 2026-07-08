@@ -4,6 +4,7 @@ Thin wrapper around SeekDB heuristic_rules table for administrative
 operations (add, update, delete, list). The HeuristicEngine hot path
 avoids this module for latency; it is used by admin tools and tests.
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,15 +28,18 @@ class RuleManager:
         priority: int = 0,
     ) -> str:
         """Insert a new rule. Returns rule_id."""
-        self._seekdb.insert(self._table, {
-            "id": rule_id,
-            "condition": condition,
-            "action": action,
-            "priority": priority,
-            "success_count": 0,
-            "failure_count": 0,
-            "last_triggered": None,
-        })
+        self._seekdb.insert(
+            self._table,
+            {
+                "id": rule_id,
+                "condition": condition,
+                "action": action,
+                "priority": priority,
+                "success_count": 0,
+                "failure_count": 0,
+                "last_triggered": None,
+            },
+        )
         logger.info("Rule added: %s (condition=%s)", rule_id, condition)
         return rule_id
 

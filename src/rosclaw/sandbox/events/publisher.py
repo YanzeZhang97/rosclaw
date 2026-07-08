@@ -17,9 +17,11 @@ class RuntimePublisher:
         """Publish an event to the EventBus."""
         if self._event_bus is None:
             return
-        self._event_bus.publish(Event(
-            topic=topic,
-            payload=payload,
-            source="sandbox",
-            priority=EventPriority.NORMAL,
-        ))
+        self._event_bus.publish(
+            Event(
+                topic=topic,
+                payload=payload,
+                source="sandbox",
+                priority=EventPriority.NORMAL,
+            )
+        )

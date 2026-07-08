@@ -3,6 +3,7 @@
 Subscribes to How and Auto events, updates pattern_metrics and
 bridge_index with validated evidence.
 """
+
 from __future__ import annotations
 
 import json
@@ -77,12 +78,15 @@ class EvidenceIngestor:
     def ingest(self, trace: EvidenceTrace) -> None:
         """Ingest a single EvidenceTrace and update pattern_metrics."""
         pattern_id = trace.pattern_id or "unknown"
-        entry = self._pattern_metrics.setdefault(pattern_id, {
-            "uses": 0,
-            "total_delta": 0.0,
-            "successes": 0,
-            "failures": 0,
-        })
+        entry = self._pattern_metrics.setdefault(
+            pattern_id,
+            {
+                "uses": 0,
+                "total_delta": 0.0,
+                "successes": 0,
+                "failures": 0,
+            },
+        )
         entry["uses"] += 1
         entry["total_delta"] += trace.score_delta
         if trace.verifier_status == "valid" or trace.score_delta > 0:

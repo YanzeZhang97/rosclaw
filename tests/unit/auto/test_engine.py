@@ -1,4 +1,5 @@
 """Integration tests for AutoEngine."""
+
 import tempfile
 
 import pytest
@@ -53,31 +54,36 @@ def test_full_workflow():
         assert task.id.startswith("task_")
 
         # 2. Simulate failure
-        fc = engine.create_failure_case("evt_001", task.id, "pick_v1",
-                                        phase="grasp", failure_mode="missed_grasp")
+        fc = engine.create_failure_case(
+            "evt_001", task.id, "pick_v1", phase="grasp", failure_mode="missed_grasp"
+        )
         assert fc.failure_mode == "missed_grasp"
 
         # 3. Create proposal
-        prop = engine.create_proposal(fc.id, task.name, task.target_skill_id,
-                                      "increase pregrasp height", {"z": [0.02, 0.08]})
+        prop = engine.create_proposal(
+            fc.id, task.name, task.target_skill_id, "increase pregrasp height", {"z": [0.02, 0.08]}
+        )
         assert prop.id.startswith("prop_")
 
         # 4. Create patch & experiment
-        patch = engine.create_patch(prop.id, task.target_skill_id,
-                                    [{"path": "/z", "old": 0.02, "new": 0.05}])
-        exp = engine.create_experiment(prop.id, patch.id, task.name,
-                                       "pick_v1", "pick_v1_candidate")
+        patch = engine.create_patch(
+            prop.id, task.target_skill_id, [{"path": "/z", "old": 0.02, "new": 0.05}]
+        )
+        exp = engine.create_experiment(prop.id, patch.id, task.name, "pick_v1", "pick_v1_candidate")
         assert exp.id.startswith("exp_")
 
         # 5. Evaluate (promote case)
-        ev = engine.create_evaluation(exp.id,
-                                      {"success_rate": 0.42, "collision_rate": 0.12},
-                                      {"success_rate": 0.68, "collision_rate": 0.03})
+        ev = engine.create_evaluation(
+            exp.id,
+            {"success_rate": 0.42, "collision_rate": 0.12},
+            {"success_rate": 0.68, "collision_rate": 0.03},
+        )
         assert ev.decision.startswith("promote")
 
         # 6. Promote champion
-        champ = engine.promote_champion("pick_v2", task.id, "sim",
-                                        ev.candidate_metrics, "pick_v1", patch.id, exp.id)
+        champ = engine.promote_champion(
+            "pick_v2", task.id, "sim", ev.candidate_metrics, "pick_v1", patch.id, exp.id
+        )
         assert champ.level == "sim"
 
         # 7. Register dead-end
@@ -102,8 +108,11 @@ class TestAutoEngineBodySense:
             engine = AutoEngine(config, sense_runtime=sense_runtime_kick_not_ready)
 
             fc = engine.create_failure_case(
-                "evt_sense_001", "task_001", "kick_ball",
-                phase="swing", failure_mode="overheat",
+                "evt_sense_001",
+                "task_001",
+                "kick_ball",
+                phase="swing",
+                failure_mode="overheat",
             )
             assert fc.evidence.get("body_condition_failure") is True
             assert "body_sense_snapshot" in fc.evidence
@@ -115,8 +124,11 @@ class TestAutoEngineBodySense:
             engine = AutoEngine(config, sense_runtime=sense_runtime_normal)
 
             fc = engine.create_failure_case(
-                "evt_sense_002", "task_002", "observe_scene",
-                phase="perceive", failure_mode="target_lost",
+                "evt_sense_002",
+                "task_002",
+                "observe_scene",
+                phase="perceive",
+                failure_mode="target_lost",
             )
             assert fc.evidence.get("body_condition_failure") is False
             assert "body_sense_snapshot" in fc.evidence
@@ -127,8 +139,11 @@ class TestAutoEngineBodySense:
             engine = AutoEngine(config)
 
             fc = engine.create_failure_case(
-                "evt_sense_003", "task_003", "pick_v1",
-                phase="grasp", failure_mode="missed_grasp",
+                "evt_sense_003",
+                "task_003",
+                "pick_v1",
+                phase="grasp",
+                failure_mode="missed_grasp",
                 evidence={"custom": True},
             )
             assert "body_condition_failure" not in fc.evidence

@@ -1,4 +1,5 @@
 """Tests for DashboardExporter."""
+
 import shutil
 
 from rosclaw.auto.config import AutoConfig
@@ -44,7 +45,9 @@ class TestDashboardExporter:
         exporter = DashboardExporter(engine)
 
         task = engine.create_task("pick_cube", "panda", "pick_v1")
-        engine.promote_champion("pick_v1.5", task.id, "sim", {"success_rate": 0.76}, "pick_v1", "p1", "e1")
+        engine.promote_champion(
+            "pick_v1.5", task.id, "sim", {"success_rate": 0.76}, "pick_v1", "p1", "e1"
+        )
 
         data = exporter.export(task.id)
         assert len(data["champions"]) == 1

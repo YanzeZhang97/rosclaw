@@ -28,10 +28,21 @@ pytestmark = pytest.mark.legacy_rclpy
 # Clean up sys.modules mocks from test_mcp_server.py so real ROS2 imports work.
 # Must run before ANY rosclaw or rclpy imports.
 for _mod in list(sys.modules.keys()):
-    if _mod.startswith(("rclpy.", "rosclaw.", "geometry_msgs", "sensor_msgs",
-                        "std_msgs", "trajectory_msgs", "control_msgs",
-                        "builtin_interfaces", "unique_identifier_msgs",
-                        "action_msgs", "rcl_interfaces")):
+    if _mod.startswith(
+        (
+            "rclpy.",
+            "rosclaw.",
+            "geometry_msgs",
+            "sensor_msgs",
+            "std_msgs",
+            "trajectory_msgs",
+            "control_msgs",
+            "builtin_interfaces",
+            "unique_identifier_msgs",
+            "action_msgs",
+            "rcl_interfaces",
+        )
+    ):
         sys.modules.pop(_mod, None)
 # Also remove top-level rclpy itself
 sys.modules.pop("rclpy", None)

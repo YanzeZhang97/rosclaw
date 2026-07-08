@@ -25,61 +25,79 @@ class TelemetryConfig:
         self._apply_defaults()
 
     def _apply_defaults(self) -> None:
-        self.mode = self._merge(self.mode, {
-            "enabled": True,
-            "product_telemetry": True,
-            "diagnostics_upload": False,
-            "rich_feedback_upload": False,
-        })
-        self.identity = self._merge(self.identity, {
-            "use_anonymous_installation_id": True,
-            "include_hostname": False,
-            "include_username": False,
-            "include_ip_field": False,
-            "include_robot_serial": False,
-            "rotate_installation_id": False,
-        })
-        self.product_telemetry = self._merge(self.product_telemetry, {
-            "enabled": True,
-            "opt_out": True,
-            "heartbeat": True,
-            "heartbeat_interval_hours": 24,
-            "send_on_install": True,
-            "send_on_firstboot": True,
-            "send_on_version_check": True,
-            "send_command_usage": True,
-            "send_module_usage": True,
-            "send_error_summary": True,
-            "send_duration_bucket": True,
-        })
-        self.diagnostics = self._merge(self.diagnostics, {
-            "enabled": False,
-            "require_consent": True,
-            "redact": True,
-            "collect_crash_summary": True,
-            "collect_failure_stats": True,
-            "collect_sandbox_blocks": True,
-            "collect_provider_performance": True,
-            "include_stacktrace": False,
-            "include_logs": False,
-        })
-        self.rich_feedback = self._merge(self.rich_feedback, {
-            "enabled": False,
-            "require_manual_upload": True,
-            "require_redact": True,
-            "raw_prompt_upload": False,
-            "raw_media_upload": False,
-            "raw_mcap_upload": False,
-            "raw_trace_upload": False,
-        })
-        self.upload = self._merge(self.upload, {
-            "endpoint": "https://www.rosclaw.io/api/telemetry/event",
-            "heartbeat_endpoint": "https://www.rosclaw.io/api/telemetry/heartbeat",
-            "timeout_seconds": 3,
-            "max_retries": 1,
-            "fail_silently": True,
-            "max_events_per_batch": 50,
-        })
+        self.mode = self._merge(
+            self.mode,
+            {
+                "enabled": True,
+                "product_telemetry": True,
+                "diagnostics_upload": False,
+                "rich_feedback_upload": False,
+            },
+        )
+        self.identity = self._merge(
+            self.identity,
+            {
+                "use_anonymous_installation_id": True,
+                "include_hostname": False,
+                "include_username": False,
+                "include_ip_field": False,
+                "include_robot_serial": False,
+                "rotate_installation_id": False,
+            },
+        )
+        self.product_telemetry = self._merge(
+            self.product_telemetry,
+            {
+                "enabled": True,
+                "opt_out": True,
+                "heartbeat": True,
+                "heartbeat_interval_hours": 24,
+                "send_on_install": True,
+                "send_on_firstboot": True,
+                "send_on_version_check": True,
+                "send_command_usage": True,
+                "send_module_usage": True,
+                "send_error_summary": True,
+                "send_duration_bucket": True,
+            },
+        )
+        self.diagnostics = self._merge(
+            self.diagnostics,
+            {
+                "enabled": False,
+                "require_consent": True,
+                "redact": True,
+                "collect_crash_summary": True,
+                "collect_failure_stats": True,
+                "collect_sandbox_blocks": True,
+                "collect_provider_performance": True,
+                "include_stacktrace": False,
+                "include_logs": False,
+            },
+        )
+        self.rich_feedback = self._merge(
+            self.rich_feedback,
+            {
+                "enabled": False,
+                "require_manual_upload": True,
+                "require_redact": True,
+                "raw_prompt_upload": False,
+                "raw_media_upload": False,
+                "raw_mcap_upload": False,
+                "raw_trace_upload": False,
+            },
+        )
+        self.upload = self._merge(
+            self.upload,
+            {
+                "endpoint": "https://www.rosclaw.io/api/telemetry/event",
+                "heartbeat_endpoint": "https://www.rosclaw.io/api/telemetry/heartbeat",
+                "timeout_seconds": 3,
+                "max_retries": 1,
+                "fail_silently": True,
+                "max_events_per_batch": 50,
+            },
+        )
 
     @staticmethod
     def _merge(existing: dict[str, Any], defaults: dict[str, Any]) -> dict[str, Any]:
@@ -106,7 +124,9 @@ class TelemetryConfig:
         path = home / "config" / "telemetry.yaml"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
-            yaml.safe_dump(self.to_dict(), default_flow_style=False, sort_keys=False, allow_unicode=True),
+            yaml.safe_dump(
+                self.to_dict(), default_flow_style=False, sort_keys=False, allow_unicode=True
+            ),
             encoding="utf-8",
         )
         return path
@@ -146,83 +166,98 @@ class FeedbackConfig:
         self._apply_defaults()
 
     def _apply_defaults(self) -> None:
-        self.mode = self._merge(self.mode, {
-            "enabled": True,
-            "local_store": True,
-            "upload": False,
-            "redact": True,
-        })
-        self.retention = self._merge(self.retention, {
-            "local_days": 30,
-            "max_local_size_mb": 512,
-            "uploaded_metadata_days": 180,
-            "uploaded_attachments_days": 30,
-        })
-        self.collect = self._merge(self.collect, {
-            "failure_stats": {"enabled": True, "local_only": True},
-            "skill_performance": {"enabled": True, "local_only": True},
-            "crash_reports": {"enabled": True, "local_only": True, "include_stacktrace": False},
-            "human_feedback": {"enabled": True, "local_only": True},
-            "sandbox_blocks": {"enabled": True, "local_only": True},
-            "provider_performance": {"enabled": True, "local_only": True},
-            "prompts": {"enabled": False, "local_only": True},
-            "media": {"enabled": False, "local_only": True},
-            "mcap": {"enabled": False, "local_only": True},
-        })
-        self.redaction = self._merge(self.redaction, {
-            "text": {
+        self.mode = self._merge(
+            self.mode,
+            {
                 "enabled": True,
-                "replace_emails": True,
-                "replace_phone_numbers": True,
-                "replace_ips": True,
-                "replace_urls": True,
-                "replace_file_paths": True,
-                "replace_tokens": True,
-                "replace_usernames": True,
+                "local_store": True,
+                "upload": False,
+                "redact": True,
             },
-            "prompts": {
-                "enabled": True,
-                "mode": "summary_and_hash",
-                "keep_full_prompt": False,
+        )
+        self.retention = self._merge(
+            self.retention,
+            {
+                "local_days": 30,
+                "max_local_size_mb": 512,
+                "uploaded_metadata_days": 180,
+                "uploaded_attachments_days": 30,
             },
-            "media": {
-                "enabled": True,
-                "face_blur": True,
-                "person_blur": True,
-                "qr_blur": True,
-                "screen_blur": True,
-                "downsample_fps": 1,
-                "max_seconds": 15,
+        )
+        self.collect = self._merge(
+            self.collect,
+            {
+                "failure_stats": {"enabled": True, "local_only": True},
+                "skill_performance": {"enabled": True, "local_only": True},
+                "crash_reports": {"enabled": True, "local_only": True, "include_stacktrace": False},
+                "human_feedback": {"enabled": True, "local_only": True},
+                "sandbox_blocks": {"enabled": True, "local_only": True},
+                "provider_performance": {"enabled": True, "local_only": True},
+                "prompts": {"enabled": False, "local_only": True},
+                "media": {"enabled": False, "local_only": True},
+                "mcap": {"enabled": False, "local_only": True},
             },
-            "mcap": {
-                "enabled": True,
-                "allow_topics": [
-                    "/joint_states",
-                    "/imu",
-                    "/odom",
-                    "/sandbox/decision",
-                    "/rosclaw/runtime/event",
-                    "/rosclaw/provider/perf",
-                    "/rosclaw/skill/outcome",
-                ],
-                "deny_topics": [
-                    "/camera",
-                    "/rgb",
-                    "/depth",
-                    "/audio",
-                    "/microphone",
-                    "/pointcloud",
-                ],
+        )
+        self.redaction = self._merge(
+            self.redaction,
+            {
+                "text": {
+                    "enabled": True,
+                    "replace_emails": True,
+                    "replace_phone_numbers": True,
+                    "replace_ips": True,
+                    "replace_urls": True,
+                    "replace_file_paths": True,
+                    "replace_tokens": True,
+                    "replace_usernames": True,
+                },
+                "prompts": {
+                    "enabled": True,
+                    "mode": "summary_and_hash",
+                    "keep_full_prompt": False,
+                },
+                "media": {
+                    "enabled": True,
+                    "face_blur": True,
+                    "person_blur": True,
+                    "qr_blur": True,
+                    "screen_blur": True,
+                    "downsample_fps": 1,
+                    "max_seconds": 15,
+                },
+                "mcap": {
+                    "enabled": True,
+                    "allow_topics": [
+                        "/joint_states",
+                        "/imu",
+                        "/odom",
+                        "/sandbox/decision",
+                        "/rosclaw/runtime/event",
+                        "/rosclaw/provider/perf",
+                        "/rosclaw/skill/outcome",
+                    ],
+                    "deny_topics": [
+                        "/camera",
+                        "/rgb",
+                        "/depth",
+                        "/audio",
+                        "/microphone",
+                        "/pointcloud",
+                    ],
+                },
             },
-        })
-        self.upload = self._merge(self.upload, {
-            "endpoint": "https://www.rosclaw.io/api/feedback/upload",
-            "timeout_seconds": 10,
-            "max_retries": 1,
-            "fail_silently": True,
-            "require_redact": True,
-            "max_bundle_mb": 25,
-        })
+        )
+        self.upload = self._merge(
+            self.upload,
+            {
+                "endpoint": "https://www.rosclaw.io/api/feedback/upload",
+                "timeout_seconds": 10,
+                "max_retries": 1,
+                "fail_silently": True,
+                "require_redact": True,
+                "max_bundle_mb": 25,
+            },
+        )
 
     @staticmethod
     def _merge(existing: dict[str, Any], defaults: dict[str, Any]) -> dict[str, Any]:
@@ -248,7 +283,9 @@ class FeedbackConfig:
         path = home / "config" / "feedback.yaml"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
-            yaml.safe_dump(self.to_dict(), default_flow_style=False, sort_keys=False, allow_unicode=True),
+            yaml.safe_dump(
+                self.to_dict(), default_flow_style=False, sort_keys=False, allow_unicode=True
+            ),
             encoding="utf-8",
         )
         return path

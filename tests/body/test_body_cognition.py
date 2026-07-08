@@ -1,4 +1,5 @@
 """Tests for generic BodyCognition and PromotionGateResult."""
+
 from __future__ import annotations
 
 from rosclaw.body.body_cognition import BodyCognition, PromotionGateResult

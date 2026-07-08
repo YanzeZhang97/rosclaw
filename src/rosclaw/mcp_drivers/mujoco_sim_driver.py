@@ -56,23 +56,24 @@ class MuJoCoSimDriver(BaseDriver):
     def _step(self) -> None:
         if self._model is not None:
             import mujoco
+
             mujoco.mj_step(self._model, self._data)
 
     def get_joint_positions(self) -> list[float]:
         if self._data is not None:
-            qpos = np.array(self._data.qpos)[:self.joint_dof]
+            qpos = np.array(self._data.qpos)[: self.joint_dof]
             return qpos.tolist()
         return [0.0] * self.joint_dof
 
     def get_joint_velocities(self) -> list[float]:
         if self._data is not None:
-            qvel = np.array(self._data.qvel)[:self.joint_dof]
+            qvel = np.array(self._data.qvel)[: self.joint_dof]
             return qvel.tolist()
         return [0.0] * self.joint_dof
 
     def get_joint_torques(self) -> list[float]:
         if self._data is not None:
-            ctrl = np.array(self._data.ctrl)[:self.joint_dof]
+            ctrl = np.array(self._data.ctrl)[: self.joint_dof]
             return ctrl.tolist()
         return [0.0] * self.joint_dof
 
@@ -94,7 +95,7 @@ class MuJoCoSimDriver(BaseDriver):
             steps = 1
         for i in range(steps):
             interp = current + (target - current) * (i / steps)
-            self._data.ctrl[:self.joint_dof] = interp
+            self._data.ctrl[: self.joint_dof] = interp
             self._step()
 
         self._driver_state.joint_positions = self.get_joint_positions()

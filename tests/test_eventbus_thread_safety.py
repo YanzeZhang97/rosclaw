@@ -97,6 +97,7 @@ class TestEventBusThreadSafety:
         async def async_task():
             def handler(event):
                 received.append(event.event_id)
+
             bus.subscribe("async.sync", handler)
             bus.publish(Event(topic="async.sync", payload={}, source="test"))
             await asyncio.sleep(0.01)
@@ -162,6 +163,7 @@ class TestEventBusLockConsistency:
         def make_handler(key):
             def h(event):
                 counts[key] += 1
+
             return h
 
         bus.subscribe("consistency", make_handler("a"))
@@ -189,7 +191,7 @@ class TestEventBusLockConsistency:
         # No RuntimeError from dict mutation during iteration
         # 2 publish threads x 1000 = 2000 total publishes
         assert counts["a"] == 2000  # All publishes hit handler "a"
-        assert counts["b"] <= 200   # "b" may miss some due to unsub windows
+        assert counts["b"] <= 200  # "b" may miss some due to unsub windows
 
     def test_reentrant_subscribe_safe(self):
         """Handler that subscribes another handler must not deadlock."""

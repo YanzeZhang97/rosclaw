@@ -22,8 +22,13 @@ def _make_executor() -> tuple[SkillExecutor, SkillRegistry, list[dict[str, Any]]
     bus = EventBus()
     registry = SkillRegistry(event_bus=bus)
     captured: list[dict[str, Any]] = []
-    bus.subscribe("skill.execution.start", lambda e: captured.append({"topic": e.topic, "payload": e.payload}))
-    bus.subscribe("skill.execution.complete", lambda e: captured.append({"topic": e.topic, "payload": e.payload}))
+    bus.subscribe(
+        "skill.execution.start", lambda e: captured.append({"topic": e.topic, "payload": e.payload})
+    )
+    bus.subscribe(
+        "skill.execution.complete",
+        lambda e: captured.append({"topic": e.topic, "payload": e.payload}),
+    )
     executor = SkillExecutor(event_bus=bus, registry=registry, body_resolver=_NoBodyResolver())
     return executor, registry, captured
 
@@ -100,23 +105,25 @@ def test_builtin_camera_handlers_are_registered(tmp_path) -> None:
     def _fake_call(server_name, tool_name, arguments, home=None, timeout=None):
         return {
             "structuredContent": {
-                "result": json.dumps({
-                    "success": True,
-                    "color": {
-                        "path": str(color_path),
-                        "topic": "/camera/d435i/color/image_raw",
-                        "width": 424,
-                        "height": 240,
-                        "encoding": "rgb8",
-                    },
-                    "depth": {
-                        "path": str(depth_path),
-                        "topic": "/camera/d435i/depth/image_rect_raw",
-                        "width": 424,
-                        "height": 240,
-                        "encoding": "16UC1",
-                    },
-                })
+                "result": json.dumps(
+                    {
+                        "success": True,
+                        "color": {
+                            "path": str(color_path),
+                            "topic": "/camera/d435i/color/image_raw",
+                            "width": 424,
+                            "height": 240,
+                            "encoding": "rgb8",
+                        },
+                        "depth": {
+                            "path": str(depth_path),
+                            "topic": "/camera/d435i/depth/image_rect_raw",
+                            "width": 424,
+                            "height": 240,
+                            "encoding": "16UC1",
+                        },
+                    }
+                )
             }
         }
 
@@ -139,12 +146,14 @@ def test_runtime_handler_failure_is_recorded() -> None:
     def _failing_handler(params: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("boom")
 
-    registry.register(SkillEntry(
-        name="failing_runtime_skill",
-        description="Fails at runtime",
-        skill_type="programmed",
-        handler=None,
-    ))
+    registry.register(
+        SkillEntry(
+            name="failing_runtime_skill",
+            description="Fails at runtime",
+            skill_type="programmed",
+            handler=None,
+        )
+    )
 
     result = executor.execute("failing_runtime_skill")
     assert result["status"] == "error"

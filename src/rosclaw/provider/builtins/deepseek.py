@@ -105,12 +105,14 @@ class DeepSeekProvider(Provider):
 
         start = time.time()
 
-        payload = json.dumps({
-            "model": self._model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 1024,
-            "temperature": 0.3,
-        }).encode()
+        payload = json.dumps(
+            {
+                "model": self._model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 1024,
+                "temperature": 0.3,
+            }
+        ).encode()
 
         req = urllib.request.Request(
             f"{self._base_url}/chat/completions",

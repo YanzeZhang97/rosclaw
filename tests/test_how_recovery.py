@@ -1,6 +1,5 @@
 """Tests for how.recovery — RecoveryEngine."""
 
-
 import time
 
 import pytest
@@ -127,7 +126,9 @@ class TestGenerateRecoveryHint:
 
     @pytest.mark.asyncio
     async def test_sources_included(self, engine_with_rules):
-        result = await engine_with_rules.generate_recovery_hint("collision detected", sources=["sandbox"])
+        result = await engine_with_rules.generate_recovery_hint(
+            "collision detected", sources=["sandbox"]
+        )
         assert "sandbox" in result["source"]
 
     @pytest.mark.asyncio
@@ -270,7 +271,9 @@ class TestRecoveryFormatter:
 
 class TestFormatRecoverySuggestion:
     def test_with_recovery(self):
-        result = format_recovery_suggestion({"action": "retry with lower speed", "source": "heuristic"})
+        result = format_recovery_suggestion(
+            {"action": "retry with lower speed", "source": "heuristic"}
+        )
         assert "retry with lower speed" in result
         assert "heuristic" in result
 
@@ -288,36 +291,48 @@ class TestRecoveryEngineEventHandlers:
         bus = FakeEventBus()
         eng = RecoveryEngine(None, event_bus=bus)
         from rosclaw.core.event_bus import Event
-        eng._handle_failure_event(Event(topic="test", payload={"failure_type": "x"}, source="test"), "sandbox")
+
+        eng._handle_failure_event(
+            Event(topic="test", payload={"failure_type": "x"}, source="test"), "sandbox"
+        )
         assert len(bus.events) == 0
 
     def test_handle_failure_event_no_failure_type(self):
         bus = FakeEventBus()
         eng = RecoveryEngine(FakeHeuristic(), event_bus=bus)
         from rosclaw.core.event_bus import Event
+
         eng._handle_failure_event(Event(topic="test", payload={}, source="test"), "sandbox")
         assert len(bus.events) == 0
 
     def test_handle_failure_event_extracts_from_error_log(self):
         bus = FakeEventBus()
-        eng = RecoveryEngine(FakeHeuristic([
-            {"condition": "collision", "action": "clear", "rule_id": "r1"}
-        ]), event_bus=bus)
+        eng = RecoveryEngine(
+            FakeHeuristic([{"condition": "collision", "action": "clear", "rule_id": "r1"}]),
+            event_bus=bus,
+        )
         from rosclaw.core.event_bus import Event
+
         eng._handle_failure_event(
             Event(topic="test", payload={"error_log": "collision detected"}, source="test"),
-            "sandbox"
+            "sandbox",
         )
         assert len(bus.events) >= 1
 
     def test_handle_failure_event_extracts_from_violations(self):
         bus = FakeEventBus()
-        eng = RecoveryEngine(FakeHeuristic([
-            {"condition": "limit", "action": "retract", "rule_id": "r1"}
-        ]), event_bus=bus)
+        eng = RecoveryEngine(
+            FakeHeuristic([{"condition": "limit", "action": "retract", "rule_id": "r1"}]),
+            event_bus=bus,
+        )
         from rosclaw.core.event_bus import Event
+
         eng._handle_failure_event(
-            Event(topic="test", payload={"violations": [{"description": "joint limit"}]}, source="test"),
-            "sandbox"
+            Event(
+                topic="test",
+                payload={"violations": [{"description": "joint limit"}]},
+                source="test",
+            ),
+            "sandbox",
         )
         assert len(bus.events) >= 1

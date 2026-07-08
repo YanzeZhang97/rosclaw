@@ -12,7 +12,9 @@ from pathlib import Path
 
 import pytest
 
-ROS_CONNECTOR_ROOT = Path(__file__).parent.parent.parent.parent / "src" / "rosclaw" / "connectors" / "ros"
+ROS_CONNECTOR_ROOT = (
+    Path(__file__).parent.parent.parent.parent / "src" / "rosclaw" / "connectors" / "ros"
+)
 
 # ROS client libraries that must never be imported in the core connector.
 _FORBIDDEN_IMPORTS = {
@@ -45,7 +47,9 @@ def _extract_imports(source: str):
     return imports
 
 
-@pytest.mark.parametrize("path", list(_iter_python_files()), ids=lambda p: str(p.relative_to(ROS_CONNECTOR_ROOT)))
+@pytest.mark.parametrize(
+    "path", list(_iter_python_files()), ids=lambda p: str(p.relative_to(ROS_CONNECTOR_ROOT))
+)
 def test_ros_connector_file_does_not_import_ros_python_libraries(path: Path):
     source = path.read_text(encoding="utf-8")
     imports = _extract_imports(source)

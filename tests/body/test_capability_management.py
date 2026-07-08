@@ -22,11 +22,19 @@ def _capability_events(resolver: BodyResolver):
 
 
 def test_disable_capability_updates_body_yaml_and_logs_event(linked_body):
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "capability", "disable",
-        "walk",
-        "--reason", "Knee actuator overheating",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "capability",
+            "disable",
+            "walk",
+            "--reason",
+            "Knee actuator overheating",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     resolver = BodyResolver()
@@ -39,12 +47,21 @@ def test_disable_capability_updates_body_yaml_and_logs_event(linked_body):
 
 
 def test_degrade_capability_updates_body_yaml_and_logs_event(linked_body):
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "capability", "degrade",
-        "walk",
-        "--mode", "slow",
-        "--reason", "Reduced torque mode",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "capability",
+            "degrade",
+            "walk",
+            "--mode",
+            "slow",
+            "--reason",
+            "Reduced torque mode",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     resolver = BodyResolver()
@@ -58,18 +75,34 @@ def test_degrade_capability_updates_body_yaml_and_logs_event(linked_body):
 def test_enable_capability_restores_after_validation(linked_body):
     resolver = BodyResolver()
 
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "capability", "disable",
-        "walk",
-        "--reason", "Knee actuator overheating",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "capability",
+            "disable",
+            "walk",
+            "--reason",
+            "Knee actuator overheating",
+        ],
+    ):
         assert rosclaw_main() == 0
 
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "capability", "enable",
-        "walk",
-        "--after-validation", "run-42",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "capability",
+            "enable",
+            "walk",
+            "--after-validation",
+            "run-42",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     body_yaml = resolver.get_current_body_yaml()

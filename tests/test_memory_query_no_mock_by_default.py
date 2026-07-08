@@ -15,9 +15,7 @@ class TestMemoryQueryNoMockByDefault:
         """Without --demo, an empty memory must not fall back to artifact mock data."""
         # Isolate the persistent memory DB and artifact fallback directories.
         monkeypatch.setattr("rosclaw.cli._memory_db_path", lambda: tmp_path / "seekdb.sqlite")
-        monkeypatch.setattr(
-            "rosclaw.cli._practice_artifacts_dir", lambda: tmp_path / "practice"
-        )
+        monkeypatch.setattr("rosclaw.cli._practice_artifacts_dir", lambda: tmp_path / "practice")
 
         args = SimpleNamespace(query="RealSense D405 RGB-D capture", limit=5, demo=False)
         assert cmd_memory_query(args) == 0
@@ -52,7 +50,6 @@ class TestMemoryQueryNoMockByDefault:
     def test_query_demo_flag_is_available_on_parser(self):
         """The CLI parser must accept --demo on memory query."""
         import argparse
-
 
         # main() is not idempotent to re-parse; instead inspect the parser tree.
         parser = argparse.ArgumentParser()

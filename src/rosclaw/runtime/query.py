@@ -43,13 +43,9 @@ class RuntimeQueryAPI:
         events = self.bus.replay(event_type=event_type, start=timestamp, limit=1000)
         return list(reversed(events))
 
-    def trace(
-        self, trace_id: str, event_type: str | None = None
-    ) -> list[RuntimeEvent]:
+    def trace(self, trace_id: str, event_type: str | None = None) -> list[RuntimeEvent]:
         """Return all events belonging to ``trace_id`` (optionally filtered)."""
-        events = self.bus.replay(
-            trace_id=trace_id, event_type=event_type, limit=10000
-        )
+        events = self.bus.replay(trace_id=trace_id, event_type=event_type, limit=10000)
         return list(reversed(events))
 
     def latest_payload(self, event_type: str) -> dict[str, Any] | None:

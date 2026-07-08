@@ -56,9 +56,7 @@ def serve(
     _setup_logging(log_level)
 
     root = Path(project_root) if project_root else Path.cwd()
-    project_profile = build_project_profile(
-        project_root=root, profile=profile, robot=robot_id
-    )
+    project_profile = build_project_profile(project_root=root, profile=profile, robot=robot_id)
 
     client = RuntimeClient(
         project_root=root,

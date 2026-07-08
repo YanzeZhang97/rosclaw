@@ -46,7 +46,16 @@ class BodyMcpTools:
     @staticmethod
     def _is_high_risk(capability_id: str, body: EffectiveBody) -> bool:
         """Conservative heuristic: consider locomotion/manipulation high risk."""
-        high_risk_keywords = {"walk", "run", "locomotion", "grasp", "pick", "place", "manipulate", "arm"}
+        high_risk_keywords = {
+            "walk",
+            "run",
+            "locomotion",
+            "grasp",
+            "pick",
+            "place",
+            "manipulate",
+            "arm",
+        }
         return any(kw in capability_id.lower() for kw in high_risk_keywords)
 
     # ------------------------------------------------------------------
@@ -72,18 +81,13 @@ class BodyMcpTools:
                 for part in body_yaml.body_structure.get("body_parts", [])
             ]
 
-        sensors = [
-            {"id": name, **sensor}
-            for name, sensor in sorted(body.sensors.items())
-        ]
-        actuators = [
-            {"id": name, **actuator}
-            for name, actuator in sorted(body.actuators.items())
-        ]
+        sensors = [{"id": name, **sensor} for name, sensor in sorted(body.sensors.items())]
+        actuators = [{"id": name, **actuator} for name, actuator in sorted(body.actuators.items())]
 
         return {
             "body_instance_id": body.body_instance_id,
-            "robot_model": identity.get("robot_model") or body_yaml.body_instance.get("robot_model", "unknown"),
+            "robot_model": identity.get("robot_model")
+            or body_yaml.body_instance.get("robot_model", "unknown"),
             "robot_vendor": identity.get("robot_vendor", "unknown"),
             "eurdf_uri": body.eurdf_uri,
             "effective_body_hash": body.effective_body_hash,
@@ -158,7 +162,16 @@ class BodyMcpTools:
         q = question.lower()
         forbidden = self._forbidden_ids(body)
 
-        if "bypass" in q or "skip" in q or any(cap in forbidden for cap in result.evidence.get("capabilities", {}).get("enabled", [])) or "no" in result.answer.lower() and "sandbox" in q:
+        if (
+            "bypass" in q
+            or "skip" in q
+            or any(
+                cap in forbidden
+                for cap in result.evidence.get("capabilities", {}).get("enabled", [])
+            )
+            or "no" in result.answer.lower()
+            and "sandbox" in q
+        ):
             decision = "blocked"
         elif "yes" in result.answer.lower() and not forbidden:
             decision = "allowed_to_propose"
@@ -170,10 +183,7 @@ class BodyMcpTools:
         return {
             "answer": result.answer,
             "decision": decision,
-            "evidence": [
-                {"key": key, "value": value}
-                for key, value in result.evidence.items()
-            ],
+            "evidence": [{"key": key, "value": value} for key, value in result.evidence.items()],
             "next_steps": result.actionable_policy
             or [
                 "Verify capability through 'rosclaw body state --json'.",
@@ -209,7 +219,8 @@ class BodyMcpTools:
         skill_check = "unknown"
         manifests = discover_skill_manifests(self.resolver.workspace)
         matching = [
-            m for m in manifests
+            m
+            for m in manifests
             if m.skill_id == capability_id or capability_id in m.requirement_ids()
         ]
         if matching:
@@ -225,7 +236,9 @@ class BodyMcpTools:
             reasons.append(f"Capability '{capability_id}' is disabled on this body.")
         elif capability_id in caps.get("degraded", []):
             skill_check = "degraded"
-            reasons.append(f"Capability '{capability_id}' is degraded; use conservative constraints.")
+            reasons.append(
+                f"Capability '{capability_id}' is degraded; use conservative constraints."
+            )
         elif capability_id in caps.get("enabled", []):
             if skill_check == "unknown":
                 skill_check = "compatible"

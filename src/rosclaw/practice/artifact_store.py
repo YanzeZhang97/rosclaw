@@ -131,12 +131,9 @@ class ArtifactStore:
         metadata: dict[str, Any] | None = None,
     ) -> ArtifactRecord:
         """Write a list of records as JSONL and register the artifact."""
-        path = self._artifact_path(
-            artifact_id, artifact_type, ".jsonl", session_id, episode_id
-        )
+        path = self._artifact_path(artifact_id, artifact_type, ".jsonl", session_id, episode_id)
         data = "".join(
-            json.dumps(record, ensure_ascii=False, default=str) + "\n"
-            for record in records
+            json.dumps(record, ensure_ascii=False, default=str) + "\n" for record in records
         ).encode("utf-8")
         return self._write_and_register(
             path, artifact_id, artifact_type, data, session_id, episode_id, metadata
@@ -153,9 +150,7 @@ class ArtifactStore:
         metadata: dict[str, Any] | None = None,
     ) -> ArtifactRecord:
         """Write a YAML snapshot and register the artifact."""
-        path = self._artifact_path(
-            artifact_id, artifact_type, ".yaml", session_id, episode_id
-        )
+        path = self._artifact_path(artifact_id, artifact_type, ".yaml", session_id, episode_id)
         payload = yaml.safe_dump(data, sort_keys=False, allow_unicode=True).encode("utf-8")
         return self._write_and_register(
             path, artifact_id, artifact_type, payload, session_id, episode_id, metadata
@@ -183,18 +178,14 @@ class ArtifactStore:
                 "Parquet support requires pyarrow. Install with: pip install pyarrow"
             ) from e
 
-        path = self._artifact_path(
-            artifact_id, artifact_type, ".parquet", session_id, episode_id
-        )
+        path = self._artifact_path(artifact_id, artifact_type, ".parquet", session_id, episode_id)
 
         if isinstance(table_or_records, pa.Table):
             table = table_or_records
         elif isinstance(table_or_records, list):
             table = self._records_to_table(table_or_records)
         else:
-            raise TypeError(
-                f"Expected pyarrow.Table or list[dict], got {type(table_or_records)}"
-            )
+            raise TypeError(f"Expected pyarrow.Table or list[dict], got {type(table_or_records)}")
 
         buf = io.BytesIO()
         pq.write_table(table, buf)
@@ -230,8 +221,14 @@ class ArtifactStore:
             return existing
         self._atomic_write(path, data)
         return self._register(
-            path, artifact_id, artifact_type, session_id, episode_id, metadata,
-            sha256=sha256, size_bytes=len(data),
+            path,
+            artifact_id,
+            artifact_type,
+            session_id,
+            episode_id,
+            metadata,
+            sha256=sha256,
+            size_bytes=len(data),
         )
 
     @staticmethod
@@ -393,7 +390,7 @@ class ArtifactStore:
         normalized: list[dict[str, Any]] = []
         keys: set[str] = set()
         for record in records:
-            row = {}
+            row: dict[str, Any] = {}
             for k, v in record.items():
                 keys.add(k)
                 if isinstance(v, (dict, list)):
@@ -424,5 +421,8 @@ class ArtifactStore:
             return False, f"artifact file missing: {path}"
         actual_sha256 = self._compute_sha256(path)
         if actual_sha256 != record.sha256:
-            return False, f"sha256 mismatch: expected {record.sha256[:16]}..., got {actual_sha256[:16]}..."
+            return (
+                False,
+                f"sha256 mismatch: expected {record.sha256[:16]}..., got {actual_sha256[:16]}...",
+            )
         return True, "ok"

@@ -46,7 +46,9 @@ class BodyResolver:
         """Resolve body_id and body_dir from registry, legacy layout, or defaults."""
         registry = self.registry_manager.load()
         has_registry = self.registry_manager.registry_path.exists()
-        has_legacy = (self.workspace / "body").exists() and (self.workspace / "body" / "body.yaml").exists()
+        has_legacy = (self.workspace / "body").exists() and (
+            self.workspace / "body" / "body.yaml"
+        ).exists()
 
         if body_id:
             normalized = body_id.strip().lower()
@@ -57,7 +59,9 @@ class BodyResolver:
                     body_yaml_path = self.workspace / "body" / "body.yaml"
                     try:
                         body_data = yaml.safe_load(body_yaml_path.read_text(encoding="utf-8"))
-                        legacy_id = (body_data.get("body_instance", {}).get("id") or "").strip().lower()
+                        legacy_id = (
+                            (body_data.get("body_instance", {}).get("id") or "").strip().lower()
+                        )
                         if legacy_id == normalized:
                             return body_id, self.workspace / "body", True
                     except Exception:
@@ -247,6 +251,7 @@ class BodyResolver:
     ) -> Any:
         """Check a single skill against the current effective body."""
         from rosclaw.body.compatibility import SkillCompatibilityChecker
+
         body = self.get_effective_body()
         manifest: SkillManifest | None
         if skill_manifest_path:
@@ -255,6 +260,7 @@ class BodyResolver:
             manifest = self._load_skill_manifest(skill_id, skill_version)
         if manifest is None:
             from rosclaw.body.schema import SkillCompatibilityResult
+
             return SkillCompatibilityResult(
                 skill_id=skill_id,
                 skill_version=skill_version or "1.0.0",
@@ -263,7 +269,9 @@ class BodyResolver:
             )
         return SkillCompatibilityChecker().check_one(manifest, body)
 
-    def _load_skill_manifest(self, skill_id: str, skill_version: str | None = None) -> SkillManifest | None:
+    def _load_skill_manifest(
+        self, skill_id: str, skill_version: str | None = None
+    ) -> SkillManifest | None:
         """Locate skill manifest in workspace skills/ or builtin paths."""
         candidates = [
             self.workspace / "skills" / f"{skill_id}.skill.yaml",
@@ -349,13 +357,16 @@ class BodyResolver:
             item.get("id", item.get("capability", "unknown"))
             for item in (effective.forbidden_capabilities or body.forbidden_capabilities or [])
         ]
-        open_faults = [f.get("id", "unknown") for f in effective.known_faults if f.get("status") == "open"]
+        open_faults = [
+            f.get("id", "unknown") for f in effective.known_faults if f.get("status") == "open"
+        ]
 
         body_summary = {
             "schema": "rosclaw.generated.body_summary.v1",
             "generated_at": _utc_now(),
             "robot_instance_id": effective.body_instance_id,
-            "robot_model": identity.get("robot_model") or body.body_instance.get("robot_model", "unknown"),
+            "robot_model": identity.get("robot_model")
+            or body.body_instance.get("robot_model", "unknown"),
             "eurdf_profile": body.model_ref.get("profile_id", "unknown"),
             "safety_status": body.get_safety_status(),
             "calibration_status": calibration.overall_status(),
@@ -390,8 +401,12 @@ class BodyResolver:
             "schema": "rosclaw.generated.safety_summary.v1",
             "generated_at": _utc_now(),
             "safety_status": body.get_safety_status(),
-            "global_limits": effective.safety.get("safety_limits") or effective.safety.get("global_limits") or {},
-            "workspace_limits": effective.safety.get("workspace_boundaries") or effective.safety.get("workspace_limits") or [],
+            "global_limits": effective.safety.get("safety_limits")
+            or effective.safety.get("global_limits")
+            or {},
+            "workspace_limits": effective.safety.get("workspace_boundaries")
+            or effective.safety.get("workspace_limits")
+            or [],
             "contact_limits": effective.safety.get("contact_limits") or [],
             "open_faults": open_faults,
             "calibration_status": calibration.overall_status(),
@@ -430,6 +445,7 @@ class BodyResolver:
 
     def create_snapshot(self, effective: EffectiveBody) -> Path:
         from datetime import datetime
+
         ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S.%f")
         snap_path = self.snapshots_dir / f"body-{ts}.yaml"
         fingerprint_path = self.snapshots_dir / f"body-{ts}.fingerprint"
@@ -445,4 +461,5 @@ class BodyNotLinkedError(RuntimeError):
 
 def _utc_now() -> str:
     from datetime import datetime
+
     return datetime.now(UTC).isoformat()

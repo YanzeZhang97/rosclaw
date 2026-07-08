@@ -90,9 +90,13 @@ class RuntimeClient:
         self._adapter_cache = {
             "_runtime": rt,
             "memory": MemoryClient(rt.memory) if rt.memory is not None else None,
-            "practice": PracticeClient(rt.episode_recorder) if rt.episode_recorder is not None else None,
+            "practice": PracticeClient(rt.episode_recorder)
+            if rt.episode_recorder is not None
+            else None,
             "sandbox": SandboxClient(rt.sandbox) if rt.sandbox is not None else None,
-            "skill": SkillRegistryClient(rt.skill_manager) if rt.skill_manager is not None else None,
+            "skill": SkillRegistryClient(rt.skill_manager)
+            if rt.skill_manager is not None
+            else None,
             "safety": SafetyClient(rt),
         }
         return self._adapter_cache
@@ -151,7 +155,9 @@ class RuntimeClient:
             logger.debug("get_robot_state failed: %s", exc)
             return self._fixture_state()
 
-    async def list_skills(self, *, skill_type: str | None = None, full_ids: bool = False) -> dict[str, Any]:
+    async def list_skills(
+        self, *, skill_type: str | None = None, full_ids: bool = False
+    ) -> dict[str, Any]:
         adapter = self._adapters().get("skill")
         if adapter is None:
             return {"skills": [], "count": 0, "mode": "fixture"}
@@ -323,9 +329,7 @@ class RuntimeClient:
             return {
                 "mode": "live",
                 "body_id": body_id,
-                "snapshots": [
-                    {"path": str(p), "name": p.name} for p in snapshots
-                ],
+                "snapshots": [{"path": str(p), "name": p.name} for p in snapshots],
             }
         except Exception as exc:  # noqa: BLE001
             logger.debug("list_body_history failed: %s", exc)
@@ -406,7 +410,11 @@ class RuntimeClient:
             return {"mode": "live", "result": tools.query_body(question)}
         except Exception as exc:  # noqa: BLE001
             logger.debug("query_body failed: %s", exc)
-            return {"mode": "fixture", "result": {"answer": str(exc), "decision": "unknown"}, "error": str(exc)}
+            return {
+                "mode": "fixture",
+                "result": {"answer": str(exc), "decision": "unknown"},
+                "error": str(exc),
+            }
 
     async def validate_body_action(
         self,
@@ -420,10 +428,22 @@ class RuntimeClient:
             from rosclaw.body.mcp_tools import BodyMcpTools
 
             tools = BodyMcpTools(workspace=self._body_workspace())
-            return {"mode": "live", "validation": tools.validate_body_action(action, capability_id, risk=risk)}
+            return {
+                "mode": "live",
+                "validation": tools.validate_body_action(action, capability_id, risk=risk),
+            }
         except Exception as exc:  # noqa: BLE001
             logger.debug("validate_body_action failed: %s", exc)
-            return {"mode": "fixture", "validation": {"body_check": "unknown", "allowed_to_propose": False, "allowed_to_execute_real_robot": False, "reasons": [str(exc)]}, "error": str(exc)}
+            return {
+                "mode": "fixture",
+                "validation": {
+                    "body_check": "unknown",
+                    "allowed_to_propose": False,
+                    "allowed_to_execute_real_robot": False,
+                    "reasons": [str(exc)],
+                },
+                "error": str(exc),
+            }
 
     async def get_calibration_status(self, *, component: str | None = None) -> dict[str, Any]:
         """Return calibration status for the body or a component."""
@@ -431,10 +451,22 @@ class RuntimeClient:
             from rosclaw.body.mcp_tools import BodyMcpTools
 
             tools = BodyMcpTools(workspace=self._body_workspace())
-            return {"mode": "live", "calibration": tools.get_calibration_status(component=component)}
+            return {
+                "mode": "live",
+                "calibration": tools.get_calibration_status(component=component),
+            }
         except Exception as exc:  # noqa: BLE001
             logger.debug("get_calibration_status failed: %s", exc)
-            return {"mode": "fixture", "calibration": {"component": component or "*", "status": "unknown", "confidence": 0.0, "blocks": [str(exc)]}, "error": str(exc)}
+            return {
+                "mode": "fixture",
+                "calibration": {
+                    "component": component or "*",
+                    "status": "unknown",
+                    "confidence": 0.0,
+                    "blocks": [str(exc)],
+                },
+                "error": str(exc),
+            }
 
     # ------------------------------------------------------------------
     # S4 emergency tool

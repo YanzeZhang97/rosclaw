@@ -62,7 +62,9 @@ def realsense_stack(monkeypatch):
         return result
 
     monkeypatch.setattr(subprocess, "run", _run)
-    monkeypatch.setattr("rosclaw.mcp.onboarding.installed.InstalledRegistry", _FakeInstalledRegistry)
+    monkeypatch.setattr(
+        "rosclaw.mcp.onboarding.installed.InstalledRegistry", _FakeInstalledRegistry
+    )
     monkeypatch.setattr("rosclaw.runtime.RobotRegistry", _FakeRobotRegistry)
 
 

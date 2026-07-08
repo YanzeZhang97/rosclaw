@@ -9,7 +9,9 @@ from typing import Any
 logger = logging.getLogger("rosclaw.dashboard.launcher")
 
 
-def serve_dashboard(host: str = "0.0.0.0", port: int = 8765, workspace: str | Path | None = None) -> None:
+def serve_dashboard(
+    host: str = "0.0.0.0", port: int = 8765, workspace: str | Path | None = None
+) -> None:
     """Serve the ROSClaw dashboard.
 
     If ``rosclaw_dashboard`` (the full Next.js + FastAPI package) is installed,

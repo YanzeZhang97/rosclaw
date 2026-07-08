@@ -24,11 +24,13 @@ class TestEventBusStress:
         count = 10000
         start = time.perf_counter()
         for i in range(count):
-            bus.publish(Event(
-                topic="stress.test",
-                payload={"index": i},
-                source="stress",
-            ))
+            bus.publish(
+                Event(
+                    topic="stress.test",
+                    payload={"index": i},
+                    source="stress",
+                )
+            )
         elapsed = time.perf_counter() - start
 
         assert len(received) == count, f"Expected {count}, got {len(received)}"
@@ -50,11 +52,13 @@ class TestEventBusStress:
         count = 5000
         start = time.perf_counter()
         for i in range(count):
-            bus.publish(Event(
-                topic="stress.async",
-                payload={"index": i},
-                source="stress",
-            ))
+            bus.publish(
+                Event(
+                    topic="stress.async",
+                    payload={"index": i},
+                    source="stress",
+                )
+            )
         # Wait for async processing
         await asyncio.sleep(1.0)
         elapsed = time.perf_counter() - start
@@ -71,6 +75,7 @@ class TestEventBusStress:
         def make_handler(idx):
             def handler(event):
                 counts[idx] += 1
+
             return handler
 
         for i in range(3):
@@ -103,7 +108,9 @@ class TestEventBusStress:
             bus.publish(Event(topic=topic, payload={}, source="stress"))
 
         # 3/4 topics match wildcard, 1000 total = ~750 matches
-        expected = sum(1 for i in range(1000) if topics[i % len(topics)].startswith("rosclaw.sandbox."))
+        expected = sum(
+            1 for i in range(1000) if topics[i % len(topics)].startswith("rosclaw.sandbox.")
+        )
         assert len(received) == expected, f"Expected {expected}, got {len(received)}"
 
     def test_history_limit(self):
@@ -126,11 +133,13 @@ class TestEventBusStress:
         bus.subscribe("trace.test", lambda e: received.append(e.trace_id))
 
         for i in range(100):
-            bus.publish(Event(
-                topic="trace.test",
-                payload={"request_id": f"req_{i}"},
-                source="stress",
-            ))
+            bus.publish(
+                Event(
+                    topic="trace.test",
+                    payload={"request_id": f"req_{i}"},
+                    source="stress",
+                )
+            )
 
         assert len(received) == 100
         assert all(t.startswith("req_") for t in received)
@@ -164,7 +173,13 @@ class TestEventBusStress:
         bus.subscribe("prio.test", lambda e: order.append(e.priority.name))
 
         # Publish in reverse priority order
-        for p in [EventPriority.BACKGROUND, EventPriority.LOW, EventPriority.NORMAL, EventPriority.HIGH, EventPriority.CRITICAL]:
+        for p in [
+            EventPriority.BACKGROUND,
+            EventPriority.LOW,
+            EventPriority.NORMAL,
+            EventPriority.HIGH,
+            EventPriority.CRITICAL,
+        ]:
             bus.publish(Event(topic="prio.test", payload={}, priority=p, source="stress"))
 
         # All should be received, order depends on processing sequence

@@ -42,7 +42,10 @@ def cmd_agent_doctor_claude_code(args: argparse.Namespace) -> int:
         "CLAUDE.md": profile.project_root / "CLAUDE.md",
         "ROSCLAW.md": profile.project_root / "ROSCLAW.md",
         ".claude/settings.json": profile.project_root / ".claude" / "settings.json",
-        "context.snapshot.json": profile.project_root / ".rosclaw" / "agent" / "context.snapshot.json",
+        "context.snapshot.json": profile.project_root
+        / ".rosclaw"
+        / "agent"
+        / "context.snapshot.json",
     }
 
     validation = validate_project(

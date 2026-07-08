@@ -47,6 +47,7 @@ class SkillExecutor(LifecycleMixin):
         if sense_interface is not None:
             try:
                 from rosclaw.sense.adapters.skill_requirements import SkillRequirementsAdapter
+
                 self._skill_requirements_adapter = SkillRequirementsAdapter(sense_interface)
             except Exception:
                 logger.warning("Failed to initialize SkillRequirementsAdapter", exc_info=True)
@@ -125,7 +126,11 @@ class SkillExecutor(LifecycleMixin):
                 "reason": "blocked_by_body_sense",
                 "message": sense_check["reason"],
                 "failed_requirements": sense_check.get("failed_requirements", []),
-                **({"body_sense_check": bsc} if (bsc := sense_check.get("body_sense_check")) else {}),
+                **(
+                    {"body_sense_check": bsc}
+                    if (bsc := sense_check.get("body_sense_check"))
+                    else {}
+                ),
             }
 
         self._current_skill = skill_name
@@ -159,8 +164,14 @@ class SkillExecutor(LifecycleMixin):
             try:
                 handler_result = handler(params)
                 result["handler_result"] = handler_result
-                handler_status = handler_result.get("status") if isinstance(handler_result, dict) else None
-                result["status"] = handler_status if handler_status in ("success", "error", "blocked", "degraded") else "success"
+                handler_status = (
+                    handler_result.get("status") if isinstance(handler_result, dict) else None
+                )
+                result["status"] = (
+                    handler_status
+                    if handler_status in ("success", "error", "blocked", "degraded")
+                    else "success"
+                )
                 self.registry.update_stats(skill_name, success=(result["status"] == "success"))
             except Exception as e:
                 result["status"] = "error"
@@ -304,17 +315,24 @@ class SkillExecutor(LifecycleMixin):
         }
         return self._enrich_with_body_sense_check(skill, result)
 
-    def _enrich_with_body_sense_check(self, skill: SkillEntry, result: dict[str, Any]) -> dict[str, Any]:
+    def _enrich_with_body_sense_check(
+        self, skill: SkillEntry, result: dict[str, Any]
+    ) -> dict[str, Any]:
         """Attach a lightweight body-sense readiness check for observability."""
         if self._skill_requirements_adapter is None:
             return result
         try:
-            return self._skill_requirements_adapter.apply({
-                "task": skill.name,
-                **result,
-            })
+            return self._skill_requirements_adapter.apply(
+                {
+                    "task": skill.name,
+                    **result,
+                }
+            )
         except Exception:
-            logger.warning("SkillRequirementsAdapter failed; returning body-sense result unchanged", exc_info=True)
+            logger.warning(
+                "SkillRequirementsAdapter failed; returning body-sense result unchanged",
+                exc_info=True,
+            )
             return result
 
     def _check_preconditions(self, skill: SkillEntry) -> dict[str, Any]:

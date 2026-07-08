@@ -46,11 +46,19 @@ def test_full_p0_workflow(linked_body_with_skills, capsys):
     assert "unitree-g1" in out
 
     # 2. update-state: mark head camera unavailable
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "installed_components.sensors.head_rgb_camera.status=unavailable",
-        "--reason", "test camera disconnected",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "update-state",
+            "--set",
+            "installed_components.sensors.head_rgb_camera.status=unavailable",
+            "--reason",
+            "test camera disconnected",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     # 3. diff
@@ -60,13 +68,22 @@ def test_full_p0_workflow(linked_body_with_skills, capsys):
     assert "head_rgb_camera" in out or "camera" in out.lower() or "capability" in out.lower()
 
     # 4. note: right arm incident
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "note",
-        "--type", "incident",
-        "--severity", "warning",
-        "--affects", "right_arm,dual_arm_manipulation",
-        "Right arm overheated during test.",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "note",
+            "--type",
+            "incident",
+            "--severity",
+            "warning",
+            "--affects",
+            "right_arm,dual_arm_manipulation",
+            "Right arm overheated during test.",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     # 5. Verify effective body recompiled and hash changed.
@@ -97,11 +114,19 @@ def test_full_p0_workflow(linked_body_with_skills, capsys):
 
 def test_skill_check_single_skill(linked_body_with_skills, capsys):
     """rosclaw skill check <skill_id> reports status for one skill."""
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "installed_components.sensors.head_rgb_camera.status=unavailable",
-        "--reason", "test",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "update-state",
+            "--set",
+            "installed_components.sensors.head_rgb_camera.status=unavailable",
+            "--reason",
+            "test",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     with patch.object(sys, "argv", ["rosclaw", "skill", "check", "camera_nav"]):
@@ -151,27 +176,45 @@ def test_body_update_state_and_note_write_memory_events(linked_body_with_skills,
     resolver = BodyResolver()
     robot_id = resolver.get_current_body_yaml().body_instance.get("id") or resolver.body_id
 
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "installed_components.sensors.head_rgb_camera.status=unavailable",
-        "--reason", "test camera disconnected",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "update-state",
+            "--set",
+            "installed_components.sensors.head_rgb_camera.status=unavailable",
+            "--reason",
+            "test camera disconnected",
+        ],
+    ):
         assert rosclaw_main() == 0
 
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "note",
-        "--type", "incident",
-        "--severity", "warning",
-        "--affects", "right_arm,dual_arm_manipulation",
-        "Right arm overheated during test.",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "note",
+            "--type",
+            "incident",
+            "--severity",
+            "warning",
+            "--affects",
+            "right_arm,dual_arm_manipulation",
+            "Right arm overheated during test.",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     body_changes = shared_client.query(
         "experience_graph", filters={"event_type": "body_change", "robot_id": robot_id}
     )
     skill_changes = shared_client.query(
-        "experience_graph", filters={"event_type": "skill_compatibility_change", "robot_id": robot_id}
+        "experience_graph",
+        filters={"event_type": "skill_compatibility_change", "robot_id": robot_id},
     )
     assert len(body_changes) == 2
     assert len(skill_changes) == 2
@@ -185,7 +228,13 @@ def test_body_update_state_and_note_write_memory_events(linked_body_with_skills,
 
     memory = MemoryInterface(robot_id=robot_id, seekdb_client=shared_client)
     by_type = memory.seekdb_client.query(
-        "experience_graph", filters={"event_type": "skill_compatibility_change", "robot_id": robot_id}
+        "experience_graph",
+        filters={"event_type": "skill_compatibility_change", "robot_id": robot_id},
     )
-    assert any("camera_nav@1.0.0" in (rec.get("metadata", {}).get("skills", {}) or {}) for rec in by_type)
-    assert any("dual_arm_lift@1.0.0" in (rec.get("metadata", {}).get("skills", {}) or {}) for rec in by_type)
+    assert any(
+        "camera_nav@1.0.0" in (rec.get("metadata", {}).get("skills", {}) or {}) for rec in by_type
+    )
+    assert any(
+        "dual_arm_lift@1.0.0" in (rec.get("metadata", {}).get("skills", {}) or {})
+        for rec in by_type
+    )

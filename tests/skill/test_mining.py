@@ -15,12 +15,21 @@ def isolated_home(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
 
 
-TEMPLATE_DIR = Path(__file__).parent.parent.parent / "src" / "rosclaw" / "skill" / "templates" / "default"
+TEMPLATE_DIR = (
+    Path(__file__).parent.parent.parent / "src" / "rosclaw" / "skill" / "templates" / "default"
+)
 FIXTURES = Path(__file__).parent / "fixtures" / "practice_sessions"
 
 
 def test_load_episodes_filters_by_task():
-    episodes = load_episodes(FIXTURES, type("Q", (), {"task": "g1_kick_ball", "robot": None, "min_episodes": 0, "include_failures": True})())
+    episodes = load_episodes(
+        FIXTURES,
+        type(
+            "Q",
+            (),
+            {"task": "g1_kick_ball", "robot": None, "min_episodes": 0, "include_failures": True},
+        )(),
+    )
     assert len(episodes) == 3
     assert all(e.task == "g1_kick_ball" for e in episodes)
 

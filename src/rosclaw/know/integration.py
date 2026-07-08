@@ -22,8 +22,7 @@ class KnowIntegration:
         # result contains capability match, safety limits, alternatives
     """
 
-    def __init__(self, robot_id: str, event_bus: EventBus | None = None,
-                 seekdb_client: Any = None):
+    def __init__(self, robot_id: str, event_bus: EventBus | None = None, seekdb_client: Any = None):
         self.robot_id = robot_id
         self.event_bus = event_bus
         self._know = KnowledgeInterface(
@@ -51,18 +50,20 @@ class KnowIntegration:
 
         # Publish event for Practice / Memory tracking
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="rosclaw.knowledge.pre_check",
-                payload={
-                    "robot_id": robot_id,
-                    "task": task,
-                    "decomposition": decomposition,
-                    "can_perform": can_perf,
-                    "capability_match": cap_match,
-                },
-                source="know_integration",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="rosclaw.knowledge.pre_check",
+                    payload={
+                        "robot_id": robot_id,
+                        "task": task,
+                        "decomposition": decomposition,
+                        "can_perform": can_perf,
+                        "capability_match": cap_match,
+                    },
+                    source="know_integration",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
         return {
             "robot_id": robot_id,

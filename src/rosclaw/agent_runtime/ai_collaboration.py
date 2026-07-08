@@ -26,6 +26,7 @@ logger = logging.getLogger("rosclaw.agent_runtime.ai_collaboration")
 @dataclass
 class DeepSeekConfig:
     """Configuration for DeepSeek API client."""
+
     api_key: str = ""
     base_url: str = "https://api.deepseek.com"
     model: str = "deepseek-v4-pro"
@@ -55,6 +56,7 @@ class DeepSeekClient:
         if self._client is None:
             try:
                 import openai
+
                 self._client = openai.OpenAI(
                     api_key=self.config.api_key,
                     base_url=self.config.base_url,
@@ -106,9 +108,7 @@ class DeepSeekClient:
             "max_tokens": max_tokens,
         }
 
-        response = client.chat.completions.create(
-            **kwargs, response_format={"type": "json_object"}
-        )
+        response = client.chat.completions.create(**kwargs, response_format={"type": "json_object"})
         content = response.choices[0].message.content or ""
         finish_reason = getattr(response.choices[0], "finish_reason", None)
 
@@ -185,8 +185,7 @@ Generate a task plan."""
         except Exception as e:
             return {"error": str(e), "task_name": "failed", "steps": []}
 
-    def analyze_failure(self, task_description: str, error_log: str,
-                        heuristic_engine=None) -> dict:
+    def analyze_failure(self, task_description: str, error_log: str, heuristic_engine=None) -> dict:
         """
         Analyze a task failure and suggest recovery.
 
@@ -202,6 +201,7 @@ Generate a task plan."""
         if heuristic_engine is not None:
             try:
                 from rosclaw.core.async_utils import run_sync
+
                 heuristic = run_sync(heuristic_engine.suggest_recovery(error_log))
                 if heuristic:
                     return {

@@ -43,6 +43,7 @@ def telemetry_command_hook(args: Any) -> Generator[None, None, None]:
 
 def _run_heartbeat_async(client: TelemetryClient) -> None:
     """Trigger a daily heartbeat without blocking the CLI."""
+
     def _heartbeat() -> None:
         with __import__("contextlib").suppress(Exception):
             client.heartbeat_if_due()

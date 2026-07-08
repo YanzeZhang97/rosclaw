@@ -111,13 +111,19 @@ class PracticeVerifier:
             return
         session_id = practice.get("session_id")
         if not session_id:
-            report.add("warning" if not report.strict else "error", "session", "practice has no session_id")
+            report.add(
+                "warning" if not report.strict else "error", "session", "practice has no session_id"
+            )
             return
 
         session = catalog.get_session(session_id)
         report.checked.append("session_record")
         if session is None:
-            report.add("warning" if not report.strict else "error", "session", f"session {session_id} not found in catalog v2")
+            report.add(
+                "warning" if not report.strict else "error",
+                "session",
+                f"session {session_id} not found in catalog v2",
+            )
             return
 
         session_dir = self._layout.sessions_dir / session_id
@@ -141,7 +147,9 @@ class PracticeVerifier:
         episodes = catalog.list_episodes(session_id=session_id)
         report.checked.append("episode_records")
         if not episodes:
-            report.add("warning" if not report.strict else "error", "episodes", "no episode records found")
+            report.add(
+                "warning" if not report.strict else "error", "episodes", "no episode records found"
+            )
             return
 
         for episode in episodes:
@@ -184,9 +192,13 @@ class PracticeVerifier:
             for ev in how_events:
                 payload = ev.get("payload", {})
                 if not payload.get("failure_id"):
-                    report.add("error", "how_intervention", "how_intervention_event missing failure_id")
+                    report.add(
+                        "error", "how_intervention", "how_intervention_event missing failure_id"
+                    )
                 if not payload.get("episode_id"):
-                    report.add("warning", "how_intervention", "how_intervention_event missing episode_id")
+                    report.add(
+                        "warning", "how_intervention", "how_intervention_event missing episode_id"
+                    )
 
             catalog_count = catalog.count_source_events(practice_id)
             jsonl_count = 0
@@ -197,7 +209,9 @@ class PracticeVerifier:
                     try:
                         ev = json.loads(line)
                     except json.JSONDecodeError as e:
-                        report.add("error", "events_jsonl", f"invalid JSON line while counting events: {e}")
+                        report.add(
+                            "error", "events_jsonl", f"invalid JSON line while counting events: {e}"
+                        )
                         continue
                     if ev.get("event_type") not in {"runtime.start", "runtime.stop"}:
                         jsonl_count += 1
@@ -222,11 +236,18 @@ class PracticeVerifier:
         artifacts = catalog.list_artifacts_v2(session_id=session_id)
         report.checked.append("artifact_records")
         if not artifacts:
-            report.add("warning" if not report.strict else "error", "artifacts", "no v2 artifact records found")
+            report.add(
+                "warning" if not report.strict else "error",
+                "artifacts",
+                "no v2 artifact records found",
+            )
             return
 
         for artifact in artifacts:
             artifact_id = artifact.get("artifact_id")
+            if not isinstance(artifact_id, str):
+                report.add("error", "artifact", "artifact record missing artifact_id")
+                continue
             ok, msg = self._artifact_store.verify_artifact(
                 artifact_id, session_id, artifact.get("episode_id")
             )
@@ -265,7 +286,9 @@ class PracticeVerifier:
                         )
                 if "timestamp_ns" in event and not isinstance(event.get("timestamp_ns"), int):
                     level = "error" if report.strict else "warning"
-                    report.add(level, "event_envelope", f"line {i}: timestamp_ns must be an integer")
+                    report.add(
+                        level, "event_envelope", f"line {i}: timestamp_ns must be an integer"
+                    )
 
 
 def format_report(report: VerificationReport) -> str:

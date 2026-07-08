@@ -49,12 +49,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Mock Action Server with feedback
 # ------------------------------------------------------------------
+
 
 class MockFeedbackActionServer:
     """Simulates a controller that sends feedback during execution."""
@@ -116,6 +118,7 @@ def _cleanup():
 # Tests
 # ------------------------------------------------------------------
 
+
 @test("ActionServer sends feedback during execution")
 def test_feedback_received():
     _cleanup()
@@ -156,6 +159,7 @@ def test_feedback_received():
     executor.add_node(controller.node)
 
     import threading
+
     spin_done = threading.Event()
 
     def _spin():
@@ -244,6 +248,7 @@ def test_rejected_no_feedback():
     executor.add_node(controller.node)
 
     import threading
+
     spin_done = threading.Event()
 
     def _spin():
@@ -307,6 +312,7 @@ def test_send_goal_future():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     if not rclpy.ok():

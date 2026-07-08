@@ -1,4 +1,5 @@
 """Generic contact-event types shared across bodies."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
@@ -77,7 +78,9 @@ def event_distribution(events: list[ContactEvent]) -> dict[str, int]:
     return dist
 
 
-def tag_distribution(events: list[ContactEvent], secondary: list[list[str]] | None = None) -> dict[str, int]:
+def tag_distribution(
+    events: list[ContactEvent], secondary: list[list[str]] | None = None
+) -> dict[str, int]:
     """Count all tags, optionally including secondary tag lists."""
     dist: dict[str, int] = {}
     for ev in events:

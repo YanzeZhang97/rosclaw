@@ -1,4 +1,5 @@
 """Integration tests for Sprint B/C/D end-to-end workflow."""
+
 import shutil
 
 from rosclaw.auto.config import AutoConfig
@@ -12,11 +13,14 @@ class FakeBus:
     def __init__(self):
         self.subscriptions = {}
         self.published = []
+
     def subscribe(self, topic, handler):
         self.subscriptions.setdefault(topic, []).append(handler)
+
     def unsubscribe(self, topic, handler):
         if topic in self.subscriptions:
             self.subscriptions[topic] = [h for h in self.subscriptions[topic] if h != handler]
+
     def publish(self, event):
         self.published.append(event)
 
@@ -34,8 +38,11 @@ def test_end_to_end_failure_to_proposal():
     # Simulate 3 failures to cross threshold
     for i in range(3):
         evt = PraxisFailedEvent(
-            event_id=f"evt_{i}", task_id="pick_cube", skill_id="pick_v1",
-            failure_mode="missed_grasp", severity="medium",
+            event_id=f"evt_{i}",
+            task_id="pick_cube",
+            skill_id="pick_v1",
+            failure_mode="missed_grasp",
+            severity="medium",
             evidence={"search_space": {"pregrasp_height": [0.02, 0.08]}},
         )
         bus.subscriptions["rosclaw.practice.failed"][0](evt)
@@ -52,8 +59,9 @@ def test_end_to_end_experiment_and_evaluation():
     engine.create_task("pick_cube", "panda", "pick_v1")
 
     # Create and run experiment
-    exp = engine.create_experiment("prop_001", "patch_001", "pick_cube",
-                                    "pick_v1", "pick_v1_candidate", episodes=10)
+    exp = engine.create_experiment(
+        "prop_001", "patch_001", "pick_cube", "pick_v1", "pick_v1_candidate", episodes=10
+    )
     exp.safety = {"sandbox_required": False, "max_collision": 0, "max_force": 15}
     engine.store.save("experiments", exp.id, exp.to_dict())
     raw = engine.run_experiment(exp, runner="local")
@@ -74,8 +82,9 @@ def test_end_to_end_champion_and_lineage():
     engine = AutoEngine(config=AutoConfig(local_store_path="./.rosclaw_auto_test_e2e3"))
     task = engine.create_task("pick_cube", "panda", "pick_v1")
 
-    champ = engine.promote_champion("pick_v1.5", task.id, "sim",
-                                     {"success_rate": 0.76}, "pick_v1", "patch_001", "exp_001")
+    champ = engine.promote_champion(
+        "pick_v1.5", task.id, "sim", {"success_rate": 0.76}, "pick_v1", "patch_001", "exp_001"
+    )
     assert champ.level == "sim"
 
     lineage = engine.get_lineage("pick_v1.5")
@@ -92,7 +101,9 @@ def test_end_to_end_rollback():
     task = engine.create_task("pick_cube", "panda", "pick_v1")
 
     engine.promote_champion("pick_v1", task.id, "baseline", {}, "", "", "")
-    engine.promote_champion("pick_v1.5", task.id, "sim", {"success_rate": 0.76}, "pick_v1", "p1", "e1")
+    engine.promote_champion(
+        "pick_v1.5", task.id, "sim", {"success_rate": 0.76}, "pick_v1", "p1", "e1"
+    )
 
     rolled = engine.rollback_skill(task.id)
     assert rolled is not None

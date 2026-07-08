@@ -17,6 +17,7 @@ The v1 SAFETY_KEYWORDS dict is preserved as a subset so the legacy
 
 Pure rules. No I/O. Hot-path safe.
 """
+
 from __future__ import annotations
 
 from typing import Final, Literal
@@ -196,8 +197,10 @@ def diagnose_safety(
             return matched[0], severity_hint, matched[2]
         # No keyword match but caller asserted severity — promote to a
         # generic safety strategy at the asserted level.
-        strategy: SafetyStrategy = "SAFETY" if severity_hint in ("S2", "S3") else (
-            "STOP_UNSAFE" if severity_hint == "S4" else "NOOP"
+        strategy: SafetyStrategy = (
+            "SAFETY"
+            if severity_hint in ("S2", "S3")
+            else ("STOP_UNSAFE" if severity_hint == "S4" else "NOOP")
         )
         return sym, severity_hint, strategy
 

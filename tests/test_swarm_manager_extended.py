@@ -18,11 +18,13 @@ class TestSwarmManagerEventBus:
         bus = EventBus()
         swarm = SwarmRuntimeManager(event_bus=bus)
         swarm.initialize()
-        bus.publish(Event(
-            topic="swarm.register",
-            payload={"agent_id": "bot_a", "capabilities": ["pick"]},
-            source="test",
-        ))
+        bus.publish(
+            Event(
+                topic="swarm.register",
+                payload={"agent_id": "bot_a", "capabilities": ["pick"]},
+                source="test",
+            )
+        )
         time.sleep(0.05)
         assert swarm.agent_count == 1
         assert swarm.get_agent_status("bot_a")["capabilities"] == ["pick"]
@@ -35,15 +37,19 @@ class TestSwarmManagerEventBus:
         swarm.register_agent("bot_b", ["place"])
 
         received = []
+
         def on_allocate(event):  # noqa: E306
             received.append(event.payload)
+
         bus.subscribe("swarm.allocate_result", on_allocate)
 
-        bus.publish(Event(
-            topic="swarm.allocate",
-            payload={"task": {"required_capabilities": ["place"], "id": "t1"}},
-            source="test",
-        ))
+        bus.publish(
+            Event(
+                topic="swarm.allocate",
+                payload={"task": {"required_capabilities": ["place"], "id": "t1"}},
+                source="test",
+            )
+        )
         time.sleep(0.05)
         assert len(received) == 1
         assert received[0]["agent_id"] == "bot_b"
@@ -56,15 +62,19 @@ class TestSwarmManagerEventBus:
         swarm.register_agent("bot_c", ["scan"])
 
         received = []
+
         def on_status(event):  # noqa: E306
             received.append(event.payload)
+
         bus.subscribe("swarm.status_result", on_status)
 
-        bus.publish(Event(
-            topic="swarm.status",
-            payload={"agent_id": "bot_c"},
-            source="test",
-        ))
+        bus.publish(
+            Event(
+                topic="swarm.status",
+                payload={"agent_id": "bot_c"},
+                source="test",
+            )
+        )
         time.sleep(0.05)
         assert len(received) == 1
         assert received[0]["agent_id"] == "bot_c"
@@ -77,15 +87,19 @@ class TestSwarmManagerEventBus:
         swarm.register_agent("bot_d", ["scan"])
 
         received = []
+
         def on_status(event):  # noqa: E306
             received.append(event.payload)
+
         bus.subscribe("swarm.status_result", on_status)
 
-        bus.publish(Event(
-            topic="swarm.status",
-            payload={},
-            source="test",
-        ))
+        bus.publish(
+            Event(
+                topic="swarm.status",
+                payload={},
+                source="test",
+            )
+        )
         time.sleep(0.05)
         assert len(received) == 1
         assert "agents" in received[0]["status"]
@@ -99,15 +113,19 @@ class TestSwarmManagerEventBus:
         swarm.register_agent("bot_e", ["pick"])
 
         received = []
+
         def on_allocate(event):  # noqa: E306
             received.append(event.payload)
+
         bus.subscribe("swarm.allocate_result", on_allocate)
 
-        bus.publish(Event(
-            topic="swarm.allocate",
-            payload={"task": {"required_capabilities": ["place"], "id": "t2"}},
-            source="test",
-        ))
+        bus.publish(
+            Event(
+                topic="swarm.allocate",
+                payload={"task": {"required_capabilities": ["place"], "id": "t2"}},
+                source="test",
+            )
+        )
         time.sleep(0.05)
         assert len(received) == 1
         assert received[0]["agent_id"] is None

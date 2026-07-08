@@ -46,9 +46,7 @@ def _iso_to_timestamp(value: str | float | int | None) -> float:
     try:
         from datetime import UTC, datetime
 
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(
-            tzinfo=UTC
-        ).timestamp()
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=UTC).timestamp()
     except Exception:
         return time.time()
 
@@ -108,9 +106,7 @@ class SeekDBIngestor:
 
             if distillation_result is None:
                 distiller = PracticeDistiller(self._data_root)
-                distillation_result = distiller.distill(
-                    practice_id, write_artifacts=False
-                )
+                distillation_result = distiller.distill(practice_id, write_artifacts=False)
 
             report = IngestionReport(
                 practice_id=practice_id,
@@ -222,9 +218,7 @@ class SeekDBIngestor:
             if report.errors:
                 report.success = any(
                     count > 0 for count in report.table_counts.values()
-                ) and not all(
-                    err.startswith("catalog_commit") for err in report.errors
-                )
+                ) and not all(err.startswith("catalog_commit") for err in report.errors)
             return report
         finally:
             catalog.close()
@@ -324,7 +318,8 @@ class SeekDBIngestor:
             "episode_id": episode_id,
             "session_id": session_id,
             "cognition_type": cognition.get("cognition_type") or "body_model",
-            "data": cognition.get("data") or {
+            "data": cognition.get("data")
+            or {
                 "known_traits": cognition.get("known_traits", []),
                 "force_model": cognition.get("force_model", {}),
                 "thermal_limits": cognition.get("thermal_limits", {}),

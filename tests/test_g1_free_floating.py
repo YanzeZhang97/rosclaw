@@ -24,6 +24,7 @@ class TestG1FreeFloatingModel:
 
     def test_model_xml_loads(self):
         import mujoco
+
         xml = create_g1_free_floating_model()
         model = mujoco.MjModel.from_xml_string(xml)
         assert model.nq == 19  # 6 freejoint + 12 hinge joints + 1 for ???
@@ -36,7 +37,10 @@ class TestG1FreeFloatingModel:
 
     def test_fall_detection_height(self):
         state = WalkState()
-        assert check_fall(state, 0.2, np.array([1.0, 0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.3])) is True
+        assert (
+            check_fall(state, 0.2, np.array([1.0, 0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.3]))
+            is True
+        )
         assert state.fall_detected is True
         assert "pelvis_height_low" in state.fall_reason
 
@@ -50,7 +54,10 @@ class TestG1FreeFloatingModel:
 
     def test_fall_detection_no_fall(self):
         state = WalkState()
-        assert check_fall(state, 0.6, np.array([1.0, 0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.5])) is False
+        assert (
+            check_fall(state, 0.6, np.array([1.0, 0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.5]))
+            is False
+        )
         assert state.fall_detected is False
 
 
@@ -77,7 +84,10 @@ class TestG1WalkingDemo:
         # This test verifies fall detection by checking a manually bad state
         state = WalkState()
         state.min_pelvis_height = 0.5
-        assert check_fall(state, 0.4, np.array([1.0, 0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.4])) is True
+        assert (
+            check_fall(state, 0.4, np.array([1.0, 0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.4]))
+            is True
+        )
 
     def test_gpu_detection_runs(self):
         result = run_walking_demo(target_distance=0.01, duration_limit=5.0, verbose=False)

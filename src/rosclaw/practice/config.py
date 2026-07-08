@@ -40,13 +40,9 @@ class SeekDBConfig:
     """SeekDB integration settings."""
 
     enabled: bool = False
-    url: str | None = field(
-        default_factory=lambda: os.environ.get("ROSCLAW_SEEKDB_URL")
-    )
+    url: str | None = field(default_factory=lambda: os.environ.get("ROSCLAW_SEEKDB_URL"))
     fallback_dir: str = field(
-        default_factory=lambda: os.environ.get(
-            "ROSCLAW_SEEKDB_FALLBACK_DIR", DEFAULT_FALLBACK_DIR
-        )
+        default_factory=lambda: os.environ.get("ROSCLAW_SEEKDB_FALLBACK_DIR", DEFAULT_FALLBACK_DIR)
     )
     table: str = "praxis_events"
     timeout_sec: float = 2.0

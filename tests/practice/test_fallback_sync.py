@@ -31,7 +31,9 @@ def test_sync_success_moves_to_archive():
 def test_sync_failure_keeps_file():
     with tempfile.TemporaryDirectory() as tmp:
         fallback = Path(tmp)
-        (fallback / "prac_002.json").write_text(json.dumps({"practice_id": "prac_002"}), encoding="utf-8")
+        (fallback / "prac_002.json").write_text(
+            json.dumps({"practice_id": "prac_002"}), encoding="utf-8"
+        )
 
         with patch("rosclaw.practice.storage.fallback_sync.requests.post") as mock_post:
             mock_post.return_value.raise_for_status.side_effect = Exception("boom")

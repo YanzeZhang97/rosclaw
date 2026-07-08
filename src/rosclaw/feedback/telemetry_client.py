@@ -23,59 +23,65 @@ from .config import TelemetryConfig
 from .installation import InstallationManager
 from .store import append_event, event_file_for_date
 
-ALLOWED_EVENT_TYPES = frozenset([
-    "install_started",
-    "install_completed",
-    "firstboot_started",
-    "firstboot_completed",
-    "doctor_started",
-    "doctor_completed",
-    "command_completed",
-    "module_enabled",
-    "provider_installed",
-    "provider_served",
-    "hub_asset_installed",
-    "dashboard_opened",
-    "practice_started",
-    "heartbeat",
-    "telemetry_ping",
-])
+ALLOWED_EVENT_TYPES = frozenset(
+    [
+        "install_started",
+        "install_completed",
+        "firstboot_started",
+        "firstboot_completed",
+        "doctor_started",
+        "doctor_completed",
+        "command_completed",
+        "module_enabled",
+        "provider_installed",
+        "provider_served",
+        "hub_asset_installed",
+        "dashboard_opened",
+        "practice_started",
+        "heartbeat",
+        "telemetry_ping",
+    ]
+)
 
-FORBIDDEN_FIELDS = frozenset([
-    "hostname",
-    "username",
-    "ip",
-    "local_path",
-    "cwd",
-    "full_command",
-    "full_args",
-    "prompt",
-    "system_prompt",
-    "tool_arguments",
-    "provider_response",
-    "stacktrace",
-    "log",
-    "video",
-    "image",
-    "audio",
-    "mcap",
-    "trace",
-    "api_key",
-    "secret",
-    "robot_serial",
-])
+FORBIDDEN_FIELDS = frozenset(
+    [
+        "hostname",
+        "username",
+        "ip",
+        "local_path",
+        "cwd",
+        "full_command",
+        "full_args",
+        "prompt",
+        "system_prompt",
+        "tool_arguments",
+        "provider_response",
+        "stacktrace",
+        "log",
+        "video",
+        "image",
+        "audio",
+        "mcap",
+        "trace",
+        "api_key",
+        "secret",
+        "robot_serial",
+    ]
+)
 
-ERROR_CLASS_BUCKETS = frozenset([
-    "ImportError",
-    "ConfigError",
-    "DockerUnavailable",
-    "ROSNotFound",
-    "ProviderTimeout",
-    "PermissionDenied",
-    "NetworkError",
-    "ValidationError",
-    "RuntimeError",
-])
+ERROR_CLASS_BUCKETS = frozenset(
+    [
+        "ImportError",
+        "ConfigError",
+        "DockerUnavailable",
+        "ROSNotFound",
+        "ProviderTimeout",
+        "PermissionDenied",
+        "NetworkError",
+        "ValidationError",
+        "RuntimeError",
+    ]
+)
 
 # Process-level caches for environment probes that do not change at runtime.
 _CACHED_CUDA: tuple[bool, str | None] | None = None
@@ -264,6 +270,7 @@ class TelemetryClient:
 
     def _upload_async(self, event: dict[str, Any]) -> None:
         """Fire-and-forget upload in a background thread."""
+
         def _upload() -> None:
             with contextlib.suppress(Exception):
                 self._upload_sync(self.config.upload.get("endpoint"), event)
@@ -302,6 +309,7 @@ class TelemetryClient:
 
     def _scrub(self, event: dict[str, Any]) -> dict[str, Any]:
         """Remove forbidden fields from the event and payload recursively."""
+
         def scrub_value(value: Any) -> Any:
             if isinstance(value, dict):
                 return {k: scrub_value(v) for k, v in value.items() if k not in FORBIDDEN_FIELDS}
@@ -370,6 +378,7 @@ def _detect_cuda() -> tuple[bool, str | None]:
 
     try:
         import torch
+
         if torch.cuda.is_available():
             name: str | None = None
             if torch.cuda.device_count() > 0:

@@ -68,11 +68,14 @@ class InstallationManager:
         data["updated_at"] = datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
         self.path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-        self._audit("ensure_installation", {
-            "telemetry_enabled": telemetry_enabled,
-            "diagnostics_enabled": diagnostics_enabled,
-            "rich_feedback_enabled": rich_feedback_enabled,
-        })
+        self._audit(
+            "ensure_installation",
+            {
+                "telemetry_enabled": telemetry_enabled,
+                "diagnostics_enabled": diagnostics_enabled,
+                "rich_feedback_enabled": rich_feedback_enabled,
+            },
+        )
         installation = self._to_installation(data)
         installation.is_new = is_new
         return installation

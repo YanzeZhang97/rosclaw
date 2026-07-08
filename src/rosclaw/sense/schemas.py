@@ -133,14 +133,10 @@ class BodyState:
     def from_dict(cls, data: dict[str, Any]) -> BodyState:
         """Deserialize from a dictionary produced by ``to_dict``."""
         energy = EnergyState(**data.get("energy", {}))
-        joints = {
-            name: JointState(**fields)
-            for name, fields in data.get("joints", {}).items()
-        }
+        joints = {name: JointState(**fields) for name, fields in data.get("joints", {}).items()}
         imu = IMUState(**data.get("imu", {}))
         contact = {
-            name: FootContactState(**fields)
-            for name, fields in data.get("contact", {}).items()
+            name: FootContactState(**fields) for name, fields in data.get("contact", {}).items()
         }
         communication = CommunicationState(**data.get("communication", {}))
         perception = PerceptionHealth(**data.get("perception", {}))
@@ -223,9 +219,7 @@ class ReadinessItem:
             "capability": self.capability,
             "status": self.status,
             "reasons": self.reasons,
-            "failed_requirements": [
-                asdict(req) for req in self.failed_requirements
-            ],
+            "failed_requirements": [asdict(req) for req in self.failed_requirements],
             "allowed_alternatives": self.allowed_alternatives,
         }
 
@@ -246,9 +240,7 @@ class BodyReadiness:
             "timestamp": self.timestamp,
             "task": self.task,
             "overall_status": self.overall_status,
-            "capabilities": {
-                name: item.to_dict() for name, item in self.capabilities.items()
-            },
+            "capabilities": {name: item.to_dict() for name, item in self.capabilities.items()},
         }
 
     @classmethod
@@ -259,8 +251,7 @@ class BodyReadiness:
                 status=item.get("status", "unknown"),
                 reasons=item.get("reasons", []),
                 failed_requirements=[
-                    FailedRequirement(**req)
-                    for req in item.get("failed_requirements", [])
+                    FailedRequirement(**req) for req in item.get("failed_requirements", [])
                 ],
                 allowed_alternatives=item.get("allowed_alternatives", []),
             )

@@ -128,7 +128,15 @@ class TestFirstbootInteractive:
             use_cases={"sandbox": True, "mcp": False},
         )
         captured = capsys.readouterr()
-        for label in ("Workspace:", "Profile:", "Robot:", "Safety:", "Telemetry:", "MCP config:", "sandbox:"):
+        for label in (
+            "Workspace:",
+            "Profile:",
+            "Robot:",
+            "Safety:",
+            "Telemetry:",
+            "MCP config:",
+            "sandbox:",
+        ):
             assert label in captured.out
 
     def test_interactive_summary_and_cancellation(self, tmp_path, monkeypatch):

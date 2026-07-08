@@ -417,7 +417,9 @@ class FirstbootDoctor:
             from rosclaw.provider.core.registry import ProviderRegistry
 
             registry = ProviderRegistry()
-            providers = list(registry.list_providers()) if hasattr(registry, "list_providers") else []
+            providers = (
+                list(registry.list_providers()) if hasattr(registry, "list_providers") else []
+            )
             return [
                 CheckResult(
                     "runtime.provider_registry",
@@ -468,7 +470,9 @@ class FirstbootDoctor:
         try:
             from rosclaw.practice.episode_recorder import EpisodeRecorder
 
-            recorder = EpisodeRecorder("doctor", event_bus=None, artifact_base_dir=str(self.home / "artifacts"))
+            recorder = EpisodeRecorder(
+                "doctor", event_bus=None, artifact_base_dir=str(self.home / "artifacts")
+            )
             episodes = recorder.list_episodes()
             return [
                 CheckResult(
@@ -826,7 +830,9 @@ class FirstbootDoctor:
     ) -> DoctorResult:
         required_fails = [c for c in checks if c.status == CheckStatus.FAIL and c.required]
         required_warns = [c for c in checks if c.status == CheckStatus.WARN and c.required]
-        optional_issues = [c for c in checks if c.status in (CheckStatus.WARN, CheckStatus.FAIL) and not c.required]
+        optional_issues = [
+            c for c in checks if c.status in (CheckStatus.WARN, CheckStatus.FAIL) and not c.required
+        ]
 
         if required_fails:
             status = DoctorStatus.FAILED
@@ -877,7 +883,13 @@ class FirstbootDoctor:
                 continue
             print(f"\n{category}:")
             for c in items:
-                icon = "✅" if c.status == CheckStatus.PASS else "⚠️" if c.status == CheckStatus.WARN else "❌"
+                icon = (
+                    "✅"
+                    if c.status == CheckStatus.PASS
+                    else "⚠️"
+                    if c.status == CheckStatus.WARN
+                    else "❌"
+                )
                 print(f"  {icon} {c.name:<30} {c.message}")
 
         print("\n" + "=" * 60)

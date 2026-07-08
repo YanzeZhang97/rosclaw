@@ -151,6 +151,7 @@ def create_g1_free_floating_model():
 @dataclasses.dataclass
 class WalkState:
     """State tracker for walking controller."""
+
     distance_traveled: float = 0.0
     steps_taken: int = 0
     fall_detected: bool = False
@@ -240,18 +241,54 @@ def get_up_policy():
     Joint order: [yaw_L, roll_L, pitch_L, knee_L, ankle_pitch_L, ankle_roll_L,
                   yaw_R, roll_R, pitch_R, knee_R, ankle_pitch_R, ankle_roll_R]
     """
-    crouch = np.array([
-        0.0, 0.0, -0.4, 0.9, -0.2, 0.0,
-        0.0, 0.0, -0.4, 0.9, -0.2, 0.0,
-    ])
-    lift = np.array([
-        0.0, 0.0, -0.2, 0.5, -0.1, 0.0,
-        0.0, 0.0, -0.2, 0.5, -0.1, 0.0,
-    ])
-    extend = np.array([
-        0.0, 0.0, 0.0, 0.05, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.05, 0.0, 0.0,
-    ])
+    crouch = np.array(
+        [
+            0.0,
+            0.0,
+            -0.4,
+            0.9,
+            -0.2,
+            0.0,
+            0.0,
+            0.0,
+            -0.4,
+            0.9,
+            -0.2,
+            0.0,
+        ]
+    )
+    lift = np.array(
+        [
+            0.0,
+            0.0,
+            -0.2,
+            0.5,
+            -0.1,
+            0.0,
+            0.0,
+            0.0,
+            -0.2,
+            0.5,
+            -0.1,
+            0.0,
+        ]
+    )
+    extend = np.array(
+        [
+            0.0,
+            0.0,
+            0.0,
+            0.05,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.05,
+            0.0,
+            0.0,
+        ]
+    )
     return [
         (crouch, 0.8),
         (lift, 1.0),
@@ -294,9 +331,7 @@ def execute_recovery(
     walk_state.recovery_phase = "stabilize"
     stabilize_steps = int(0.7 / dt)
     for _ in range(stabilize_steps):
-        pelvis_quat = data.sensordata[
-            sensor_adr["pelvis_quat"]:sensor_adr["pelvis_quat"] + 4
-        ]
+        pelvis_quat = data.sensordata[sensor_adr["pelvis_quat"] : sensor_adr["pelvis_quat"] + 4]
         rpy = quat_to_rpy(pelvis_quat)
         pitch_error = rpy[1]
         roll_error = rpy[0]
@@ -311,12 +346,8 @@ def execute_recovery(
         mujoco.mj_step(model, data)
 
     # Validate recovery
-    pelvis_pos = data.sensordata[
-        sensor_adr["pelvis_pos"]:sensor_adr["pelvis_pos"] + 3
-    ]
-    pelvis_quat = data.sensordata[
-        sensor_adr["pelvis_quat"]:sensor_adr["pelvis_quat"] + 4
-    ]
+    pelvis_pos = data.sensordata[sensor_adr["pelvis_pos"] : sensor_adr["pelvis_pos"] + 3]
+    pelvis_quat = data.sensordata[sensor_adr["pelvis_quat"] : sensor_adr["pelvis_quat"] + 4]
     rpy = quat_to_rpy(pelvis_quat)
     tilt_deg = np.degrees(np.max(np.abs(rpy[:2])))
     height_ok = pelvis_pos[2] > walk_state.min_pelvis_height * 1.3
@@ -417,12 +448,22 @@ def compute_gait_control(
         yaw_error = rpy[2]
         yaw_correction = np.clip(-yaw_error * 0.5, -0.10, 0.10)
 
-    return np.array([
-        yaw_correction, hip_roll_left, hip_pitch_left + pitch_correction, knee_pitch_left, ankle_pitch_left,
-        ankle_roll_left,
-        -yaw_correction, hip_roll_right, hip_pitch_right + pitch_correction, knee_pitch_right, ankle_pitch_right,
-        ankle_roll_right,
-    ])
+    return np.array(
+        [
+            yaw_correction,
+            hip_roll_left,
+            hip_pitch_left + pitch_correction,
+            knee_pitch_left,
+            ankle_pitch_left,
+            ankle_roll_left,
+            -yaw_correction,
+            hip_roll_right,
+            hip_pitch_right + pitch_correction,
+            knee_pitch_right,
+            ankle_pitch_right,
+            ankle_roll_right,
+        ]
+    )
 
 
 def run_walking_demo(
@@ -466,27 +507,27 @@ def run_walking_demo(
     if target_distance >= 1.0:
         # Long-distance: conservative lower COM with inward leg splay
         data.qpos[2] = 0.60
-        data.qpos[8] = -0.06   # hip_roll_left inward
-        data.qpos[14] = 0.06   # hip_roll_right inward
+        data.qpos[8] = -0.06  # hip_roll_left inward
+        data.qpos[14] = 0.06  # hip_roll_right inward
     else:
         # Short-distance demo/test: original stable standing pose
         data.qpos[2] = 0.65
-        data.qpos[8] = 0.08    # hip_roll_left outward (stable for pulse propulsion)
-        data.qpos[14] = 0.08   # hip_roll_right outward
-    data.qpos[3] = 1.0    # qw
-    data.qpos[5] = 0.0    # no initial pitch
+        data.qpos[8] = 0.08  # hip_roll_left outward (stable for pulse propulsion)
+        data.qpos[14] = 0.08  # hip_roll_right outward
+    data.qpos[3] = 1.0  # qw
+    data.qpos[5] = 0.0  # no initial pitch
     # Left leg
-    data.qpos[7] = 0.0    # hip_yaw_left
-    data.qpos[9] = 0.0    # hip_pitch_left
-    data.qpos[10] = 0.0   # knee_pitch_left (straight)
-    data.qpos[11] = 0.0   # ankle_pitch_left
-    data.qpos[12] = 0.0   # ankle_roll_left
+    data.qpos[7] = 0.0  # hip_yaw_left
+    data.qpos[9] = 0.0  # hip_pitch_left
+    data.qpos[10] = 0.0  # knee_pitch_left (straight)
+    data.qpos[11] = 0.0  # ankle_pitch_left
+    data.qpos[12] = 0.0  # ankle_roll_left
     # Right leg
-    data.qpos[13] = 0.0   # hip_yaw_right
-    data.qpos[15] = 0.0   # hip_pitch_right
-    data.qpos[16] = 0.0   # knee_pitch_right (straight)
-    data.qpos[17] = 0.0   # ankle_pitch_right
-    data.qpos[18] = 0.0   # ankle_roll_right
+    data.qpos[13] = 0.0  # hip_yaw_right
+    data.qpos[15] = 0.0  # hip_pitch_right
+    data.qpos[16] = 0.0  # knee_pitch_right (straight)
+    data.qpos[17] = 0.0  # ankle_pitch_right
+    data.qpos[18] = 0.0  # ankle_roll_right
 
     # No initial velocity - static start
 
@@ -505,18 +546,16 @@ def run_walking_demo(
     # Warm-up: active balance to find stable equilibrium
     settle_steps = int(2.0 / dt)
     for _ in range(settle_steps):
-        pelvis_quat = data.sensordata[
-            sensor_adr["pelvis_quat"]:sensor_adr["pelvis_quat"] + 4
-        ]
+        pelvis_quat = data.sensordata[sensor_adr["pelvis_quat"] : sensor_adr["pelvis_quat"] + 4]
         rpy = quat_to_rpy(pelvis_quat)
         pitch_error = rpy[1]
         pitch_corr = np.clip(pitch_error * 0.3, -0.1, 0.1)
         target_qpos = np.zeros(12)
-        target_qpos[2] = 0.0 + pitch_corr   # hip_pitch_left
-        target_qpos[3] = 0.05               # knee_pitch_left
+        target_qpos[2] = 0.0 + pitch_corr  # hip_pitch_left
+        target_qpos[3] = 0.05  # knee_pitch_left
         target_qpos[4] = 0.0 - pitch_corr * 0.3  # ankle_pitch_left
-        target_qpos[8] = 0.0 + pitch_corr   # hip_pitch_right
-        target_qpos[9] = 0.05               # knee_pitch_right
+        target_qpos[8] = 0.0 + pitch_corr  # hip_pitch_right
+        target_qpos[9] = 0.05  # knee_pitch_right
         target_qpos[10] = 0.0 - pitch_corr * 0.3  # ankle_pitch_right
         if target_distance >= 1.0:
             # Long-distance: also correct roll with inward hip_roll
@@ -533,25 +572,19 @@ def run_walking_demo(
     gait_ramp_duration = 3.0  # seconds to ramp up gait amplitude
     enable_gait = target_distance >= 1.0  # Disable gait for short test targets
     for step in range(max_steps):
-        pelvis_pos = data.sensordata[
-            sensor_adr["pelvis_pos"]:sensor_adr["pelvis_pos"] + 3
-        ]
-        pelvis_quat = data.sensordata[
-            sensor_adr["pelvis_quat"]:sensor_adr["pelvis_quat"] + 4
-        ]
-        com_pos = data.sensordata[sensor_adr["com"]:sensor_adr["com"] + 3]
+        pelvis_pos = data.sensordata[sensor_adr["pelvis_pos"] : sensor_adr["pelvis_pos"] + 3]
+        pelvis_quat = data.sensordata[sensor_adr["pelvis_quat"] : sensor_adr["pelvis_quat"] + 4]
+        com_pos = data.sensordata[sensor_adr["com"] : sensor_adr["com"] + 3]
 
         if check_fall(walk_state, pelvis_pos[2], pelvis_quat, com_pos):
             if verbose:
                 rpy = quat_to_rpy(pelvis_quat)
+                print(f"\n[FAIL] Fall at t={data.time:.2f}s: {walk_state.fall_reason}")
                 print(
-                    f"\n[FAIL] Fall at t={data.time:.2f}s: {walk_state.fall_reason}"
+                    f"       roll={np.degrees(rpy[0]):.1f}deg pitch={np.degrees(rpy[1]):.1f}deg yaw={np.degrees(rpy[2]):.1f}deg"
                 )
-                print(f"       roll={np.degrees(rpy[0]):.1f}deg pitch={np.degrees(rpy[1]):.1f}deg yaw={np.degrees(rpy[2]):.1f}deg")
 
-            recovered = execute_recovery(
-                model, data, walk_state, sensor_adr, verbose=verbose
-            )
+            recovered = execute_recovery(model, data, walk_state, sensor_adr, verbose=verbose)
             if not recovered:
                 break
             continue
@@ -559,9 +592,7 @@ def run_walking_demo(
         if enable_gait:
             # Ramp up gait amplitude gradually to avoid shock
             ramp = min(1.0, data.time / gait_ramp_duration)
-            target_ctrl = compute_gait_control(
-                walk_state, data.time, pelvis_pos, pelvis_quat
-            )
+            target_ctrl = compute_gait_control(walk_state, data.time, pelvis_pos, pelvis_quat)
             neutral = np.zeros(12)
             neutral[3] = 0.05
             neutral[9] = 0.05
@@ -615,16 +646,14 @@ def run_walking_demo(
             break
     else:
         if verbose:
-            print(
-                f"\n[TIMEOUT] Traveled {walk_state.distance_traveled:.3f}m "
-                f"in {data.time:.2f}s"
-            )
+            print(f"\n[TIMEOUT] Traveled {walk_state.distance_traveled:.3f}m in {data.time:.2f}s")
 
     # GPU detection: check if MJX/JAX GPU is available
     gpu_used = False
     if gpu:
         try:
             import jax
+
             devices = jax.devices("gpu")
             gpu_used = len(devices) > 0
         except Exception:
@@ -632,8 +661,7 @@ def run_walking_demo(
 
     result = {
         "success": (
-            walk_state.distance_traveled >= target_distance * 0.95
-            and not walk_state.fall_detected
+            walk_state.distance_traveled >= target_distance * 0.95 and not walk_state.fall_detected
         ),
         "distance_traveled": float(walk_state.distance_traveled),
         "target_distance": target_distance,
@@ -644,21 +672,19 @@ def run_walking_demo(
         "energy_used": float(energy),
         "gpu_used": gpu_used,
         "recovery_attempts": walk_state.recovery_attempts,
-        "final_pelvis_height": (
-            float(pelvis_pos[2]) if "pelvis_pos" in sensor_adr else None
-        ),
+        "final_pelvis_height": (float(pelvis_pos[2]) if "pelvis_pos" in sensor_adr else None),
     }
 
     if verbose:
         status = "PASS" if result["success"] else "FAIL"
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"Result: {status}")
         print(f"  Distance: {result['distance_traveled']:.3f}m / {target_distance:.1f}m")
         print(f"  Sim time: {result['sim_time']:.2f}s")
         print(f"  Energy:   {result['energy_used']:.1f}J")
         print(f"  Fall:     {result['fall_detected']} ({result['fall_reason'] or 'N/A'})")
         print(f"  GPU:      {result['gpu_used']}")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
 
     return result
 

@@ -21,6 +21,7 @@ class TestKnowModuleSmoke:
     def test_know_import(self):
         """KNOW module imports without errors."""
         from rosclaw.know import KnowledgeInterface
+
         assert KnowledgeInterface is not None
 
     def test_know_initialize(self):
@@ -95,6 +96,7 @@ class TestHowModuleSmoke:
     def test_how_import(self):
         """HOW module imports without errors."""
         from rosclaw.how import HeuristicEngine
+
         assert HeuristicEngine is not None
 
     @pytest.mark.asyncio
@@ -177,7 +179,7 @@ class TestRuntimeKnowHowIntegration:
         runtime.initialize()
 
         assert runtime.state.name == "READY"
-        assert not hasattr(runtime, '_knowledge') or runtime._knowledge is None
+        assert not hasattr(runtime, "_knowledge") or runtime._knowledge is None
         assert runtime._how is None
 
     def test_runtime_with_knowledge_enabled(self):
@@ -238,9 +240,8 @@ class TestRuntimeKnowHowIntegration:
 
         # HOW seeding is done during init
         import asyncio
-        suggestion = asyncio.run(
-            runtime._how.suggest_recovery("joint_limit_exceeded")
-        )
+
+        suggestion = asyncio.run(runtime._how.suggest_recovery("joint_limit_exceeded"))
         # May be None if seeding failed or rules not matched
         assert suggestion is None or "action" in suggestion
 

@@ -73,7 +73,11 @@ def render_mcp_json(profile: ProjectProfile, check: bool = False) -> dict[str, A
 
 def render_claude_md(profile: ProjectProfile) -> str:
     """Render the project-level CLAUDE.md onboarding file."""
-    robot_line = f"- Default robot: `{profile.robot_id}`" if profile.robot_id else "- Default robot: (none detected)"
+    robot_line = (
+        f"- Default robot: `{profile.robot_id}`"
+        if profile.robot_id
+        else "- Default robot: (none detected)"
+    )
     transport = profile.default_transport
     mcp_section = (
         "This project exposes a P0 ROSClaw MCP server. Connect via the configured "
@@ -122,7 +126,11 @@ _Add your own project-specific instructions here. They will be preserved across
 
 def render_rosclaw_md(profile: ProjectProfile) -> str:
     """Render the ROSCLAW.md file with runtime instructions and guardrails."""
-    robot_line = f"- **Robot ID:** `{profile.robot_id}`" if profile.robot_id else "- **Robot ID:** (none detected)"
+    robot_line = (
+        f"- **Robot ID:** `{profile.robot_id}`"
+        if profile.robot_id
+        else "- **Robot ID:** (none detected)"
+    )
     return f"""# ROSCLAW.md — Physical AI Runtime Manifest
 
 This file is the authoritative boundary description for the ROSClaw runtime in

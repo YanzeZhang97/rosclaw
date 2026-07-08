@@ -210,7 +210,8 @@ class TestMCPKnowledgeTool:
         class MockRuntime:
             def __init__(self):
                 self.knowledge = KnowledgeInterface(
-                    robot_id="ur5e", assets_path=_BASELINE_ASSETS,
+                    robot_id="ur5e",
+                    assets_path=_BASELINE_ASSETS,
                 )
                 self.knowledge._do_initialize()
 
@@ -219,10 +220,13 @@ class TestMCPKnowledgeTool:
         loop = asyncio.new_event_loop()
         try:
             result = loop.run_until_complete(
-                hub.handle_tool_call("query_knowledge", {
-                    "query_type": "capability",
-                    "query": "ur5e",
-                })
+                hub.handle_tool_call(
+                    "query_knowledge",
+                    {
+                        "query_type": "capability",
+                        "query": "ur5e",
+                    },
+                )
             )
         finally:
             loop.close()
@@ -244,7 +248,8 @@ class TestMCPKnowledgeTool:
         class MockRuntime:
             def __init__(self):
                 self.knowledge = KnowledgeInterface(
-                    robot_id="ur5e", assets_path=_BASELINE_ASSETS,
+                    robot_id="ur5e",
+                    assets_path=_BASELINE_ASSETS,
                 )
                 self.knowledge._do_initialize()
 
@@ -253,10 +258,13 @@ class TestMCPKnowledgeTool:
         loop = asyncio.new_event_loop()
         try:
             result = loop.run_until_complete(
-                hub.handle_tool_call("query_knowledge", {
-                    "query_type": "symptom",
-                    "query": "torque overflow on joint 2",
-                })
+                hub.handle_tool_call(
+                    "query_knowledge",
+                    {
+                        "query_type": "symptom",
+                        "query": "torque overflow on joint 2",
+                    },
+                )
             )
         finally:
             loop.close()
@@ -279,7 +287,8 @@ class TestMCPKnowledgeTool:
         class MockRuntime:
             def __init__(self):
                 self.knowledge = KnowledgeInterface(
-                    robot_id="ur5e", assets_path=_BASELINE_ASSETS,
+                    robot_id="ur5e",
+                    assets_path=_BASELINE_ASSETS,
                 )
                 self.knowledge._do_initialize()
 
@@ -288,9 +297,12 @@ class TestMCPKnowledgeTool:
         loop = asyncio.new_event_loop()
         try:
             result = loop.run_until_complete(
-                hub.handle_tool_call("get_safety_heuristic", {
-                    "condition": "torque_overflow",
-                })
+                hub.handle_tool_call(
+                    "get_safety_heuristic",
+                    {
+                        "condition": "torque_overflow",
+                    },
+                )
             )
         finally:
             loop.close()
@@ -634,7 +646,10 @@ class TestEurdfLoader:
 
     def test_load_eurdf_ur5e(self):
         import os
-        eurdf_path = os.path.join(os.path.dirname(__file__), "..", "e-urdf-zoo", "ur5e", "robot.eurdf.yaml")
+
+        eurdf_path = os.path.join(
+            os.path.dirname(__file__), "..", "e-urdf-zoo", "ur5e", "robot.eurdf.yaml"
+        )
         eurdf_path = os.path.abspath(eurdf_path)
         if not os.path.exists(eurdf_path):
             pytest.skip("e-URDF zoo not available")
@@ -654,7 +669,9 @@ class TestEurdfLoader:
         assert result["capabilities"] > 0
 
         # Verify data was written to SeekDB
-        rows = client.query("knowledge_graph", filters={"subject": "ur5e", "predicate": "has_eurdf_joints"})
+        rows = client.query(
+            "knowledge_graph", filters={"subject": "ur5e", "predicate": "has_eurdf_joints"}
+        )
         assert len(rows) == 1
         joints_data = __import__("json").loads(rows[0]["object"])
         assert len(joints_data) == 6
@@ -681,7 +698,10 @@ class TestEurdfLoader:
 
     def test_robot_properties_updated_after_load(self):
         import os
-        eurdf_path = os.path.join(os.path.dirname(__file__), "..", "e-urdf-zoo", "ur5e", "robot.eurdf.yaml")
+
+        eurdf_path = os.path.join(
+            os.path.dirname(__file__), "..", "e-urdf-zoo", "ur5e", "robot.eurdf.yaml"
+        )
         eurdf_path = os.path.abspath(eurdf_path)
         if not os.path.exists(eurdf_path):
             pytest.skip("e-URDF zoo not available")
@@ -703,7 +723,10 @@ class TestEurdfLoader:
 
     def test_safety_limits_from_eurdf(self):
         import os
-        eurdf_path = os.path.join(os.path.dirname(__file__), "..", "e-urdf-zoo", "ur5e", "robot.eurdf.yaml")
+
+        eurdf_path = os.path.join(
+            os.path.dirname(__file__), "..", "e-urdf-zoo", "ur5e", "robot.eurdf.yaml"
+        )
         eurdf_path = os.path.abspath(eurdf_path)
         if not os.path.exists(eurdf_path):
             pytest.skip("e-URDF zoo not available")
@@ -728,6 +751,7 @@ class TestKnowEventBusIntegration:
 
     def test_know_subscribes_to_events_on_start(self):
         from rosclaw.core.event_bus import EventBus
+
         bus = EventBus()
         ki = KnowledgeInterface(robot_id="test_robot", event_bus=bus)
         ki._do_initialize()
@@ -737,6 +761,7 @@ class TestKnowEventBusIntegration:
 
     def test_know_publishes_startup_event(self):
         from rosclaw.core.event_bus import EventBus
+
         bus = EventBus()
         ki = KnowledgeInterface(robot_id="test_robot", event_bus=bus)
         ki._do_initialize()
@@ -748,16 +773,19 @@ class TestKnowEventBusIntegration:
 
     def test_know_publishes_pre_check_event(self):
         from rosclaw.core.event_bus import Event, EventBus, EventPriority
+
         bus = EventBus()
         ki = KnowledgeInterface(robot_id="test_robot", event_bus=bus)
         ki._do_initialize()
         ki._do_start()
-        bus.publish(Event(
-            topic="rosclaw.provider.inference.requested",
-            payload={"capability": "skill.pick_and_place", "robot_id": "test_robot"},
-            source="test",
-            priority=EventPriority.NORMAL,
-        ))
+        bus.publish(
+            Event(
+                topic="rosclaw.provider.inference.requested",
+                payload={"capability": "skill.pick_and_place", "robot_id": "test_robot"},
+                source="test",
+                priority=EventPriority.NORMAL,
+            )
+        )
         events = bus.get_history("rosclaw.knowledge.pre_check")
         assert len(events) >= 1
         assert events[0].payload["capability"] == "skill.pick_and_place"
@@ -765,16 +793,19 @@ class TestKnowEventBusIntegration:
 
     def test_know_publishes_safety_limits_event(self):
         from rosclaw.core.event_bus import Event, EventBus, EventPriority
+
         bus = EventBus()
         ki = KnowledgeInterface(robot_id="ur5e", event_bus=bus)
         ki._do_initialize()
         ki._do_start()
-        bus.publish(Event(
-            topic="rosclaw.sandbox.episode.started",
-            payload={"robot_id": "ur5e"},
-            source="test",
-            priority=EventPriority.NORMAL,
-        ))
+        bus.publish(
+            Event(
+                topic="rosclaw.sandbox.episode.started",
+                payload={"robot_id": "ur5e"},
+                source="test",
+                priority=EventPriority.NORMAL,
+            )
+        )
         events = bus.get_history("rosclaw.knowledge.safety_limits_loaded")
         assert len(events) >= 1
         assert "joint_torque_max" in str(events[0].payload.get("safety_limits", {}))
@@ -812,6 +843,7 @@ class TestKnowProviderSelection:
 
     def test_record_knowledge_usage_publishes_event(self):
         from rosclaw.core.event_bus import EventBus
+
         bus = EventBus()
         ki = KnowledgeInterface(robot_id="ur5e", event_bus=bus)
         ki._do_initialize()
@@ -826,11 +858,13 @@ class TestKnowRuntimeIntegration:
 
     def test_runtime_default_enables_knowledge(self):
         from rosclaw.core.runtime import RuntimeConfig
+
         cfg = RuntimeConfig()
         assert cfg.enable_knowledge is True
 
     def test_runtime_knowledge_initialized_with_memory(self):
         from rosclaw.core.runtime import Runtime, RuntimeConfig
+
         cfg = RuntimeConfig(robot_id="ur5e", enable_knowledge=True, enable_memory=True)
         rt = Runtime(config=cfg)
         rt.initialize()
@@ -843,6 +877,7 @@ class TestKnowIntegration:
 
     def test_query_before_decision_returns_full_result(self):
         from rosclaw.know.integration import KnowIntegration
+
         ki = KnowIntegration(robot_id="ur5e")
         result = ki.query_before_decision("ur5e", "pick and place")
         assert result["robot_id"] == "ur5e"
@@ -854,6 +889,7 @@ class TestKnowIntegration:
     def test_query_before_decision_publishes_event(self):
         from rosclaw.core.event_bus import EventBus
         from rosclaw.know.integration import KnowIntegration
+
         bus = EventBus()
         ki = KnowIntegration(robot_id="ur5e", event_bus=bus)
         ki.query_before_decision("ur5e", "pick and place")
@@ -864,6 +900,7 @@ class TestKnowIntegration:
     def test_record_usage_publishes_ingest_event(self):
         from rosclaw.core.event_bus import EventBus
         from rosclaw.know.integration import KnowIntegration
+
         bus = EventBus()
         ki = KnowIntegration(robot_id="ur5e", event_bus=bus)
         ki.record_usage({"episode_id": "ep_001", "action": "test"})

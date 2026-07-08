@@ -40,7 +40,9 @@ class TestTelemetryClientRecording:
 
         client.record_event("command_completed", command_name="doctor", command_status="success")
 
-        events = read_events(home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl")
+        events = read_events(
+            home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl"
+        )
         assert len(events) == 1
         assert events[0]["event_type"] == "command_completed"
         assert events[0]["command_name"] == "doctor"
@@ -59,7 +61,9 @@ class TestTelemetryClientRecording:
 
         client.record_command(Args(), "success", 250)
 
-        events = read_events(home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl")
+        events = read_events(
+            home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl"
+        )
         payload = json.dumps(events[0])
         assert "secret_arg" not in payload
         assert "super-secret" not in payload
@@ -74,7 +78,9 @@ class TestTelemetryClientRecording:
             payload={"hostname": "mybox", "ip": "1.2.3.4", "allowed": True},
         )
 
-        events = read_events(home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl")
+        events = read_events(
+            home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl"
+        )
         payload = events[0].get("payload", {})
         assert "hostname" not in payload
         assert "ip" not in payload
@@ -90,7 +96,9 @@ class TestTelemetryClientRecording:
         # Should not raise.
         client.record_event("command_completed", command_name="status")
 
-        events = read_events(home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl")
+        events = read_events(
+            home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl"
+        )
         assert len(events) == 1
 
 
@@ -103,7 +111,9 @@ class TestDoctorTelemetryEvents:
         sys.argv = ["rosclaw", "doctor"]
         main()
 
-        events = read_events(home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl")
+        events = read_events(
+            home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl"
+        )
         types = [e["event_type"] for e in events]
         assert "doctor_started" in types
         assert "doctor_completed" in types
@@ -126,7 +136,9 @@ class TestHeartbeatTelemetry:
         result = client.heartbeat_if_due()
         assert result is not None
 
-        events = read_events(home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl")
+        events = read_events(
+            home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl"
+        )
         assert any(e["event_type"] == "heartbeat" for e in events)
         assert last_path.exists()
 
@@ -144,12 +156,15 @@ class TestDeviceInfoTelemetry:
         monkeypatch.setenv("ROS_DISTRO", "humble")
         # Reset module cache so the ROS probe re-runs.
         from rosclaw.feedback import telemetry_client as tc_mod
+
         tc_mod._CACHED_ROS_DISTROS = None
 
         client = TelemetryClient(home)
         client.record_event("command_completed", command_name="status", command_status="success")
 
-        events = read_events(home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl")
+        events = read_events(
+            home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl"
+        )
         payload = events[0].get("payload", {})
         assert "os_version" in payload
         assert "cuda_available" in payload
@@ -172,7 +187,9 @@ class TestDeviceInfoTelemetry:
         client = TelemetryClient(home)
         client.record_event("command_completed", command_name="status", command_status="success")
 
-        events = read_events(home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl")
+        events = read_events(
+            home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl"
+        )
         payload = events[0].get("payload", {})
         assert payload.get("robot_type") == "sim_ur5e"
 
@@ -189,6 +206,8 @@ class TestDeviceInfoTelemetry:
         client = TelemetryClient(home)
         client.record_event("command_completed", command_name="status", command_status="success")
 
-        events = read_events(home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl")
+        events = read_events(
+            home / "telemetry" / "events" / f"{datetime.now(UTC).date().isoformat()}.jsonl"
+        )
         payload = events[0].get("payload", {})
         assert payload.get("sensor_types") == ["camera", "imu"]

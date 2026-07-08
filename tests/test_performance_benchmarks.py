@@ -90,7 +90,9 @@ class TestProviderBenchmark:
         elapsed = time.perf_counter() - start
 
         avg_ms = (elapsed / iterations) * 1000
-        print(f"\n  Critic success_detection: {avg_ms:.3f} ms/call ({iterations / elapsed:.0f} calls/sec)")
+        print(
+            f"\n  Critic success_detection: {avg_ms:.3f} ms/call ({iterations / elapsed:.0f} calls/sec)"
+        )
         assert avg_ms < 10, f"Critic inference too slow: {avg_ms:.3f} ms"
 
     @pytest.mark.asyncio
@@ -109,7 +111,9 @@ class TestProviderBenchmark:
         elapsed = time.perf_counter() - start
 
         avg_ms = (elapsed / iterations) * 1000
-        print(f"\n  Critic retry_advice: {avg_ms:.3f} ms/call ({iterations / elapsed:.0f} calls/sec)")
+        print(
+            f"\n  Critic retry_advice: {avg_ms:.3f} ms/call ({iterations / elapsed:.0f} calls/sec)"
+        )
         assert avg_ms < 10, f"Critic retry too slow: {avg_ms:.3f} ms"
 
 
@@ -131,6 +135,7 @@ class TestDashboardMetricsBenchmark:
 
     def test_get_snapshot_latency(self):
         from rosclaw.dashboard.server import DashboardServer
+
         server = DashboardServer(DashboardMetrics())
         for i in range(1000):
             server.metrics.record_provider_call("llm", "chat", 100.0, "ok")
@@ -184,10 +189,13 @@ class TestMemoryBenchmark:
         mem = MemoryInterface("bench_robot")
         mem.initialize()
         for i in range(500):
-            mem.write(f"key_{i}", {
-                "instruction": f"reach to point {i}",
-                "outcome": "success" if i % 2 == 0 else "failure",
-            })
+            mem.write(
+                f"key_{i}",
+                {
+                    "instruction": f"reach to point {i}",
+                    "outcome": "success" if i % 2 == 0 else "failure",
+                },
+            )
 
         start = time.perf_counter()
         results = mem.search("reach point")

@@ -19,14 +19,16 @@ class TestSwarmCoordinatorExtended:
 
     def test_decompose_task_sequential_assembly(self):
         sc = SwarmCoordinator()
-        subtasks = sc.decompose_task({
-            "id": "assemble",
-            "type": "sequential_assembly",
-            "steps": [
-                {"capabilities": ["insert"]},
-                {"capabilities": ["screw"]},
-            ],
-        })
+        subtasks = sc.decompose_task(
+            {
+                "id": "assemble",
+                "type": "sequential_assembly",
+                "steps": [
+                    {"capabilities": ["insert"]},
+                    {"capabilities": ["screw"]},
+                ],
+            }
+        )
         assert len(subtasks) == 2
         assert subtasks[0]["type"] == "assembly_step"
         assert subtasks[1]["type"] == "assembly_step"
@@ -41,10 +43,12 @@ class TestSwarmCoordinatorExtended:
     def test_request_bids_with_distance(self):
         sc = SwarmCoordinator()
         sc.register_agent("bot_1", ["pick"], position=(0.0, 0.0, 0.0))
-        bids = sc.request_bids({
-            "required_capabilities": ["pick"],
-            "target_position": (3.0, 4.0, 0.0),
-        })
+        bids = sc.request_bids(
+            {
+                "required_capabilities": ["pick"],
+                "target_position": (3.0, 4.0, 0.0),
+            }
+        )
         assert len(bids) == 1
         # cost = 1.0 + distance(0,0 to 3,4) = 1.0 + 5.0 = 6.0
         assert bids[0].cost == pytest.approx(6.0)
@@ -52,17 +56,21 @@ class TestSwarmCoordinatorExtended:
     def test_allocate_task_publishes_event(self):
         bus = EventBus()
         received = []
+
         def handler(event):  # noqa: E306
             received.append(event)
+
         bus.subscribe("swarm.task_allocated", handler)
 
         sc = SwarmCoordinator(event_bus=bus)
         sc.register_agent("bot_1", ["pick"])
-        allocation = sc.allocate_task({
-            "id": "task_1",
-            "type": "single",
-            "required_capabilities": ["pick"],
-        })
+        allocation = sc.allocate_task(
+            {
+                "id": "task_1",
+                "type": "single",
+                "required_capabilities": ["pick"],
+            }
+        )
         assert allocation.feasible is True
         assert len(received) == 1
         assert received[0].payload["agent_id"] == "bot_1"
@@ -70,8 +78,10 @@ class TestSwarmCoordinatorExtended:
     def test_propose_state_consensus_reached(self):
         bus = EventBus()
         received = []
+
         def handler(event):  # noqa: E306
             received.append(event)
+
         bus.subscribe("swarm.consensus_reached", handler)
 
         sc = SwarmCoordinator(event_bus=bus)

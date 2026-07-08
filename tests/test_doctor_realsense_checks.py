@@ -68,7 +68,11 @@ class TestDoctorRealSenseChecks:
             return result
 
         monkeypatch.setattr(subprocess, "run", _run)
-        monkeypatch.setattr(importlib, "import_module", lambda name: object() if name == "rclpy" else __import__(name))
+        monkeypatch.setattr(
+            importlib,
+            "import_module",
+            lambda name: object() if name == "rclpy" else __import__(name),
+        )
 
         monkeypatch.setattr(
             "rosclaw.mcp.onboarding.installed.InstalledRegistry", _FakeInstalledRegistry
@@ -78,9 +82,7 @@ class TestDoctorRealSenseChecks:
         class _FakeResponse:
             status = 200
 
-        monkeypatch.setattr(
-            urllib.request, "urlopen", lambda _req, **kwargs: _FakeResponse()
-        )
+        monkeypatch.setattr(urllib.request, "urlopen", lambda _req, **kwargs: _FakeResponse())
         monkeypatch.setattr(urllib.request, "Request", lambda url, method="GET": object())
 
         result = _run_doctor_realsense(self._args())

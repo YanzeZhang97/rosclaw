@@ -25,7 +25,10 @@ def test_mcp_server_starts_and_lists_tools(server_path):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        env={**dict(subprocess.os.environ), "PYTHONPATH": str(Path(__file__).parent.parent / "src")},
+        env={
+            **dict(subprocess.os.environ),
+            "PYTHONPATH": str(Path(__file__).parent.parent / "src"),
+        },
     )
 
     try:

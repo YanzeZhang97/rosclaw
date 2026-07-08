@@ -1,4 +1,5 @@
 """LocalRunner — lightweight local experiment runner (dry-run / smoke test)."""
+
 import logging
 from typing import Any
 
@@ -16,6 +17,7 @@ class LocalRunner(BaseRunner):
     - Unit test mocking
     - Smoke tests before expensive sandbox/darwin runs
     """
+
     name = "local"
 
     def __init__(self, config: dict | None = None):
@@ -60,7 +62,9 @@ class LocalRunner(BaseRunner):
                         "episodes": episodes,
                     },
                 },
-                logs=[f"Simulated {episodes} episodes for {candidate} vs {baseline} with parametric physics"],
+                logs=[
+                    f"Simulated {episodes} episodes for {candidate} vs {baseline} with parametric physics"
+                ],
             )
 
         # Non-simulate mode: placeholder for real local execution

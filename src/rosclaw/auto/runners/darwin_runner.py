@@ -1,4 +1,5 @@
 """DarwinRunner — multi-seed benchmark evaluation via rosclaw-darwin."""
+
 import logging
 from typing import Any
 
@@ -17,6 +18,7 @@ class DarwinRunner(BaseRunner):
     - Stress scenario testing
     - Leaderboard recording
     """
+
     name = "darwin"
 
     def __init__(self, config: dict | None = None):
@@ -46,8 +48,9 @@ class DarwinRunner(BaseRunner):
         patch_ctx = getattr(experiment_spec, "patch_context", {})
         patch_changes = patch_ctx.get("changes", [])
 
-        logger.info("DarwinRunner: benchmark %s on seeds %s (%s episodes each)",
-                    candidate, seeds, episodes)
+        logger.info(
+            "DarwinRunner: benchmark %s on seeds %s (%s episodes each)", candidate, seeds, episodes
+        )
 
         if self._simulate:
             seed_results = {}
@@ -61,25 +64,39 @@ class DarwinRunner(BaseRunner):
                 }
 
             # Aggregate across seeds
-            avg_baseline_sr = sum(r["baseline"]["success_rate"] for r in seed_results.values()) / len(seed_results)
-            avg_candidate_sr = sum(r["candidate"]["success_rate"] for r in seed_results.values()) / len(seed_results)
-            avg_baseline_col = sum(r["baseline"]["collision_rate"] for r in seed_results.values()) / len(seed_results)
-            avg_candidate_col = sum(r["candidate"]["collision_rate"] for r in seed_results.values()) / len(seed_results)
+            avg_baseline_sr = sum(
+                r["baseline"]["success_rate"] for r in seed_results.values()
+            ) / len(seed_results)
+            avg_candidate_sr = sum(
+                r["candidate"]["success_rate"] for r in seed_results.values()
+            ) / len(seed_results)
+            avg_baseline_col = sum(
+                r["baseline"]["collision_rate"] for r in seed_results.values()
+            ) / len(seed_results)
+            avg_candidate_col = sum(
+                r["candidate"]["collision_rate"] for r in seed_results.values()
+            ) / len(seed_results)
 
             return RunnerResult(
                 success=True,
                 metrics={
-                    "baseline": {"success_rate": round(avg_baseline_sr, 3),
-                                 "collision_rate": round(avg_baseline_col, 3),
-                                 "episodes": episodes,
-                                 "seeds": seeds},
-                    "candidate": {"success_rate": round(avg_candidate_sr, 3),
-                                  "collision_rate": round(avg_candidate_col, 3),
-                                  "episodes": episodes,
-                                 "seeds": seeds},
+                    "baseline": {
+                        "success_rate": round(avg_baseline_sr, 3),
+                        "collision_rate": round(avg_baseline_col, 3),
+                        "episodes": episodes,
+                        "seeds": seeds,
+                    },
+                    "candidate": {
+                        "success_rate": round(avg_candidate_sr, 3),
+                        "collision_rate": round(avg_candidate_col, 3),
+                        "episodes": episodes,
+                        "seeds": seeds,
+                    },
                     "per_seed": seed_results,
                 },
-                logs=[f"Darwin benchmark completed on {len(seeds)} seeds, {episodes} episodes each"],
+                logs=[
+                    f"Darwin benchmark completed on {len(seeds)} seeds, {episodes} episodes each"
+                ],
             )
 
         if self._darwin_client is None:

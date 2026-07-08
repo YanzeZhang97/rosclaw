@@ -36,10 +36,7 @@ class HealthEstimator:
         return "ok"
 
     def _thermal_health(self, state: BodyState) -> str:
-        temps = [
-            j.temperature_c for j in state.joints.values()
-            if j.temperature_c is not None
-        ]
+        temps = [j.temperature_c for j in state.joints.values() if j.temperature_c is not None]
         if not temps:
             return "unknown"
         max_temp = max(temps)

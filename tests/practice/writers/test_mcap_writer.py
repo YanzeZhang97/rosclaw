@@ -96,9 +96,7 @@ def test_unknown_compression_falls_back_to_zstd():
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "events.mcap"
         writer = McapWriter(path, compression="not-real")
-        writer.write(
-            {"practice_id": "prac_004", "event_type": "fallback", "timestamp_ns": 789}
-        )
+        writer.write({"practice_id": "prac_004", "event_type": "fallback", "timestamp_ns": 789})
         writer.close()
         records = _read_records(path)
         assert len(records) == 1

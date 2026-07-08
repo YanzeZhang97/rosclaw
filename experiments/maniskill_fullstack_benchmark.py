@@ -49,17 +49,16 @@ def _to_bool(val):
 # Pre-generate actions
 # ---------------------------------------------------------------------------
 
+
 def generate_actions(env, num_episodes: int, max_steps: int, seed: int = 42):
     np.random.seed(seed)
-    return [
-        [env.action_space.sample() for _ in range(max_steps)]
-        for _ in range(num_episodes)
-    ]
+    return [[env.action_space.sample() for _ in range(max_steps)] for _ in range(num_episodes)]
 
 
 # ---------------------------------------------------------------------------
 # ROSClaw Full-Stack Policy
 # ---------------------------------------------------------------------------
+
 
 class ROSClawFullStackPolicy:
     """Policy that uses all ROSClaw modules协同.
@@ -183,7 +182,9 @@ class ROSClawFullStackPolicy:
         self.round_count += 1
 
         avg_reward = sum(r["total_reward"] for r in round_results) / len(round_results)
-        recent_avg = sum(self.recent_rewards) / len(self.recent_rewards) if self.recent_rewards else 0
+        recent_avg = (
+            sum(self.recent_rewards) / len(self.recent_rewards) if self.recent_rewards else 0
+        )
 
         # How logic: if we're finding good actions, increase replay
         # If not, increase exploration
@@ -235,7 +236,10 @@ class ROSClawFullStackPolicy:
 # Episode runners
 # ---------------------------------------------------------------------------
 
-def run_baseline(env, actions, scale: float, num_episodes: int, max_steps: int, seed_offset: int = 0) -> list[dict]:
+
+def run_baseline(
+    env, actions, scale: float, num_episodes: int, max_steps: int, seed_offset: int = 0
+) -> list[dict]:
     """Run with fixed scale (no learning)."""
     results = []
 
@@ -261,17 +265,26 @@ def run_baseline(env, actions, scale: float, num_episodes: int, max_steps: int, 
             if _to_bool(terminated) or truncated:
                 break
 
-        results.append({
-            "total_reward": round(total_reward, 4),
-            "steps": steps,
-            "success": success,
-            "truncated": truncated,
-        })
+        results.append(
+            {
+                "total_reward": round(total_reward, 4),
+                "steps": steps,
+                "success": success,
+                "truncated": truncated,
+            }
+        )
 
     return results
 
 
-def run_rosclaw(env, actions, policy: ROSClawFullStackPolicy, num_episodes: int, max_steps: int, seed_offset: int = 0) -> list[dict]:
+def run_rosclaw(
+    env,
+    actions,
+    policy: ROSClawFullStackPolicy,
+    num_episodes: int,
+    max_steps: int,
+    seed_offset: int = 0,
+) -> list[dict]:
     """Run with full ROSClaw stack."""
     results = []
 
@@ -305,12 +318,14 @@ def run_rosclaw(env, actions, policy: ROSClawFullStackPolicy, num_episodes: int,
         # Practice: record episode
         policy.record_episode(total_reward, episode_actions)
 
-        results.append({
-            "total_reward": round(total_reward, 4),
-            "steps": steps,
-            "success": success,
-            "truncated": truncated,
-        })
+        results.append(
+            {
+                "total_reward": round(total_reward, 4),
+                "steps": steps,
+                "success": success,
+                "truncated": truncated,
+            }
+        )
 
     return results
 
@@ -318,6 +333,7 @@ def run_rosclaw(env, actions, policy: ROSClawFullStackPolicy, num_episodes: int,
 # ---------------------------------------------------------------------------
 # Main experiment
 # ---------------------------------------------------------------------------
+
 
 def main():
     import gymnasium as gym
@@ -351,20 +367,28 @@ def main():
     # Baseline A: Pure random (scale=1.0)
     # ------------------------------------------------------------------
     print("[Baseline A] Pure random — scale=1.0 (no learning)")
-    baseline_a_results = run_baseline(env, actions, scale=1.0, num_episodes=num_episodes, max_steps=max_steps)
+    baseline_a_results = run_baseline(
+        env, actions, scale=1.0, num_episodes=num_episodes, max_steps=max_steps
+    )
     baseline_a_reward = sum(r["total_reward"] for r in baseline_a_results) / num_episodes
     baseline_a_success = sum(1 for r in baseline_a_results if r["success"])
-    print(f"             Reward: {baseline_a_reward:.4f}  Success: {baseline_a_success}/{num_episodes}")
+    print(
+        f"             Reward: {baseline_a_reward:.4f}  Success: {baseline_a_success}/{num_episodes}"
+    )
     print()
 
     # ------------------------------------------------------------------
     # Baseline B: Fixed optimal (scale=2.0 from auto-tuning)
     # ------------------------------------------------------------------
     print("[Baseline B] Fixed optimal — scale=2.0 (manual tuning, no learning)")
-    baseline_b_results = run_baseline(env, actions, scale=2.0, num_episodes=num_episodes, max_steps=max_steps, seed_offset=10000)
+    baseline_b_results = run_baseline(
+        env, actions, scale=2.0, num_episodes=num_episodes, max_steps=max_steps, seed_offset=10000
+    )
     baseline_b_reward = sum(r["total_reward"] for r in baseline_b_results) / num_episodes
     baseline_b_success = sum(1 for r in baseline_b_results if r["success"])
-    print(f"             Reward: {baseline_b_reward:.4f}  Success: {baseline_b_success}/{num_episodes}")
+    print(
+        f"             Reward: {baseline_b_reward:.4f}  Success: {baseline_b_success}/{num_episodes}"
+    )
     print()
 
     # ------------------------------------------------------------------
@@ -386,8 +410,11 @@ def main():
         print(f"             Replay: {policy.replay_ratio:.1%}")
 
         results = run_rosclaw(
-            env, actions, policy,
-            num_episodes=num_episodes, max_steps=max_steps,
+            env,
+            actions,
+            policy,
+            num_episodes=num_episodes,
+            max_steps=max_steps,
             seed_offset=round_num * 10000,
         )
 
@@ -395,7 +422,9 @@ def main():
         success_count = sum(1 for r in results if r["success"])
         avg_steps = sum(r["steps"] for r in results) / num_episodes
 
-        print(f"             Reward: {avg_reward:.4f}  Success: {success_count}/{num_episodes}  Steps: {avg_steps:.1f}")
+        print(
+            f"             Reward: {avg_reward:.4f}  Success: {success_count}/{num_episodes}  Steps: {avg_steps:.1f}"
+        )
 
         # How analyzes and adjusts
         analysis = policy.how_analyze_round(results)
@@ -403,16 +432,18 @@ def main():
         print(f"             → {analysis['recommendation']}")
         print()
 
-        rosclaw_rounds.append({
-            "round": round_num,
-            "avg_reward": round(avg_reward, 4),
-            "success_count": success_count,
-            "success_rate": round(success_count / num_episodes * 100, 2),
-            "avg_steps": round(avg_steps, 2),
-            "memory_size": analysis["memory_size"],
-            "replay_ratio": round(analysis["replay_ratio"], 2),
-            "how_diagnosis": analysis["diagnosis"],
-        })
+        rosclaw_rounds.append(
+            {
+                "round": round_num,
+                "avg_reward": round(avg_reward, 4),
+                "success_count": success_count,
+                "success_rate": round(success_count / num_episodes * 100, 2),
+                "avg_steps": round(avg_steps, 2),
+                "memory_size": analysis["memory_size"],
+                "replay_ratio": round(analysis["replay_ratio"], 2),
+                "how_diagnosis": analysis["diagnosis"],
+            }
+        )
 
     env.close()
 
@@ -440,19 +471,33 @@ def main():
     print("Detailed:")
     for rd in rosclaw_rounds:
         marker = " ★ BEST" if rd is best_round else ""
-        print(f"  Round {rd['round']}: reward={rd['avg_reward']:.4f}, "
-              f"success={rd['success_count']}/{num_episodes}, "
-              f"steps={rd['avg_steps']:.1f}{marker}")
+        print(
+            f"  Round {rd['round']}: reward={rd['avg_reward']:.4f}, "
+            f"success={rd['success_count']}/{num_episodes}, "
+            f"steps={rd['avg_steps']:.1f}{marker}"
+        )
     print()
 
     # Improvements
     best_reward = best_round["avg_reward"]
-    vs_a = ((best_reward - baseline_a_reward) / baseline_a_reward * 100) if baseline_a_reward > 0 else 0
-    vs_b = ((best_reward - baseline_b_reward) / baseline_b_reward * 100) if baseline_b_reward > 0 else 0
+    vs_a = (
+        ((best_reward - baseline_a_reward) / baseline_a_reward * 100)
+        if baseline_a_reward > 0
+        else 0
+    )
+    vs_b = (
+        ((best_reward - baseline_b_reward) / baseline_b_reward * 100)
+        if baseline_b_reward > 0
+        else 0
+    )
 
     print("Improvements:")
-    print(f"  vs Baseline A (random):     {baseline_a_reward:.4f} → {best_reward:.4f}  ({vs_a:+.1f}%)")
-    print(f"  vs Baseline B (optimal):    {baseline_b_reward:.4f} → {best_reward:.4f}  ({vs_b:+.1f}%)")
+    print(
+        f"  vs Baseline A (random):     {baseline_a_reward:.4f} → {best_reward:.4f}  ({vs_a:+.1f}%)"
+    )
+    print(
+        f"  vs Baseline B (optimal):    {baseline_b_reward:.4f} → {best_reward:.4f}  ({vs_b:+.1f}%)"
+    )
     print()
 
     stats = policy.get_stats()
@@ -482,8 +527,18 @@ def main():
         "benchmark": "ROSClaw Full-Stack on ManiSkill PickCube",
         "date": time.strftime("%Y-%m-%d %H:%M:%S"),
         "config": {"episodes": num_episodes, "max_steps": max_steps, "rounds": num_rounds},
-        "baseline_a": {"name": "Pure random", "scale": 1.0, "avg_reward": round(baseline_a_reward, 4), "success_count": baseline_a_success},
-        "baseline_b": {"name": "Fixed optimal", "scale": 2.0, "avg_reward": round(baseline_b_reward, 4), "success_count": baseline_b_success},
+        "baseline_a": {
+            "name": "Pure random",
+            "scale": 1.0,
+            "avg_reward": round(baseline_a_reward, 4),
+            "success_count": baseline_a_success,
+        },
+        "baseline_b": {
+            "name": "Fixed optimal",
+            "scale": 2.0,
+            "avg_reward": round(baseline_b_reward, 4),
+            "success_count": baseline_b_success,
+        },
         "rosclaw_rounds": rosclaw_rounds,
         "improvement": {
             "vs_baseline_a_percent": round(vs_a, 2),

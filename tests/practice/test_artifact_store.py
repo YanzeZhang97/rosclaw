@@ -18,16 +18,16 @@ def tmp_store(tmp_path: Path):
 
 def test_write_jsonl_creates_file_and_manifest(tmp_store: ArtifactStore, tmp_path: Path):
     records = [{"event_id": "evt_1", "type": "a"}, {"event_id": "evt_2", "type": "b"}]
-    record = tmp_store.write_jsonl(
-        "art_events_1", records, session_id="sess_1", episode_id="ep_1"
-    )
+    record = tmp_store.write_jsonl("art_events_1", records, session_id="sess_1", episode_id="ep_1")
     assert isinstance(record, ArtifactRecord)
     assert record.artifact_type == "events"
     assert record.session_id == "sess_1"
     assert record.episode_id == "ep_1"
     assert Path(record.path).exists()
 
-    manifest_path = tmp_path / "sessions" / "sess_1" / "episodes" / "ep_1" / "artifact_manifest.yaml"
+    manifest_path = (
+        tmp_path / "sessions" / "sess_1" / "episodes" / "ep_1" / "artifact_manifest.yaml"
+    )
     assert manifest_path.exists()
     with open(manifest_path, encoding="utf-8") as f:
         manifest = yaml.safe_load(f)

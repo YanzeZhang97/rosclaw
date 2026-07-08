@@ -70,7 +70,20 @@ def test_init_and_create_generate_same_core_files(tmp_workspace: Path, monkeypat
 
     # init single mode
     with monkeypatch.context() as m:
-        m.setattr("sys.argv", ["rosclaw", "body", "init", "--robot", "unitree-g1", "--name", "init-g1", "--workspace", str(tmp_workspace)])
+        m.setattr(
+            "sys.argv",
+            [
+                "rosclaw",
+                "body",
+                "init",
+                "--robot",
+                "unitree-g1",
+                "--name",
+                "init-g1",
+                "--workspace",
+                str(tmp_workspace),
+            ],
+        )
         assert rosclaw_main() == 0
 
     init_body_dir = tmp_workspace / "body"
@@ -79,7 +92,20 @@ def test_init_and_create_generate_same_core_files(tmp_workspace: Path, monkeypat
 
     # create registry mode
     with monkeypatch.context() as m:
-        m.setattr("sys.argv", ["rosclaw", "body", "create", "--robot", "unitree-g1", "--name", "create-g1", "--workspace", str(tmp_workspace)])
+        m.setattr(
+            "sys.argv",
+            [
+                "rosclaw",
+                "body",
+                "create",
+                "--robot",
+                "unitree-g1",
+                "--name",
+                "create-g1",
+                "--workspace",
+                str(tmp_workspace),
+            ],
+        )
         assert rosclaw_main() == 0
 
     create_body_dir = tmp_workspace / "bodies" / "create-g1"
@@ -93,7 +119,10 @@ def test_link_eurdf_uses_service_and_generates_files(tmp_workspace: Path, monkey
     monkeypatch.setenv("HOME", str(tmp_workspace.parent))
 
     with monkeypatch.context() as m:
-        m.setattr("sys.argv", ["rosclaw", "body", "link-eurdf", "unitree-g1", "--workspace", str(tmp_workspace)])
+        m.setattr(
+            "sys.argv",
+            ["rosclaw", "body", "link-eurdf", "unitree-g1", "--workspace", str(tmp_workspace)],
+        )
         assert rosclaw_main() == 0
 
     body_dir = tmp_workspace / "body"
@@ -106,7 +135,20 @@ def test_legacy_body_path_resolves_to_active_body(tmp_workspace: Path, monkeypat
     monkeypatch.setenv("HOME", str(tmp_workspace.parent))
 
     with monkeypatch.context() as m:
-        m.setattr("sys.argv", ["rosclaw", "body", "init", "--robot", "unitree-g1", "--name", "legacy-g1", "--workspace", str(tmp_workspace)])
+        m.setattr(
+            "sys.argv",
+            [
+                "rosclaw",
+                "body",
+                "init",
+                "--robot",
+                "unitree-g1",
+                "--name",
+                "legacy-g1",
+                "--workspace",
+                str(tmp_workspace),
+            ],
+        )
         assert rosclaw_main() == 0
 
     # In single mode the legacy ~/.rosclaw/body/ layout is used.
@@ -117,15 +159,55 @@ def test_force_required_for_existing_body_overwrite(tmp_workspace: Path, monkeyp
     monkeypatch.setenv("HOME", str(tmp_workspace.parent))
 
     with monkeypatch.context() as m:
-        m.setattr("sys.argv", ["rosclaw", "body", "init", "--robot", "unitree-g1", "--name", "dup", "--workspace", str(tmp_workspace)])
+        m.setattr(
+            "sys.argv",
+            [
+                "rosclaw",
+                "body",
+                "init",
+                "--robot",
+                "unitree-g1",
+                "--name",
+                "dup",
+                "--workspace",
+                str(tmp_workspace),
+            ],
+        )
         assert rosclaw_main() == 0
 
     # Without force the same init should fail.
     with monkeypatch.context() as m:
-        m.setattr("sys.argv", ["rosclaw", "body", "init", "--robot", "unitree-g1", "--name", "dup", "--workspace", str(tmp_workspace)])
+        m.setattr(
+            "sys.argv",
+            [
+                "rosclaw",
+                "body",
+                "init",
+                "--robot",
+                "unitree-g1",
+                "--name",
+                "dup",
+                "--workspace",
+                str(tmp_workspace),
+            ],
+        )
         assert rosclaw_main() == 1
 
     # With force it should succeed.
     with monkeypatch.context() as m:
-        m.setattr("sys.argv", ["rosclaw", "body", "init", "--robot", "unitree-g1", "--name", "dup", "--workspace", str(tmp_workspace), "--force"])
+        m.setattr(
+            "sys.argv",
+            [
+                "rosclaw",
+                "body",
+                "init",
+                "--robot",
+                "unitree-g1",
+                "--name",
+                "dup",
+                "--workspace",
+                str(tmp_workspace),
+                "--force",
+            ],
+        )
         assert rosclaw_main() == 0

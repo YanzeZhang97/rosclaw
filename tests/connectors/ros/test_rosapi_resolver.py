@@ -23,9 +23,7 @@ def _make_service_response(values: dict, request_id: str | None = None) -> RosTr
 
 def test_ros2_humble_detection():
     transport = MockTransport()
-    transport.queue_json(
-        {"op": "service_response", "values": {"version": 2, "distro": "humble"}}
-    )
+    transport.queue_json({"op": "service_response", "values": {"version": 2, "distro": "humble"}})
     resolver = RosApiResolver(transport)
     profile = resolver.resolve()
     assert profile.version == RosVersion.ROS2
@@ -41,9 +39,7 @@ def test_ros2_jazzy_with_rosapi_node_prefix():
     # First prefix /rosapi fails.
     transport.queue_response(RosTransportResult(ok=False, error="service not found"))
     # Second prefix /rosapi_node succeeds.
-    transport.queue_json(
-        {"op": "service_response", "values": {"version": 2, "distro": "jazzy"}}
-    )
+    transport.queue_json({"op": "service_response", "values": {"version": 2, "distro": "jazzy"}})
     resolver = RosApiResolver(transport)
     profile = resolver.resolve()
     assert profile.version == RosVersion.ROS2
@@ -57,9 +53,7 @@ def test_ros1_fallback():
     transport.queue_response(RosTransportResult(ok=False, error="not found"))
     transport.queue_response(RosTransportResult(ok=False, error="not found"))
     # ROS1 distro lookup succeeds.
-    transport.queue_json(
-        {"op": "service_response", "values": {"value": "noetic"}}
-    )
+    transport.queue_json({"op": "service_response", "values": {"value": "noetic"}})
     resolver = RosApiResolver(transport)
     profile = resolver.resolve()
     assert profile.version == RosVersion.ROS1
@@ -72,9 +66,7 @@ def test_ros1_distro_from_path_value():
     transport = MockTransport()
     transport.queue_response(RosTransportResult(ok=False, error="not found"))
     transport.queue_response(RosTransportResult(ok=False, error="not found"))
-    transport.queue_json(
-        {"op": "service_response", "values": {"value": "/opt/ros/noetic"}}
-    )
+    transport.queue_json({"op": "service_response", "values": {"value": "/opt/ros/noetic"}})
     resolver = RosApiResolver(transport)
     profile = resolver.resolve()
     assert profile.distro == "noetic"
@@ -82,9 +74,7 @@ def test_ros1_distro_from_path_value():
 
 def test_cache_used():
     transport = MockTransport()
-    transport.queue_json(
-        {"op": "service_response", "values": {"version": 2, "distro": "humble"}}
-    )
+    transport.queue_json({"op": "service_response", "values": {"version": 2, "distro": "humble"}})
     resolver = RosApiResolver(transport)
     p1 = resolver.resolve()
     p2 = resolver.resolve()
@@ -95,15 +85,11 @@ def test_cache_used():
 
 def test_reset_for_test():
     transport = MockTransport()
-    transport.queue_json(
-        {"op": "service_response", "values": {"version": 2, "distro": "humble"}}
-    )
+    transport.queue_json({"op": "service_response", "values": {"version": 2, "distro": "humble"}})
     resolver = RosApiResolver(transport)
     p1 = resolver.resolve()
     resolver.reset_for_test()
-    transport.queue_json(
-        {"op": "service_response", "values": {"version": 2, "distro": "jazzy"}}
-    )
+    transport.queue_json({"op": "service_response", "values": {"version": 2, "distro": "jazzy"}})
     p2 = resolver.resolve()
     assert p1.distro == "humble"
     assert p2.distro == "jazzy"

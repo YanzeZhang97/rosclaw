@@ -344,8 +344,12 @@ def run_firstboot_noninteractive(args: argparse.Namespace) -> int:
     safety = getattr(args, "safety", "strict")
 
     telemetry_enabled = not args.no_telemetry if getattr(args, "no_telemetry", False) else True
-    diagnostics_enabled = getattr(args, "diagnostics", False) and not getattr(args, "no_diagnostics", False)
-    rich_feedback_enabled = getattr(args, "rich_feedback", False) and not getattr(args, "no_rich_feedback", False)
+    diagnostics_enabled = getattr(args, "diagnostics", False) and not getattr(
+        args, "no_diagnostics", False
+    )
+    rich_feedback_enabled = getattr(args, "rich_feedback", False) and not getattr(
+        args, "no_rich_feedback", False
+    )
     enable_mcp = not args.disable_mcp if getattr(args, "disable_mcp", False) else True
 
     use_cases = {

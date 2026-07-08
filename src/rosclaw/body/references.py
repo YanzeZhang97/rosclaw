@@ -30,7 +30,7 @@ class RosclawURI:
         if not self.is_rosclaw_uri(self.raw):
             raise ValueError(f"Not a rosclaw URI: {self.raw}")
 
-        rest = self.raw[len(f"{self.SCHEME}://"):]
+        rest = self.raw[len(f"{self.SCHEME}://") :]
         parts = rest.split("/", 2)
         if len(parts) < 2:
             raise ValueError(f"Invalid rosclaw URI: {self.raw}")

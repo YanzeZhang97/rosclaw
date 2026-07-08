@@ -9,9 +9,11 @@ import pytest
 # main() help paths
 # ------------------------------------------------------------------
 
+
 class TestMainHelpPaths:
     def test_main_no_command_prints_help(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw"]
         code = main()
         captured = capsys.readouterr()
@@ -20,6 +22,7 @@ class TestMainHelpPaths:
 
     def test_robot_subcommand_no_action(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "robot"]
         code = main()
         captured = capsys.readouterr()
@@ -27,6 +30,7 @@ class TestMainHelpPaths:
 
     def test_provider_subcommand_no_action(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "provider"]
         code = main()
         capsys.readouterr()
@@ -34,6 +38,7 @@ class TestMainHelpPaths:
 
     def test_skill_subcommand_no_action(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "skill"]
         code = main()
         capsys.readouterr()
@@ -41,6 +46,7 @@ class TestMainHelpPaths:
 
     def test_sandbox_subcommand_no_action(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "sandbox"]
         code = main()
         capsys.readouterr()
@@ -48,6 +54,7 @@ class TestMainHelpPaths:
 
     def test_memory_subcommand_no_action(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "memory"]
         code = main()
         capsys.readouterr()
@@ -55,6 +62,7 @@ class TestMainHelpPaths:
 
     def test_practice_subcommand_no_action(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "practice"]
         code = main()
         capsys.readouterr()
@@ -65,10 +73,12 @@ class TestMainHelpPaths:
 # cmd_doctor edge cases
 # ------------------------------------------------------------------
 
+
 class TestDoctorEdgeCases:
     @patch("platform.python_version", return_value="2.7.0")
     def test_doctor_python_version_too_old(self, mock_pyver, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "doctor"]
         code = main()
         captured = capsys.readouterr()
@@ -78,6 +88,7 @@ class TestDoctorEdgeCases:
     @patch("importlib.import_module", side_effect=ImportError("no module"))
     def test_doctor_core_module_import_fails(self, mock_import, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "doctor"]
         code = main()
         captured = capsys.readouterr()
@@ -88,6 +99,7 @@ class TestDoctorEdgeCases:
         import os
 
         from rosclaw.cli import main
+
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
@@ -103,6 +115,7 @@ class TestDoctorEdgeCases:
 # ------------------------------------------------------------------
 # cmd_logs edge cases
 # ------------------------------------------------------------------
+
 
 class TestLogsEdgeCases:
     def test_logs_unreadable_file(self, tmp_path, capsys):
@@ -161,10 +174,12 @@ class TestLogsEdgeCases:
 # cmd_status degraded modules
 # ------------------------------------------------------------------
 
+
 class TestStatusEdgeCases:
     @patch("importlib.import_module", side_effect=ImportError("no module"))
     def test_status_all_degraded(self, mock_import, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "status"]
         code = main()
         captured = capsys.readouterr()
@@ -175,6 +190,7 @@ class TestStatusEdgeCases:
 # ------------------------------------------------------------------
 # cmd_stop edge cases
 # ------------------------------------------------------------------
+
 
 class TestStopEdgeCases:
     def test_stop_process_lookup_error(self, capsys, tmp_path):
@@ -204,6 +220,7 @@ class TestStopEdgeCases:
 # cmd_events with history
 # ------------------------------------------------------------------
 
+
 class TestEventsEdgeCases:
     def test_events_with_history(self, capsys):
         from rosclaw.cli import main
@@ -223,10 +240,12 @@ class TestEventsEdgeCases:
 # cmd_robot_install error path
 # ------------------------------------------------------------------
 
+
 class TestRobotInstallEdgeCases:
     @patch("rosclaw.runtime.RobotRegistry")
     def test_robot_install_not_found(self, mock_reg_cls, capsys):
         from rosclaw.cli import main
+
         mock_reg = MagicMock()
         mock_reg.install.side_effect = FileNotFoundError("robot not found")
         mock_reg.list_available.return_value = ["ur5e", "panda"]
@@ -243,10 +262,12 @@ class TestRobotInstallEdgeCases:
 # cmd_practice export unknown format
 # ------------------------------------------------------------------
 
+
 class TestPracticeExportEdgeCases:
     @patch("rosclaw.practice.episode_recorder.EpisodeRecorder")
     def test_practice_export_unknown_format(self, mock_rec_cls, capsys):
         from rosclaw.cli import main
+
         mock_rec = MagicMock()
         mock_rec.get_episode.return_value = {"episode_id": "ep_1"}
         mock_rec_cls.return_value = mock_rec
@@ -262,10 +283,12 @@ class TestPracticeExportEdgeCases:
 # cmd_memory_query with results
 # ------------------------------------------------------------------
 
+
 class TestMemoryQueryEdgeCases:
     @patch("rosclaw.memory.interface.MemoryInterface")
     def test_memory_query_with_results(self, mock_mem_cls, capsys):
         from rosclaw.cli import main
+
         mock_mem = MagicMock()
         mock_mem.find_similar_experiences.return_value = [
             {
@@ -287,6 +310,7 @@ class TestMemoryQueryEdgeCases:
     @patch("rosclaw.memory.interface.MemoryInterface")
     def test_memory_explain_with_failure(self, mock_mem_cls, capsys):
         from rosclaw.cli import main
+
         mock_mem = MagicMock()
         mock_mem.explain_last_failure.return_value = {
             "id": "f1",
@@ -309,10 +333,12 @@ class TestMemoryQueryEdgeCases:
 # cmd_sandbox_validate exception
 # ------------------------------------------------------------------
 
+
 class TestSandboxValidateEdgeCases:
     @patch("rosclaw.runtime.RobotRegistry")
     def test_sandbox_validate_exception(self, mock_reg_cls, capsys):
         from rosclaw.cli import main
+
         mock_reg = MagicMock()
         mock_reg.validate.side_effect = RuntimeError("simulation crash")
         mock_reg_cls.return_value = mock_reg
@@ -328,10 +354,12 @@ class TestSandboxValidateEdgeCases:
 # cmd_dashboard with degraded modules
 # ------------------------------------------------------------------
 
+
 class TestDashboardEdgeCases:
     @patch("importlib.import_module", side_effect=ImportError("no module"))
     def test_dashboard_all_degraded(self, mock_import, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "dashboard", "--status"]
         code = main()
         captured = capsys.readouterr()

@@ -38,11 +38,19 @@ def test_walk_forward_compatible(linked_body):
 
 def test_camera_nav_blocked_when_camera_unavailable(linked_body):
     resolver = BodyResolver()
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "installed_components.sensors.head_camera.status=unavailable",
-        "--reason", "test",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "update-state",
+            "--set",
+            "installed_components.sensors.head_camera.status=unavailable",
+            "--reason",
+            "test",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     effective = resolver.get_effective_body()
@@ -54,11 +62,19 @@ def test_camera_nav_blocked_when_camera_unavailable(linked_body):
 
 def test_dual_arm_lift_blocked_when_right_arm_unavailable(linked_body):
     resolver = BodyResolver()
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "installed_components.actuators.right_arm.status=unavailable",
-        "--reason", "test",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "update-state",
+            "--set",
+            "installed_components.actuators.right_arm.status=unavailable",
+            "--reason",
+            "test",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     effective = resolver.get_effective_body()

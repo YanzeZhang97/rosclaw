@@ -1,4 +1,5 @@
 """Chaos: Fault injection and stress tests."""
+
 import contextlib
 import os
 import shutil
@@ -69,10 +70,15 @@ class TestChaosFaultInjection:
         """AUTO-CHAOS-003: Runner timeout should mark experiment failed."""
         runner = LocalRunner(config={"simulate": True, "latency_sec": 0.0})
         exp = ExperimentSpec(
-            id="exp_timeout", proposal_id="prop_1", patch_id="patch_1",
-            task="pick_cube", baseline_skill_id="b", candidate_skill_id="c",
+            id="exp_timeout",
+            proposal_id="prop_1",
+            patch_id="patch_1",
+            task="pick_cube",
+            baseline_skill_id="b",
+            candidate_skill_id="c",
             evaluation={"episodes": 10},
         )
+
         # Simulate a runner that hangs by mocking run() to sleep
         def slow_run(spec):
             time.sleep(0.5)
@@ -91,8 +97,10 @@ class TestChaosFaultInjection:
         class DisconnectBus:
             def subscribe(self, topic, handler):
                 pass
+
             def unsubscribe(self, topic, handler):
                 raise ConnectionError("Bus disconnected")
+
             def publish(self, event):
                 raise ConnectionError("Bus disconnected")
 
@@ -118,6 +126,7 @@ class TestChaosFaultInjection:
     def test_100_proposals_performance(self):
         """AUTO-PERF-001: 100 proposals generation latency."""
         import time
+
         store_path = "./.rosclaw_auto_test_perf"
         shutil.rmtree(store_path, ignore_errors=True)
         engine = AutoEngine(config=AutoConfig(local_store_path=store_path))
@@ -125,8 +134,11 @@ class TestChaosFaultInjection:
         start = time.time()
         for i in range(100):
             engine.create_proposal(
-                f"fc_{i}", "pick_cube", "pick_v1",
-                f"hypothesis_{i}", {"param": [0, 1]},
+                f"fc_{i}",
+                "pick_cube",
+                "pick_v1",
+                f"hypothesis_{i}",
+                {"param": [0, 1]},
             )
         elapsed = time.time() - start
         # Target: < 5s for non-LLM proposal

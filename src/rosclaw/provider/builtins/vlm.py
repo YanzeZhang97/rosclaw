@@ -153,6 +153,7 @@ class MockVLMProvider(Provider):
 
         try:
             from PIL import Image
+
             with Image.open(image_path) as img:
                 img = img.convert("RGB")
                 pixels = list(getattr(img, "get_flattened_data", img.getdata)())
@@ -230,6 +231,7 @@ class MockVLMProvider(Provider):
     def _analyze_scene(image_path):
         try:
             from PIL import Image
+
             with Image.open(image_path) as img:
                 img = img.convert("L")
                 pixels = list(getattr(img, "get_flattened_data", img.getdata)())

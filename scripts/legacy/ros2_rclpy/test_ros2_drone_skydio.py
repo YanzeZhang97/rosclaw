@@ -50,6 +50,7 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
@@ -72,6 +73,7 @@ def spin_nodes(nodes, iterations: int = 10, timeout: float = 0.05):
 # ------------------------------------------------------------------
 # Tests
 # ------------------------------------------------------------------
+
 
 @test("Skydio X2 driver initializes with 4 motors")
 def test_skydio_init():
@@ -200,6 +202,7 @@ def test_skydio_multi_drone():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     if not rclpy.ok():

@@ -20,7 +20,7 @@ import threading
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 from rosclaw.core.event_bus import Event, EventBus, EventPriority
 from rosclaw.data.flywheel import DataFlywheel, EventType
@@ -162,7 +162,9 @@ class PracticeRecorder(RuntimeConsumer):
         # Legacy subscriptions on the raw EventBus.
         if self._legacy_event_bus is not None:
             self._legacy_event_bus.subscribe("skill.execution.complete", self._on_skill_complete)
-            self._legacy_event_bus.subscribe("knowledge.ingest_complete", self._on_knowledge_ingest_complete)
+            self._legacy_event_bus.subscribe(
+                "knowledge.ingest_complete", self._on_knowledge_ingest_complete
+            )
             self._legacy_subscriptions = [
                 ("skill.execution.complete", self._on_skill_complete),
                 ("knowledge.ingest_complete", self._on_knowledge_ingest_complete),
@@ -219,7 +221,12 @@ class PracticeRecorder(RuntimeConsumer):
     def _auto_start_session_from_skill(self, event: RuntimeEvent) -> None:
         """Create a default practice session when a skill starts without one."""
         payload = event.payload or {}
-        skill_id = payload.get("skill_name") or payload.get("skill_id") or event.metadata.get("skill_id") or "unknown"
+        skill_id = (
+            payload.get("skill_name")
+            or payload.get("skill_id")
+            or event.metadata.get("skill_id")
+            or "unknown"
+        )
         robot_id = event.robot or event.metadata.get("robot_id") or self.robot_id
         practice_id = generate_practice_id()
         logger.info(
@@ -349,7 +356,9 @@ class PracticeRecorder(RuntimeConsumer):
         payload = event.payload or {}
         duration_ms = payload.get("duration_ms")
         if duration_ms is None:
-            duration_ms = (_datetime_to_ns(event.timestamp) - self._session.start_time_ns) / 1_000_000.0
+            duration_ms = (
+                _datetime_to_ns(event.timestamp) - self._session.start_time_ns
+            ) / 1_000_000.0
 
         outcome = payload.get("outcome", "UNKNOWN")
         reward = payload.get("reward")
@@ -368,7 +377,9 @@ class PracticeRecorder(RuntimeConsumer):
             failure_labels=failure_labels,
         )
 
-        self._finalize_runtime_session(outcome, reward=reward, duration_ms=duration_ms, event_count=event_count)
+        self._finalize_runtime_session(
+            outcome, reward=reward, duration_ms=duration_ms, event_count=event_count
+        )
 
     def _finalize_runtime_session(
         self,
@@ -426,9 +437,13 @@ class PracticeRecorder(RuntimeConsumer):
                 self._mcap_writer = None
 
         sources = self._session.metadata.get("sources", {}) if self._session.metadata else {}
-        seekdb_enabled = self._session.metadata.get("seekdb_enabled", False) if self._session.metadata else False
+        seekdb_enabled = (
+            self._session.metadata.get("seekdb_enabled", False) if self._session.metadata else False
+        )
 
-        self.layout.write_manifest(self._session, summary=self._summary, sources=sources, seekdb_enabled=seekdb_enabled)
+        self.layout.write_manifest(
+            self._session, summary=self._summary, sources=sources, seekdb_enabled=seekdb_enabled
+        )
         self.layout.finalize_session(
             self._session.practice_id,
             self._session,
@@ -456,7 +471,10 @@ class PracticeRecorder(RuntimeConsumer):
             return
 
         session_id = self._session.session_id or self._session.practice_id
-        episode_id = self._session.episode_id
+        episode_id = self._session.episode_id or session_id
+        if not episode_id:
+            logger.warning("Cannot write episode summary: missing episode_id")
+            return
         started_at = self._session.start_time_utc
         ended_at = _utc_now_iso()
         labels = failure_labels or list(self._failure_labels)
@@ -467,7 +485,9 @@ class PracticeRecorder(RuntimeConsumer):
             body_id=self._session.metadata.get("body_id"),
             skill_id=self._session.skill_id,
             policy_id=self._session.metadata.get("policy_id"),
-            outcome=_normalize_outcome(outcome),
+            outcome=cast(
+                Literal["success", "failure", "partial", "unknown"], _normalize_outcome(outcome)
+            ),
             success=outcome == "SUCCESS",
             failure_labels=labels,
             event_count=event_count,
@@ -517,7 +537,9 @@ class PracticeRecorder(RuntimeConsumer):
                     "status": "closed",
                     "outcome": summary_payload.outcome,
                     "event_count": event_count,
-                    "artifact_count": len(self._artifact_store.list_artifacts(session_id, episode_id)),
+                    "artifact_count": len(
+                        self._artifact_store.list_artifacts(session_id, episode_id)
+                    ),
                     "metadata": dict(self._session.metadata),
                 }
             )
@@ -582,7 +604,9 @@ class PracticeRecorder(RuntimeConsumer):
                         "action_id": envelope.action_id,
                         "task_id": envelope.task_id,
                         "skill_id": envelope.skill_id,
-                        "payload_ref": json.dumps(envelope.payload_ref) if envelope.payload_ref else None,
+                        "payload_ref": json.dumps(envelope.payload_ref)
+                        if envelope.payload_ref
+                        else None,
                         "tags": ",".join(envelope.tags),
                     }
                 )
@@ -602,6 +626,8 @@ class PracticeRecorder(RuntimeConsumer):
                 logger.error("Failed to publish practice.event: %s", e)
 
     def _runtime_to_envelope(self, event: RuntimeEvent) -> PracticeEventEnvelope:
+        if self._session is None:
+            raise RuntimeError("No active practice session")
         payload = event.payload or {}
 
         # If a producer already embedded a full PracticeEventEnvelope, reuse it.

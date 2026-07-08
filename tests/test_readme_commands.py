@@ -3,6 +3,7 @@
 These tests extract bash commands from README.md and README.zh.md and verify
 they run successfully. They prevent README/CLI drift on future releases.
 """
+
 import os
 import re
 import subprocess
@@ -78,7 +79,7 @@ def _run_and_assert(cmd: str) -> None:
     skip_patterns = [
         "rosclaw runtime",
         "rosclaw doctor --ros2",
-        "rosclaw start",   # starts long-running services
+        "rosclaw start",  # starts long-running services
     ]
     if any(p in cmd for p in skip_patterns):
         pytest.skip(f"command requires external setup or long-running process: {cmd}")
@@ -108,4 +109,6 @@ def _run_and_assert(cmd: str) -> None:
         "rosclaw skill --help",
     ]
     if any(cmd.endswith(s) or s in cmd for s in success_expected):
-        assert result.returncode == 0, f"{cmd} should succeed but got rc={result.returncode}\nstderr={result.stderr}"
+        assert result.returncode == 0, (
+            f"{cmd} should succeed but got rc={result.returncode}\nstderr={result.stderr}"
+        )

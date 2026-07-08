@@ -24,6 +24,7 @@ from pathlib import Path
 # ROS2 path helpers (used by subprocess wrappers)
 # ---------------------------------------------------------------------------
 
+
 def resolve_ros2_base() -> str:
     """Resolve the active ROS2 installation base path.
 
@@ -74,9 +75,7 @@ def build_ros2_env() -> dict:
     existing_ld = env.get("LD_LIBRARY_PATH", "")
     ros2_lib_paths = [p for p in candidate_lib_paths if Path(p).exists()]
     if ros2_lib_paths:
-        env["LD_LIBRARY_PATH"] = ":".join(
-            ros2_lib_paths + ([existing_ld] if existing_ld else [])
-        )
+        env["LD_LIBRARY_PATH"] = ":".join(ros2_lib_paths + ([existing_ld] if existing_ld else []))
     elif existing_ld:
         env["LD_LIBRARY_PATH"] = existing_ld
 
@@ -91,6 +90,7 @@ def repo_root() -> str:
 # ---------------------------------------------------------------------------
 # Individual level checks
 # ---------------------------------------------------------------------------
+
 
 def _l1_ros2_cli() -> tuple[bool, str]:
     """L1: ros2 CLI exists in PATH."""
@@ -110,7 +110,10 @@ def _l2_ros_distro() -> tuple[bool, str]:
         if os.path.isdir(opt_ros):
             distros = [d for d in os.listdir(opt_ros) if os.path.isdir(os.path.join(opt_ros, d))]
             if distros:
-                return False, f"ROS_DISTRO unset, but found /opt/ros/{distros[0]}. Source setup.bash?"
+                return (
+                    False,
+                    f"ROS_DISTRO unset, but found /opt/ros/{distros[0]}. Source setup.bash?",
+                )
         return False, "ROS_DISTRO not set and no /opt/ros/* found"
     if not ament:
         return False, f"ROS_DISTRO={distro} but AMENT_PREFIX_PATH unset. Source setup.bash?"
@@ -121,6 +124,7 @@ def _l3_rclpy_import() -> tuple[bool, str]:
     """L3: Current Python interpreter can import rclpy."""
     try:
         import rclpy  # noqa: F401
+
         return True, "OK"
     except ImportError as exc:
         return False, f"Cannot import rclpy: {exc}"
@@ -176,6 +180,7 @@ def _l5_ros2_pubsub() -> tuple[bool, str]:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def ros2_profile_check() -> dict:
     """Run L1-L5 ROS2 profile checks and return structured result.
 
@@ -224,7 +229,7 @@ def ros2_profile_check() -> dict:
     elif level >= 3:
         summary = f"ROS2 Python API available (L1-L3 pass, L4={l4_msg})"
     elif level >= 1:
-        summary = f"ROS2 CLI found but Python API unavailable (L{level+1}={l4_msg if level==3 else l3_msg})"
+        summary = f"ROS2 CLI found but Python API unavailable (L{level + 1}={l4_msg if level == 3 else l3_msg})"
     else:
         summary = "ROS2 not available"
 

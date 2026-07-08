@@ -16,11 +16,11 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from rosclaw.core.event_bus import Event, EventBus, EventPriority
 from rosclaw.core.lifecycle import LifecycleMixin
-from rosclaw.core.types import PraxisEvent
+from rosclaw.core.types import PraxisEvent, RobotState
 
 logger = logging.getLogger("rosclaw.practice.episode_recorder")
 
@@ -59,9 +59,7 @@ class _EpisodeBuffer:
 
     def is_complete(self) -> bool:
         """Check if minimum expected events have arrived."""
-        return {"skill.execution.start", "skill.execution.complete"}.issubset(
-            self.received_events
-        )
+        return {"skill.execution.start", "skill.execution.complete"}.issubset(self.received_events)
 
 
 class EpisodeRecorder(LifecycleMixin):
@@ -127,13 +125,16 @@ class EpisodeRecorder(LifecycleMixin):
         if self._sense_runtime is not None:
             try:
                 from rosclaw.sense.adapters.practice_writer import PracticeWriterAdapter
+
                 self._practice_adapter = PracticeWriterAdapter(self._sense_runtime)
             except Exception:
                 logger.warning("Failed to initialize PracticeWriterAdapter", exc_info=True)
 
         if self._event_bus is None:
-            print(f"[EpisodeRecorder] Initialized in read-only mode for {self._robot_id}, "
-                  f"artifacts={self._artifact_base}")
+            print(
+                f"[EpisodeRecorder] Initialized in read-only mode for {self._robot_id}, "
+                f"artifacts={self._artifact_base}"
+            )
             return
 
         self._topic_handlers: dict[str, Callable] = {
@@ -156,8 +157,9 @@ class EpisodeRecorder(LifecycleMixin):
         for topic, handler in self._topic_handlers.items():
             self._event_bus.subscribe(topic, handler)
 
-        print(f"[EpisodeRecorder] Initialized for {self._robot_id}, "
-              f"artifacts={self._artifact_base}")
+        print(
+            f"[EpisodeRecorder] Initialized for {self._robot_id}, artifacts={self._artifact_base}"
+        )
 
     def _do_stop(self) -> None:
         if self._event_bus is not None and hasattr(self, "_topic_handlers"):
@@ -215,7 +217,10 @@ class EpisodeRecorder(LifecycleMixin):
         if "agent_request" in payload:
             buf.agent_request = payload["agent_request"]
         elif "parameters" in payload:
-            buf.agent_request = {"skill_name": payload.get("skill_name"), "parameters": payload.get("parameters")}
+            buf.agent_request = {
+                "skill_name": payload.get("skill_name"),
+                "parameters": payload.get("parameters"),
+            }
         start_entry = {
             "phase": "start",
             "timestamp": time.time(),
@@ -241,12 +246,14 @@ class EpisodeRecorder(LifecycleMixin):
         if duration is None and buf.created_at:
             duration = time.time() - buf.created_at
         buf.duration_sec = duration
-        buf.trajectory.append({
-            "phase": "complete",
-            "timestamp": time.time(),
-            "result": result,
-            "duration_sec": duration,
-        })
+        buf.trajectory.append(
+            {
+                "phase": "complete",
+                "timestamp": time.time(),
+                "result": result,
+                "duration_sec": duration,
+            }
+        )
         buf.last_event_at = time.time()
         # Note: skill.execution.complete does NOT auto-finalize;
         # we wait for praxis.completed/failed or other terminal events
@@ -285,15 +292,16 @@ class EpisodeRecorder(LifecycleMixin):
         buf.sandbox_blocked = True
         violations = payload.get("violations", [])
         buf.sandbox_block_reason = (
-            violations[0].get("description", "blocked")
-            if violations else "blocked"
+            violations[0].get("description", "blocked") if violations else "blocked"
         )
-        buf.sandbox_actions.append({
-            "timestamp": time.time(),
-            "action": payload.get("action", "unknown"),
-            "blocked": True,
-            "reason": buf.sandbox_block_reason,
-        })
+        buf.sandbox_actions.append(
+            {
+                "timestamp": time.time(),
+                "action": payload.get("action", "unknown"),
+                "blocked": True,
+                "reason": buf.sandbox_block_reason,
+            }
+        )
         buf.last_event_at = time.time()
         self._finalize_episode(episode_id)
 
@@ -333,12 +341,14 @@ class EpisodeRecorder(LifecycleMixin):
         buf = self._get_or_create_buffer(episode_id)
         buf.received_events.add("agent.response")
         # Provider capability trace
-        buf.provider_traces.append({
-            "timestamp": time.time(),
-            "status": payload.get("status"),
-            "is_safe": payload.get("is_safe"),
-            "request_id": payload.get("request_id"),
-        })
+        buf.provider_traces.append(
+            {
+                "timestamp": time.time(),
+                "status": payload.get("status"),
+                "is_safe": payload.get("is_safe"),
+                "request_id": payload.get("request_id"),
+            }
+        )
         buf.last_event_at = time.time()
 
     def _on_practice_session_started(self, event: Event) -> None:
@@ -348,7 +358,9 @@ class EpisodeRecorder(LifecycleMixin):
         buf = self._get_or_create_buffer(episode_id)
         buf.received_events.add("practice.session_started")
         buf.robot_id = payload.get("robot_id", self._robot_id)
-        buf.semantic_intent = payload.get("semantic_intent") or payload.get("task_name") or buf.semantic_intent
+        buf.semantic_intent = (
+            payload.get("semantic_intent") or payload.get("task_name") or buf.semantic_intent
+        )
         buf.initial_state = payload.get("initial_state", buf.initial_state)
         buf.last_event_at = time.time()
 
@@ -380,12 +392,14 @@ class EpisodeRecorder(LifecycleMixin):
         buf.received_events.add("rosclaw.provider.inference.completed")
         buf.semantic_intent = payload.get("intent", buf.semantic_intent)
         buf.llm_cot = payload.get("cot", payload.get("reasoning", buf.llm_cot))
-        buf.provider_traces.append({
-            "timestamp": time.time(),
-            "model": payload.get("model"),
-            "tokens": payload.get("tokens"),
-            "latency_ms": payload.get("latency_ms"),
-        })
+        buf.provider_traces.append(
+            {
+                "timestamp": time.time(),
+                "model": payload.get("model"),
+                "tokens": payload.get("tokens"),
+                "latency_ms": payload.get("latency_ms"),
+            }
+        )
         buf.last_event_at = time.time()
 
     def _on_critic_success(self, event: Event) -> None:
@@ -444,8 +458,8 @@ class EpisodeRecorder(LifecycleMixin):
             robot_id=buf.robot_id,
             agent_instruction=buf.semantic_intent or "",
             cot_trace=[buf.llm_cot] if buf.llm_cot else [],
-            initial_state=buf.initial_state,
-            final_state=buf.final_state,
+            initial_state=cast(RobotState, buf.initial_state or {}),
+            final_state=cast(RobotState | None, buf.final_state),
             trajectory=[t.get("phase", "") for t in buf.trajectory],
             mcap_path=None,
             error_details=buf.runtime_error or buf.sandbox_block_reason or None,
@@ -469,7 +483,12 @@ class EpisodeRecorder(LifecycleMixin):
 
         # An episode is "complete" if either all expected events arrived,
         # or it reached a terminal state (success/failure/BLOCKED).
-        is_complete = buf.is_complete() or status in ("success", "failure", "BLOCKED", "FAILED_RUNTIME")
+        is_complete = buf.is_complete() or status in (
+            "success",
+            "failure",
+            "BLOCKED",
+            "FAILED_RUNTIME",
+        )
         metadata = {
             "episode_id": episode_id,
             "robot_id": buf.robot_id,
@@ -529,12 +548,18 @@ class EpisodeRecorder(LifecycleMixin):
         # Write events.jsonl — full event stream
         with open(episode_dir / "events.jsonl", "w", encoding="utf-8") as f:
             for ev_name in sorted(buf.received_events):
-                f.write(json.dumps({
-                    "timestamp": time.time(),
-                    "type": ev_name,
-                    "episode_id": episode_id,
-                    "robot_id": buf.robot_id,
-                }, default=str) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "timestamp": time.time(),
+                            "type": ev_name,
+                            "episode_id": episode_id,
+                            "robot_id": buf.robot_id,
+                        },
+                        default=str,
+                    )
+                    + "\n"
+                )
 
         # Write critic_result.json
         critic_result = {
@@ -565,14 +590,22 @@ class EpisodeRecorder(LifecycleMixin):
             json.dump(memory_write, f, indent=2, default=str)
 
         # CRITICAL FIX: write agent_request.json — the original request that started this episode
-        agent_request = buf.agent_request or {"skill_name": buf.semantic_intent, "note": "agent_request not captured from event payload"}
+        agent_request = buf.agent_request or {
+            "skill_name": buf.semantic_intent,
+            "note": "agent_request not captured from event payload",
+        }
         with open(episode_dir / "agent_request.json", "w", encoding="utf-8") as f:
-            json.dump({
-                "episode_id": episode_id,
-                "robot_id": buf.robot_id,
-                "agent_request": agent_request,
-                "timestamp": time.time(),
-            }, f, indent=2, default=str)
+            json.dump(
+                {
+                    "episode_id": episode_id,
+                    "robot_id": buf.robot_id,
+                    "agent_request": agent_request,
+                    "timestamp": time.time(),
+                },
+                f,
+                indent=2,
+                default=str,
+            )
 
         # Forward to SeekDB if configured; submission failures are non-fatal
         # and must not prevent local persistence or praxis.recorded publication.
@@ -584,28 +617,32 @@ class EpisodeRecorder(LifecycleMixin):
 
         # Publish enriched praxis.recorded
         if self._event_bus is not None:
-            self._event_bus.publish(Event(
-                topic="praxis.recorded",
-                payload={
-                    "event_id": praxis_event.event_id,
-                    "event_type": praxis_event.event_type,
-                    "robot_id": praxis_event.robot_id,
-                    "instruction": praxis_event.agent_instruction,
-                    "duration_sec": praxis_event.duration_sec,
-                    "outcome": status,
-                    "trajectory_waypoints": len(buf.trajectory),
-                    "cot_steps": len(praxis_event.cot_trace),
-                    "artifact_dir": str(episode_dir),
-                    "artifact_uri": f"rosclaw://artifacts/episodes/{episode_id}",
-                    "episode_metadata": metadata,
-                },
-                source="episode_recorder",
-                priority=EventPriority.NORMAL,
-            ))
+            self._event_bus.publish(
+                Event(
+                    topic="praxis.recorded",
+                    payload={
+                        "event_id": praxis_event.event_id,
+                        "event_type": praxis_event.event_type,
+                        "robot_id": praxis_event.robot_id,
+                        "instruction": praxis_event.agent_instruction,
+                        "duration_sec": praxis_event.duration_sec,
+                        "outcome": status,
+                        "trajectory_waypoints": len(buf.trajectory),
+                        "cot_steps": len(praxis_event.cot_trace),
+                        "artifact_dir": str(episode_dir),
+                        "artifact_uri": f"rosclaw://artifacts/episodes/{episode_id}",
+                        "episode_metadata": metadata,
+                    },
+                    source="episode_recorder",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
-        print(f"[EpisodeRecorder] Finalized {episode_id}: status={status}, "
-              f"reward={reward}, events={len(buf.received_events)}, "
-              f"dir={episode_dir}")
+        print(
+            f"[EpisodeRecorder] Finalized {episode_id}: status={status}, "
+            f"reward={reward}, events={len(buf.received_events)}, "
+            f"dir={episode_dir}"
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -626,14 +663,16 @@ class EpisodeRecorder(LifecycleMixin):
                 try:
                     with open(meta_path, encoding="utf-8") as f:
                         meta = json.load(f)
-                    episodes.append({
-                        "episode_id": name,
-                        "status": meta.get("status", "UNKNOWN"),
-                        "timestamp": meta.get("created_at"),
-                        "robot_id": meta.get("robot_id", "unknown"),
-                        "reward": meta.get("reward"),
-                        "is_complete": meta.get("is_complete", False),
-                    })
+                    episodes.append(
+                        {
+                            "episode_id": name,
+                            "status": meta.get("status", "UNKNOWN"),
+                            "timestamp": meta.get("created_at"),
+                            "robot_id": meta.get("robot_id", "unknown"),
+                            "reward": meta.get("reward"),
+                            "is_complete": meta.get("is_complete", False),
+                        }
+                    )
                 except (json.JSONDecodeError, OSError):
                     pass
         return episodes

@@ -1,4 +1,5 @@
 """Auto module schemas — canonical shapes for Proposal, Patch, Experiment, etc."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -185,7 +186,16 @@ class ExperimentSpec:
             environment=dict(d.get("environment", {})),
             baseline_skill_id=d.get("baseline_skill_id", ""),
             candidate_skill_id=d.get("candidate_skill_id", ""),
-            evaluation=dict(d.get("evaluation", {"episodes": 50, "seeds": [0, 1, 2], "metrics": ["success_rate", "collision_rate", "completion_time"]})),
+            evaluation=dict(
+                d.get(
+                    "evaluation",
+                    {
+                        "episodes": 50,
+                        "seeds": [0, 1, 2],
+                        "metrics": ["success_rate", "collision_rate", "completion_time"],
+                    },
+                )
+            ),
             safety=dict(d.get("safety", {})),
             promotion=dict(d.get("promotion", {})),
             status=d.get("status", "pending"),

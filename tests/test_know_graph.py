@@ -32,10 +32,24 @@ def test_get_robot_capabilities_none_client():
 
 
 def test_get_robot_capabilities_with_data():
-    db = FakeSeekDB(records=[
-        {"subject": "ur5e", "predicate": "has_capability", "object": "pick", "confidence": 0.9, "source": "test"},
-        {"subject": "ur5e", "predicate": "has_capability", "object": "place", "confidence": 0.8, "source": "test"},
-    ])
+    db = FakeSeekDB(
+        records=[
+            {
+                "subject": "ur5e",
+                "predicate": "has_capability",
+                "object": "pick",
+                "confidence": 0.9,
+                "source": "test",
+            },
+            {
+                "subject": "ur5e",
+                "predicate": "has_capability",
+                "object": "place",
+                "confidence": 0.8,
+                "source": "test",
+            },
+        ]
+    )
     caps = get_robot_capabilities(db, "ur5e")
     assert len(caps) == 2
     assert caps[0]["capability"] == "pick"
@@ -46,9 +60,17 @@ def test_get_robot_symptoms_none_client():
 
 
 def test_get_robot_symptoms_with_data():
-    db = FakeSeekDB(records=[
-        {"subject": "ur5e", "predicate": "has_symptom", "object": "drift", "confidence": 0.7, "source": "test"},
-    ])
+    db = FakeSeekDB(
+        records=[
+            {
+                "subject": "ur5e",
+                "predicate": "has_symptom",
+                "object": "drift",
+                "confidence": 0.7,
+                "source": "test",
+            },
+        ]
+    )
     syms = get_robot_symptoms(db, "ur5e")
     assert len(syms) == 1
     assert syms[0]["symptom"] == "drift"
@@ -59,10 +81,12 @@ def test_get_related_robots_none_client():
 
 
 def test_get_related_robots_with_data():
-    db = FakeSeekDB(records=[
-        {"subject": "ur5e", "predicate": "has_capability", "object": "pick"},
-        {"subject": "panda", "predicate": "has_capability", "object": "pick"},
-    ])
+    db = FakeSeekDB(
+        records=[
+            {"subject": "ur5e", "predicate": "has_capability", "object": "pick"},
+            {"subject": "panda", "predicate": "has_capability", "object": "pick"},
+        ]
+    )
     robots = get_related_robots(db, "pick")
     assert robots == ["panda", "ur5e"]
 
@@ -72,11 +96,13 @@ def test_count_knowledge_facts_none_client():
 
 
 def test_count_knowledge_facts_with_data():
-    db = FakeSeekDB(counts={
-        "None": 100,
-        "{'predicate': 'has_capability'}": 40,
-        "{'predicate': 'has_symptom'}": 20,
-    })
+    db = FakeSeekDB(
+        counts={
+            "None": 100,
+            "{'predicate': 'has_capability'}": 40,
+            "{'predicate': 'has_symptom'}": 20,
+        }
+    )
     result = count_knowledge_facts(db)
     assert result == {"total": 100, "capabilities": 40, "symptoms": 20}
 

@@ -47,12 +47,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 def _count_nodes():
     """Count active rclpy nodes (approximate)."""
@@ -73,6 +75,7 @@ def _cleanup_rclpy():
 # ------------------------------------------------------------------
 # Tests
 # ------------------------------------------------------------------
+
 
 @test("20 init/stop cycles: no resource leak")
 def test_20_init_stop_cycles():
@@ -197,7 +200,9 @@ def test_consistent_publishing():
     def _cb(msg):
         count[0] += 1
 
-    sub.create_subscription(JointTrajectory, "/joint_trajectory_controller/joint_trajectory", _cb, 10)
+    sub.create_subscription(
+        JointTrajectory, "/joint_trajectory_controller/joint_trajectory", _cb, 10
+    )
 
     # Publish 10 trajectories
     for i in range(10):
@@ -217,6 +222,7 @@ def test_consistent_publishing():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     print("=" * 60)

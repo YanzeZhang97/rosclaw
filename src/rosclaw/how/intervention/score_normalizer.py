@@ -17,6 +17,7 @@ This module is the single source of truth for direction-aware ops:
 
 No I/O, no logging, no Pydantic. Hot-path safe.
 """
+
 from __future__ import annotations
 
 from typing import Literal

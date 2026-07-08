@@ -111,7 +111,10 @@ class MemoryConsumer(RuntimeConsumer):
                     artifact_type=artifact_type,
                     uri=uri,
                     episode_id=episode_id,
-                    metadata={"camera_id": payload.get("camera_id"), "event_type": "camera.rgbd_frame"},
+                    metadata={
+                        "camera_id": payload.get("camera_id"),
+                        "event_type": "camera.rgbd_frame",
+                    },
                 )
             )
         self._write_praxis_event(event, episode_id=episode_id)
@@ -176,10 +179,7 @@ class MemoryConsumer(RuntimeConsumer):
         episode_id = payload.get("practice_id") or self._episode_id(event)
         task = payload.get("task", {})
         task_label = (
-            task.get("skill_id")
-            or task.get("task_name")
-            or task.get("task_id")
-            or "unknown"
+            task.get("skill_id") or task.get("task_name") or task.get("task_id") or "unknown"
         )
         outcome = self._normalize_outcome(payload.get("outcome"))
         duration_ms = payload.get("duration_ms", 0)
@@ -221,7 +221,11 @@ class MemoryConsumer(RuntimeConsumer):
         )
 
     def _episode_id(self, event: RuntimeEvent) -> str | None:
-        return event.metadata.get("trace_id") or event.metadata.get("practice_id") or event.metadata.get("episode_id")
+        return (
+            event.metadata.get("trace_id")
+            or event.metadata.get("practice_id")
+            or event.metadata.get("episode_id")
+        )
 
     @staticmethod
     def _normalize_outcome(value: Any) -> str:

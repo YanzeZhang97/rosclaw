@@ -12,6 +12,7 @@ from rosclaw.core.event_topics import EventTopics
 @dataclass
 class ProviderMetric:
     """Single provider invocation metric."""
+
     provider: str
     capability: str
     latency_ms: float
@@ -22,6 +23,7 @@ class ProviderMetric:
 @dataclass
 class SandboxMetric:
     """Sandbox validation result metric."""
+
     action_type: str
     is_safe: bool
     violations: list[str] = field(default_factory=list)
@@ -31,6 +33,7 @@ class SandboxMetric:
 @dataclass
 class EpisodeMetric:
     """Practice episode summary metric."""
+
     episode_id: str
     robot_id: str
     status: str
@@ -92,7 +95,9 @@ class DashboardMetrics:
 
     # ── Provider metrics ──
 
-    def record_provider_call(self, provider: str, capability: str, latency_ms: float, status: str) -> None:
+    def record_provider_call(
+        self, provider: str, capability: str, latency_ms: float, status: str
+    ) -> None:
         self._provider_metrics.append(ProviderMetric(provider, capability, latency_ms, status))
         self._trim(self._provider_metrics)
 
@@ -120,7 +125,9 @@ class DashboardMetrics:
 
     # ── Sandbox metrics ──
 
-    def record_sandbox_validation(self, action_type: str, is_safe: bool, violations: list[str] | None = None) -> None:
+    def record_sandbox_validation(
+        self, action_type: str, is_safe: bool, violations: list[str] | None = None
+    ) -> None:
         self._sandbox_metrics.append(SandboxMetric(action_type, is_safe, violations or []))
         self._trim(self._sandbox_metrics)
 
@@ -135,14 +142,24 @@ class DashboardMetrics:
             "block_rate": blocks / total,
             "recent_violations": [
                 {"action": m.action_type, "violations": m.violations}
-                for m in self._sandbox_metrics[-10:] if not m.is_safe
+                for m in self._sandbox_metrics[-10:]
+                if not m.is_safe
             ],
         }
 
     # ── Episode metrics ──
 
-    def record_episode(self, episode_id: str, robot_id: str, status: str, reward: float | None = None, duration_sec: float | None = None) -> None:
-        self._episode_metrics.append(EpisodeMetric(episode_id, robot_id, status, reward, duration_sec))
+    def record_episode(
+        self,
+        episode_id: str,
+        robot_id: str,
+        status: str,
+        reward: float | None = None,
+        duration_sec: float | None = None,
+    ) -> None:
+        self._episode_metrics.append(
+            EpisodeMetric(episode_id, robot_id, status, reward, duration_sec)
+        )
         self._trim(self._episode_metrics)
 
     def get_episode_stats(self) -> dict[str, Any]:

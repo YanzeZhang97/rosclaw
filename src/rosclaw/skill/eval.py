@@ -61,14 +61,16 @@ def evaluate_skill(
     report.checks["darwin_eval"] = darwin_ok
 
     # 6. Promotion gate.
-    report.checks["promotion_gate_check"] = all([
-        report.checks.get("schema_lint", False),
-        report.checks.get("behavior_tree_lint", False),
-        report.checks.get("provider_route_check", False),
-        report.checks.get("e_urdf_compat_check", False),
-        report.checks.get("safety_policy_check", False),
-        darwin_ok,
-    ])
+    report.checks["promotion_gate_check"] = all(
+        [
+            report.checks.get("schema_lint", False),
+            report.checks.get("behavior_tree_lint", False),
+            report.checks.get("provider_route_check", False),
+            report.checks.get("e_urdf_compat_check", False),
+            report.checks.get("safety_policy_check", False),
+            darwin_ok,
+        ]
+    )
 
     report.decision = "pass" if report.checks["promotion_gate_check"] else "fail"
 
@@ -111,7 +113,9 @@ def _darwin_eval(pkg: SkillPackage) -> tuple[dict[str, Any], bool]:
         # Deterministic heuristic: use mining report success rate or default.
         import json
 
-        mining_path = pkg.root / "evidence" / "reports" / f"{pkg.candidate_id or 'default'}_mining.json"
+        mining_path = (
+            pkg.root / "evidence" / "reports" / f"{pkg.candidate_id or 'default'}_mining.json"
+        )
         success_count = 0
         if mining_path.exists():
             data = json.loads(mining_path.read_text(encoding="utf-8"))

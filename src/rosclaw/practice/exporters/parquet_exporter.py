@@ -81,7 +81,7 @@ class ParquetExporter:
                 "event_type": ev.get("event_type"),
                 "source": ev.get("source"),
                 "timestamp_ns": ev.get("timestamp_ns"),
-                "timestamp_s": (ev.get("timestamp_ns") / 1e9) if ev.get("timestamp_ns") else None,
+                "timestamp_s": (ts / 1e9) if (ts := ev.get("timestamp_ns")) else None,
                 "observation_state": None,
                 "action": None,
                 "metadata": json.dumps(
@@ -211,7 +211,7 @@ class ParquetExporter:
 
         normalized: list[dict[str, Any]] = []
         for record in records:
-            row = {}
+            row: dict[str, Any] = {}
             for k in keys:
                 v = record.get(k)
                 if isinstance(v, (dict, list)):

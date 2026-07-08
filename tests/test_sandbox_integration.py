@@ -7,6 +7,7 @@ class TestSandboxRuntimeAdapter:
     def test_adapter_imports(self):
         """Verify SandboxRuntimeAdapter can be imported."""
         from rosclaw.sandbox.runtime_adapter import SandboxRuntimeAdapter
+
         assert SandboxRuntimeAdapter is not None
 
     def test_adapter_lifecycle(self):

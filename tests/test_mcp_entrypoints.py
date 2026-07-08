@@ -3,6 +3,7 @@
 Ensures `python3 -m rosclaw.mcp.minimal_server` and `python3 -m
 rosclaw.mcp.ur5_server` can be imported without error.
 """
+
 import subprocess
 import sys
 from pathlib import Path
@@ -30,9 +31,7 @@ def test_mcp_module_imports(module_name: str) -> None:
         text=True,
         timeout=30,
     )
-    assert result.returncode == 0, (
-        f"Failed to import {module_name}: {result.stderr}"
-    )
+    assert result.returncode == 0, f"Failed to import {module_name}: {result.stderr}"
 
 
 def test_no_fictitious_mcp_server_module() -> None:

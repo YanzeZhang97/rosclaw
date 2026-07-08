@@ -18,7 +18,9 @@ def isolated_home(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
 
 
-TEMPLATE_DIR = Path(__file__).parent.parent.parent / "src" / "rosclaw" / "skill" / "templates" / "default"
+TEMPLATE_DIR = (
+    Path(__file__).parent.parent.parent / "src" / "rosclaw" / "skill" / "templates" / "default"
+)
 FIXTURES = Path(__file__).parent / "fixtures" / "practice_sessions"
 
 

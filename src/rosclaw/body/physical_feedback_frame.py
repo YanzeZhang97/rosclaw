@@ -5,6 +5,7 @@ target/actual state, force readings, safety channels, and inferred contact
 events. It is intentionally not RH56-specific so it can be reused for any
 end-effector or body that exposes per-DOF force/status/temperature data.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field

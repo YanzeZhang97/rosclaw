@@ -24,14 +24,16 @@ logger = logging.getLogger("rosclaw.firewall.decorator")
 
 class SafetyLevel(Enum):
     """Safety validation levels."""
-    STRICT = "strict"      # Reject any collision or limit exceedance
+
+    STRICT = "strict"  # Reject any collision or limit exceedance
     MODERATE = "moderate"  # Allow minor contact, reject severe violations
-    LENIENT = "lenient"    # Warn but allow execution
+    LENIENT = "lenient"  # Warn but allow execution
 
 
 @dataclass(frozen=True)
 class ValidationResult:
     """Result of physics validation."""
+
     is_safe: bool
     collision_detected: bool
     joint_limit_violated: bool
@@ -106,7 +108,7 @@ class DigitalTwinFirewall:
     def _load_model(self) -> None:
         """Load MuJoCo model from file."""
         try:
-            if self.model_path.endswith(('.xml', '.mjcf')) or self.model_path.endswith('.urdf'):
+            if self.model_path.endswith((".xml", ".mjcf")) or self.model_path.endswith(".urdf"):
                 self.model = mujoco.MjModel.from_xml_path(self.model_path)
             else:
                 raise ValueError(f"Unsupported model format: {self.model_path}")
@@ -183,7 +185,7 @@ class DigitalTwinFirewall:
         mujoco.mj_collision(self.model, self.data)
 
         collision_detected = False
-        min_distance = float('inf')
+        min_distance = float("inf")
 
         # Check all contacts
         for i in range(self.data.ncon):
@@ -293,7 +295,7 @@ class DigitalTwinFirewall:
                         joint_limit_violated=True,
                         torque_limit_exceeded=False,
                         max_predicted_torque=0.0,
-                        min_distance_to_collision=float('inf'),
+                        min_distance_to_collision=float("inf"),
                         simulation_steps=0,
                         violation_details=[
                             f"Step {step_idx}: Joint {joint_name} target position {target_qpos:.4f} "
@@ -305,7 +307,7 @@ class DigitalTwinFirewall:
         joint_limit_violated = False
         torque_limit_exceeded = False
         max_torque = 0.0
-        min_distance = float('inf')
+        min_distance = float("inf")
         all_violations = []
         total_steps = 0
 
@@ -384,6 +386,7 @@ class DigitalTwinFirewall:
         Returns:
             Decorator function
         """
+
         def decorator_impl(func: F) -> F:
             @functools.wraps(func)
             def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -392,7 +395,11 @@ class DigitalTwinFirewall:
                     trajectory = trajectory_extractor(*args, **kwargs)
                 else:
                     # Default: first argument is trajectory
-                    trajectory = args[0] if args else kwargs.get('trajectory', kwargs.get('joint_positions', []))
+                    trajectory = (
+                        args[0]
+                        if args
+                        else kwargs.get("trajectory", kwargs.get("joint_positions", []))
+                    )
 
                 if not trajectory:
                     raise ValueError("No trajectory provided for validation")
@@ -421,6 +428,7 @@ class DigitalTwinFirewall:
                 return func(*args, **kwargs)
 
             return wrapper  # type: ignore
+
         return decorator_impl
 
 

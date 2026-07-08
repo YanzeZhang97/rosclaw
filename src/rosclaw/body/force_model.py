@@ -4,6 +4,7 @@ Manages per-DOF force baselines and classifies net-force magnitudes into
 contact levels. The units are body-defined (grams-force for RH56, Newtons
 for larger arms, etc.).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -128,11 +129,7 @@ class ForceModel:
 
     def list_missing_baselines(self, dofs: list[str]) -> list[str]:
         """Return DOFs with no baseline samples."""
-        return [
-            name
-            for name in dofs
-            if self.baseline.get(name, ForceBaseline()).samples == 0
-        ]
+        return [name for name in dofs if self.baseline.get(name, ForceBaseline()).samples == 0]
 
     def save_policy_yaml(self, path: Path) -> None:
         """Write force policy config to YAML."""

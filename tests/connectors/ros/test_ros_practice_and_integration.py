@@ -38,17 +38,19 @@ def test_ros_practice_adapter_publishes_praxis_recorded():
     adapter = RosPracticeAdapter(bus)
     adapter.initialize()
 
-    adapter._on_practice_event_created(FakeEvent(
-        topic="rosclaw.practice.event.created",
-        payload={
-            "trace_id": "ros_abc123",
-            "robot_id": "turtlesim",
-            "capability_id": "turtlesim.base.velocity_command",
-            "ros_name": "/turtle1/cmd_vel",
-            "ros_kind": "topic",
-            "result": {"ok": True},
-        },
-    ))
+    adapter._on_practice_event_created(
+        FakeEvent(
+            topic="rosclaw.practice.event.created",
+            payload={
+                "trace_id": "ros_abc123",
+                "robot_id": "turtlesim",
+                "capability_id": "turtlesim.base.velocity_command",
+                "ros_name": "/turtle1/cmd_vel",
+                "ros_kind": "topic",
+                "result": {"ok": True},
+            },
+        )
+    )
 
     recorded = [e for e in bus.events if getattr(e, "topic", "") == "praxis.recorded"]
     assert len(recorded) == 1
@@ -61,16 +63,18 @@ def test_ros_practice_adapter_publishes_failure_as_recorded():
     adapter = RosPracticeAdapter(bus)
     adapter.initialize()
 
-    adapter._on_sandbox_episode_failed(FakeEvent(
-        topic="rosclaw.sandbox.episode.failed",
-        payload={
-            "trace_id": "ros_def456",
-            "robot_id": "turtlesim",
-            "capability_id": "turtlesim.base.velocity_command",
-            "error": "Blocked by safety contract",
-            "sandbox_blocked": True,
-        },
-    ))
+    adapter._on_sandbox_episode_failed(
+        FakeEvent(
+            topic="rosclaw.sandbox.episode.failed",
+            payload={
+                "trace_id": "ros_def456",
+                "robot_id": "turtlesim",
+                "capability_id": "turtlesim.base.velocity_command",
+                "error": "Blocked by safety contract",
+                "sandbox_blocked": True,
+            },
+        )
+    )
 
     recorded = [e for e in bus.events if getattr(e, "topic", "") == "praxis.recorded"]
     assert len(recorded) == 1
@@ -90,10 +94,17 @@ def test_ros_capability_provider_publishes_firewall_blocked_event():
     cap = RosCapability(
         id="turtlesim.base.velocity_command",
         kind="actuation",
-        interface=RosInterface(ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"),
+        interface=RosInterface(
+            ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"
+        ),
         risk=RosCapabilityRisk(
-            level="high", read_only=False, destructive=True,
-            requires_sandbox=True, requires_runtime_guard=True, requires_stop_guard=True, max_duration_sec=1.0,
+            level="high",
+            read_only=False,
+            destructive=True,
+            requires_sandbox=True,
+            requires_runtime_guard=True,
+            requires_stop_guard=True,
+            max_duration_sec=1.0,
         ),
         safety={"constraints": {"linear.x": [-0.2, 0.2]}},
     )
@@ -159,7 +170,9 @@ def test_ros_knowledge_seed():
     from rosclaw.connectors.ros.know.ros_knowledge_seed import seed_ros_capabilities
 
     know = FakeKnowledgeInterface()
-    count = seed_ros_capabilities(know, "turtlesim", ["turtlesim.base.velocity_command", "turtlesim.observe.pose"])
+    count = seed_ros_capabilities(
+        know, "turtlesim", ["turtlesim.base.velocity_command", "turtlesim.observe.pose"]
+    )
     assert count == 2
     assert know.triples[0]["subject"] == "turtlesim"
     assert know.triples[0]["predicate"] == "has_capability"

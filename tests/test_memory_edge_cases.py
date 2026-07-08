@@ -22,8 +22,9 @@ class TestStoreExperienceEdgeCases:
         mem = MemoryInterface("test_bot")
         mem.initialize()
         # Empty string event_id is normalized to a generated id.
-        rid = mem.store_experience(event_id="", event_type="praxis",
-                                    instruction="task", outcome="success")
+        rid = mem.store_experience(
+            event_id="", event_type="praxis", instruction="task", outcome="success"
+        )
         assert rid
         exp = mem.get_experience(rid)
         assert exp is not None
@@ -33,10 +34,12 @@ class TestStoreExperienceEdgeCases:
     def test_duplicate_event_id_overwrites(self):
         mem = MemoryInterface("test_bot")
         mem.initialize()
-        mem.store_experience(event_id="dup", event_type="praxis",
-                             instruction="first", outcome="success")
-        mem.store_experience(event_id="dup", event_type="praxis",
-                             instruction="second", outcome="failure")
+        mem.store_experience(
+            event_id="dup", event_type="praxis", instruction="first", outcome="success"
+        )
+        mem.store_experience(
+            event_id="dup", event_type="praxis", instruction="second", outcome="failure"
+        )
         exp = mem.get_experience("dup")
         assert exp["instruction"] == "second"
         assert exp["outcome"] == "failure"
@@ -65,8 +68,7 @@ class TestFindSimilarExperiencesEdgeCases:
         mem = MemoryInterface("test_bot")
         mem.initialize()
         for i in range(250):
-            mem.store_experience(f"e{i}", "praxis", f"task {i}",
-                                 outcome="success")
+            mem.store_experience(f"e{i}", "praxis", f"task {i}", outcome="success")
         # Should not crash; only searches 200 most recent
         results = mem.find_similar_experiences("task", limit=5)
         assert len(results) <= 5
@@ -201,19 +203,21 @@ class TestRecoveryLoopEdgeCases:
 
         # Publish same hint twice
         for _ in range(2):
-            rl._on_recovery_hint(Event(
-                topic="rosclaw.how.recovery_hint.generated",
-                payload={
-                    "request_id": "dup_req",
-                    "failure_type": "slip",
-                    "retry_plan": {
-                        "rule_id": "rule_slip",
-                        "parameter_patch": {"force": 0.1},
-                        "max_retries": 3,
+            rl._on_recovery_hint(
+                Event(
+                    topic="rosclaw.how.recovery_hint.generated",
+                    payload={
+                        "request_id": "dup_req",
+                        "failure_type": "slip",
+                        "retry_plan": {
+                            "rule_id": "rule_slip",
+                            "parameter_patch": {"force": 0.1},
+                            "max_retries": 3,
+                        },
                     },
-                },
-                source="test",
-            ))
+                    source="test",
+                )
+            )
 
         rows = mem.seekdb_client.query("retries", filters={"id": "dup_req"})
         assert len(rows) == 1  # Idempotent: only one record
@@ -229,27 +233,38 @@ class TestRecoveryLoopEdgeCases:
         rl.subscribe()
 
         # Trigger _run_async via success handler
-        he._seekdb.insert("heuristic_rules", {
-            "id": "rule_test", "condition": "x", "action": "y",
-            "priority": 1, "success_count": 0, "failure_count": 0,
-        })
+        he._seekdb.insert(
+            "heuristic_rules",
+            {
+                "id": "rule_test",
+                "condition": "x",
+                "action": "y",
+                "priority": 1,
+                "success_count": 0,
+                "failure_count": 0,
+            },
+        )
         he._rule_cache = {"rule_test": {"id": "rule_test"}}
         he._cache_valid = True
 
-        rl._on_recovery_hint(Event(
-            topic="rosclaw.how.recovery_hint.generated",
-            payload={
-                "request_id": "req_exec",
-                "failure_type": "x",
-                "retry_plan": {"rule_id": "rule_test", "max_retries": 3},
-            },
-            source="test",
-        ))
-        rl._on_retry_success(Event(
-            topic="rosclaw.sandbox.episode.succeeded",
-            payload={"request_id": "req_exec", "episode_id": "ep1"},
-            source="test",
-        ))
+        rl._on_recovery_hint(
+            Event(
+                topic="rosclaw.how.recovery_hint.generated",
+                payload={
+                    "request_id": "req_exec",
+                    "failure_type": "x",
+                    "retry_plan": {"rule_id": "rule_test", "max_retries": 3},
+                },
+                source="test",
+            )
+        )
+        rl._on_retry_success(
+            Event(
+                topic="rosclaw.sandbox.episode.succeeded",
+                payload={"request_id": "req_exec", "episode_id": "ep1"},
+                source="test",
+            )
+        )
 
         # Private executor has been removed; _run_async should still work.
         assert not hasattr(rl, "_executor")

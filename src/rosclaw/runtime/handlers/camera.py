@@ -116,11 +116,15 @@ def _handle_realsense_capture_rgbd(params: dict[str, Any]) -> dict[str, Any]:
     home = resolve_home(params.get("workspace"))
     camera_name = _camera_name_from_body(params)
 
-    output_dir = Path(
-        params.get("output_dir")
-        or params.get("output")
-        or str(home / "captures" / "realsense_capture_rgbd" / _utc_now().replace(":", "-"))
-    ).expanduser().resolve()
+    output_dir = (
+        Path(
+            params.get("output_dir")
+            or params.get("output")
+            or str(home / "captures" / "realsense_capture_rgbd" / _utc_now().replace(":", "-"))
+        )
+        .expanduser()
+        .resolve()
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
 
     server_name = _discover_realsense_ros_mcp(home)

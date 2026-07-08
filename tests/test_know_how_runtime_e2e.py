@@ -91,10 +91,13 @@ class TestKnowHowRuntimeE2E:
         loop = asyncio.new_event_loop()
         try:
             result = loop.run_until_complete(
-                hub.handle_tool_call("query_knowledge", {
-                    "query_type": "symptom",
-                    "query": "torque overflow",
-                })
+                hub.handle_tool_call(
+                    "query_knowledge",
+                    {
+                        "query_type": "symptom",
+                        "query": "torque overflow",
+                    },
+                )
             )
         finally:
             loop.close()
@@ -111,9 +114,12 @@ class TestKnowHowRuntimeE2E:
         loop = asyncio.new_event_loop()
         try:
             result = loop.run_until_complete(
-                hub.handle_tool_call("get_recovery_strategy", {
-                    "error_log": "collision detected during move",
-                })
+                hub.handle_tool_call(
+                    "get_recovery_strategy",
+                    {
+                        "error_log": "collision detected during move",
+                    },
+                )
             )
         finally:
             loop.close()
@@ -130,9 +136,12 @@ class TestKnowHowRuntimeE2E:
         loop = asyncio.new_event_loop()
         try:
             result = loop.run_until_complete(
-                hub.handle_tool_call("get_safety_heuristic", {
-                    "condition": "torque_overflow",
-                })
+                hub.handle_tool_call(
+                    "get_safety_heuristic",
+                    {
+                        "condition": "torque_overflow",
+                    },
+                )
             )
         finally:
             loop.close()
@@ -152,20 +161,26 @@ class TestKnowHowRuntimeE2E:
 
     def test_event_bus_knowledge_topics(self, runtime):
         received = []
+
         def handler(event):  # noqa: E306
             received.append(event.topic)
+
         runtime.event_bus.subscribe("knowledge.query", handler)
         runtime.event_bus.subscribe("heuristic.recovery_suggested", handler)
-        runtime.event_bus.publish(Event(
-            topic="knowledge.query",
-            payload={"query": "capabilities"},
-            source="test",
-        ))
-        runtime.event_bus.publish(Event(
-            topic="heuristic.recovery_suggested",
-            payload={"rule_id": "r1", "action": "retry"},
-            source="test",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="knowledge.query",
+                payload={"query": "capabilities"},
+                source="test",
+            )
+        )
+        runtime.event_bus.publish(
+            Event(
+                topic="heuristic.recovery_suggested",
+                payload={"rule_id": "r1", "action": "retry"},
+                source="test",
+            )
+        )
         time.sleep(0.1)
         assert "knowledge.query" in received
         assert "heuristic.recovery_suggested" in received

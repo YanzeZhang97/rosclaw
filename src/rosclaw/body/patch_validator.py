@@ -18,7 +18,7 @@ def validate_update_path(path: str) -> tuple[bool, str]:
         return False, "empty path"
     if any(path.startswith(forbidden) or path == forbidden for forbidden in FORBIDDEN_UPDATE_PATHS):
         return False, f"cannot modify protected field: {path}"
-    if path.startswith("joints.") and "." in path[len("joints."):].split(".", 1)[0]:
+    if path.startswith("joints.") and "." in path[len("joints.") :].split(".", 1)[0]:
         return False, "cannot modify e-URDF structural joint definitions"
     return True, ""
 

@@ -16,6 +16,7 @@ from rosclaw.provider.loader import ProviderLoader
 
 # --- GenericProvider ---
 
+
 class TestGenericProviderCoverage:
     def test_parse_headers_multiline(self):
         headers = GenericProvider._parse_headers("Auth: token\nContent-Type: json")
@@ -28,24 +29,28 @@ class TestGenericProviderCoverage:
         assert GenericProvider._parse_headers("nocolon") == {}
 
     def test_create_runtime_unsupported_backend(self):
-        manifest = ProviderManifest.from_dict({
-            "name": "bad_backend",
-            "version": "0.1.0",
-            "type": "vlm",
-            "capabilities": ["vlm.x"],
-            "runtime": {"backend": "quantum"},
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "bad_backend",
+                "version": "0.1.0",
+                "type": "vlm",
+                "capabilities": ["vlm.x"],
+                "runtime": {"backend": "quantum"},
+            }
+        )
         with pytest.raises(RuntimeAdapterError, match="Unsupported backend"):
             GenericProvider(manifest)
 
     @pytest.mark.asyncio
     async def test_infer_no_runtime(self):
-        manifest = ProviderManifest.from_dict({
-            "name": "meta",
-            "version": "0.1.0",
-            "type": "critic",
-            "capabilities": ["critic.x"],
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "meta",
+                "version": "0.1.0",
+                "type": "critic",
+                "capabilities": ["critic.x"],
+            }
+        )
         provider = GenericProvider(manifest)
         req = ProviderRequest(request_id="r1", capability="critic.x", inputs={})
         with pytest.raises(RuntimeAdapterError, match="No runtime adapter"):
@@ -53,13 +58,15 @@ class TestGenericProviderCoverage:
 
     @pytest.mark.asyncio
     async def test_infer_runtime_adapter_error_propagates(self):
-        manifest = ProviderManifest.from_dict({
-            "name": "http_err",
-            "version": "0.1.0",
-            "type": "vlm",
-            "capabilities": ["vlm.x"],
-            "runtime": {"backend": "http", "endpoint": "http://x"},
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "http_err",
+                "version": "0.1.0",
+                "type": "vlm",
+                "capabilities": ["vlm.x"],
+                "runtime": {"backend": "http", "endpoint": "http://x"},
+            }
+        )
         provider = GenericProvider(manifest)
         req = ProviderRequest(request_id="r1", capability="vlm.x", inputs={})
 
@@ -72,13 +79,15 @@ class TestGenericProviderCoverage:
 
     @pytest.mark.asyncio
     async def test_infer_generic_exception_wrapped(self):
-        manifest = ProviderManifest.from_dict({
-            "name": "http_wrap",
-            "version": "0.1.0",
-            "type": "vlm",
-            "capabilities": ["vlm.x"],
-            "runtime": {"backend": "http", "endpoint": "http://x"},
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "http_wrap",
+                "version": "0.1.0",
+                "type": "vlm",
+                "capabilities": ["vlm.x"],
+                "runtime": {"backend": "http", "endpoint": "http://x"},
+            }
+        )
         provider = GenericProvider(manifest)
         req = ProviderRequest(request_id="r1", capability="vlm.x", inputs={})
 
@@ -91,24 +100,28 @@ class TestGenericProviderCoverage:
 
     @pytest.mark.asyncio
     async def test_infer_result_parsing(self):
-        manifest = ProviderManifest.from_dict({
-            "name": "http_ok",
-            "version": "0.1.0",
-            "type": "vlm",
-            "capabilities": ["vlm.x"],
-            "runtime": {"backend": "http", "endpoint": "http://x"},
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "http_ok",
+                "version": "0.1.0",
+                "type": "vlm",
+                "capabilities": ["vlm.x"],
+                "runtime": {"backend": "http", "endpoint": "http://x"},
+            }
+        )
         provider = GenericProvider(manifest)
         req = ProviderRequest(request_id="r1", capability="vlm.x", inputs={})
 
         mock_runtime = MagicMock()
-        mock_runtime.invoke = AsyncMock(return_value={
-            "result": {"boxes": []},
-            "confidence": 0.9,
-            "status": "done",
-            "warnings": ["low_light"],
-            "errors": ["minor"],
-        })
+        mock_runtime.invoke = AsyncMock(
+            return_value={
+                "result": {"boxes": []},
+                "confidence": 0.9,
+                "status": "done",
+                "warnings": ["low_light"],
+                "errors": ["minor"],
+            }
+        )
         provider._runtime = mock_runtime
 
         resp = await provider.infer(req)
@@ -120,13 +133,15 @@ class TestGenericProviderCoverage:
 
     @pytest.mark.asyncio
     async def test_load_and_unload(self):
-        manifest = ProviderManifest.from_dict({
-            "name": "py_rt",
-            "version": "0.1.0",
-            "type": "skill",
-            "capabilities": ["skill.x"],
-            "runtime": {"backend": "python"},
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "py_rt",
+                "version": "0.1.0",
+                "type": "skill",
+                "capabilities": ["skill.x"],
+                "runtime": {"backend": "python"},
+            }
+        )
         provider = GenericProvider(manifest)
         mock_runtime = AsyncMock()
         provider._runtime = mock_runtime
@@ -141,13 +156,15 @@ class TestGenericProviderCoverage:
 
     @pytest.mark.asyncio
     async def test_health_with_runtime(self):
-        manifest = ProviderManifest.from_dict({
-            "name": "py_rt",
-            "version": "0.1.0",
-            "type": "skill",
-            "capabilities": ["skill.x"],
-            "runtime": {"backend": "python"},
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "py_rt",
+                "version": "0.1.0",
+                "type": "skill",
+                "capabilities": ["skill.x"],
+                "runtime": {"backend": "python"},
+            }
+        )
         provider = GenericProvider(manifest)
         mock_runtime = MagicMock()
         mock_runtime._started = True
@@ -159,53 +176,63 @@ class TestGenericProviderCoverage:
 
 # --- ProviderLoader._resolve_provider_class ---
 
+
 class TestProviderLoaderResolveClass:
     def test_invalid_format_no_dot(self):
-        manifest = ProviderManifest.from_dict({
-            "name": "bad_fmt",
-            "version": "0.1.0",
-            "type": "vlm",
-            "capabilities": ["vlm.x"],
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "bad_fmt",
+                "version": "0.1.0",
+                "type": "vlm",
+                "capabilities": ["vlm.x"],
+            }
+        )
         manifest.extra = {"provider_class": "NoDot"}
         cls = ProviderLoader._resolve_provider_class(manifest)
         assert cls is GenericProvider
 
     def test_path_traversal_blocked(self):
-        manifest = ProviderManifest.from_dict({
-            "name": "traversal",
-            "version": "0.1.0",
-            "type": "vlm",
-            "capabilities": ["vlm.x"],
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "traversal",
+                "version": "0.1.0",
+                "type": "vlm",
+                "capabilities": ["vlm.x"],
+            }
+        )
         manifest.extra = {"provider_class": "os..path.Class"}
         cls = ProviderLoader._resolve_provider_class(manifest)
         assert cls is GenericProvider
 
     def test_slash_blocked(self):
-        manifest = ProviderManifest.from_dict({
-            "name": "slash",
-            "version": "0.1.0",
-            "type": "vlm",
-            "capabilities": ["vlm.x"],
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "slash",
+                "version": "0.1.0",
+                "type": "vlm",
+                "capabilities": ["vlm.x"],
+            }
+        )
         manifest.extra = {"provider_class": "rosclaw/bad.Class"}
         cls = ProviderLoader._resolve_provider_class(manifest)
         assert cls is GenericProvider
 
     def test_disallowed_prefix(self):
-        manifest = ProviderManifest.from_dict({
-            "name": "disallowed",
-            "version": "0.1.0",
-            "type": "vlm",
-            "capabilities": ["vlm.x"],
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "disallowed",
+                "version": "0.1.0",
+                "type": "vlm",
+                "capabilities": ["vlm.x"],
+            }
+        )
         manifest.extra = {"provider_class": "os.path.Class"}
         cls = ProviderLoader._resolve_provider_class(manifest)
         assert cls is GenericProvider
 
 
 # --- CapabilityRouter edge cases ---
+
 
 class TestCapabilityRouterCoverage:
     @pytest.mark.asyncio
@@ -216,6 +243,7 @@ class TestCapabilityRouterCoverage:
         class FailingProvider(Provider):
             name = "primary"
             capabilities = ["llm.chat"]
+
             async def infer(self, request):  # noqa: E306
                 return ProviderResponse(
                     request_id=request.request_id,
@@ -228,6 +256,7 @@ class TestCapabilityRouterCoverage:
         class OKProvider(Provider):
             name = "fallback"
             capabilities = ["llm.chat"]
+
             async def infer(self, request):  # noqa: E306
                 return ProviderResponse(
                     request_id=request.request_id,
@@ -260,6 +289,7 @@ class TestCapabilityRouterCoverage:
         class FailingProvider(Provider):
             name = "primary"
             capabilities = ["llm.chat"]
+
             async def infer(self, request):  # noqa: E306
                 return ProviderResponse(
                     request_id=request.request_id,
@@ -284,7 +314,9 @@ class TestCapabilityRouterCoverage:
     async def test_score_latency_budget_exceeded(self):
         reg = ProviderRegistry()
         m = ProviderManifest(
-            name="slow", version="0.1", type="llm",
+            name="slow",
+            version="0.1",
+            type="llm",
             capabilities=["llm.chat"],
             runtime=RuntimeSpec(backend="http", endpoint="http://x"),
         )
@@ -292,6 +324,7 @@ class TestCapabilityRouterCoverage:
         class OKProvider(Provider):
             name = "slow"
             capabilities = ["llm.chat"]
+
             async def infer(self, request):  # noqa: E306
                 return ProviderResponse(request_id="r1", provider="slow", capability="llm.chat")
 
@@ -301,8 +334,10 @@ class TestCapabilityRouterCoverage:
 
         router = CapabilityRouter(reg)
         req = ProviderRequest(
-            request_id="r1", capability="llm.chat",
-            inputs={}, constraints={"latency_ms": 50},
+            request_id="r1",
+            capability="llm.chat",
+            inputs={},
+            constraints={"latency_ms": 50},
         )
         with pytest.raises(ProviderNotFoundError, match="No provider passed constraints"):
             await router.route(req)
@@ -311,7 +346,9 @@ class TestCapabilityRouterCoverage:
     async def test_score_safety_strict_bonus(self):
         reg = ProviderRegistry()
         m = ProviderManifest(
-            name="safe", version="0.1", type="llm",
+            name="safe",
+            version="0.1",
+            type="llm",
             capabilities=["llm.chat"],
             safety=SafetySpec(requires_guard=True, executable=False),
         )
@@ -319,6 +356,7 @@ class TestCapabilityRouterCoverage:
         class OKProvider(Provider):
             name = "safe"
             capabilities = ["llm.chat"]
+
             async def infer(self, request):  # noqa: E306
                 return ProviderResponse(request_id="r1", provider="safe", capability="llm.chat")
 
@@ -328,8 +366,10 @@ class TestCapabilityRouterCoverage:
 
         router = CapabilityRouter(reg)
         req = ProviderRequest(
-            request_id="r1", capability="llm.chat",
-            inputs={}, constraints={"safety_level": "STRICT"},
+            request_id="r1",
+            capability="llm.chat",
+            inputs={},
+            constraints={"safety_level": "STRICT"},
         )
         decision = await router.route(req)
         assert decision.selected_provider == "safe"
@@ -355,6 +395,7 @@ class TestCapabilityRouterCoverage:
         class BoomProvider(Provider):
             name = "boom"
             capabilities = ["llm.chat"]
+
             async def infer(self, request):  # noqa: E306
                 raise RuntimeError("infer boom")
 

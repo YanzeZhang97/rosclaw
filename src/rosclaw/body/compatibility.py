@@ -30,7 +30,9 @@ class SkillCompatibilityChecker:
             body_class = body.identity.get("robot_class", "")
             if isinstance(robot_class_req, list):
                 if body_class not in robot_class_req:
-                    return self._blocked(skill, body, f"robot_class mismatch: {body_class} not in {robot_class_req}")
+                    return self._blocked(
+                        skill, body, f"robot_class mismatch: {body_class} not in {robot_class_req}"
+                    )
             elif body_class != robot_class_req:
                 return self._blocked(skill, body, f"robot_class mismatch: {body_class}")
 
@@ -224,7 +226,9 @@ class SkillCompatibilityStore:
         with open(self.store_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(report.to_dict(), f, sort_keys=False, allow_unicode=True)
 
-    def get(self, skill_id: str, skill_version: str, body_hash: str) -> SkillCompatibilityResult | None:
+    def get(
+        self, skill_id: str, skill_version: str, body_hash: str
+    ) -> SkillCompatibilityResult | None:
         report = self.load()
         if report.effective_body_hash != body_hash:
             return None

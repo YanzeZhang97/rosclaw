@@ -39,8 +39,12 @@ class BundleCompiler:
         cap_name = bundle_name.replace("-", "_").replace(" ", "_").lower()
 
         files[f"{bundle_name}/mcp_server.py"] = self._generate_mcp_server(cap_name, sdk_doc)
-        files[f"{bundle_name}/skill_manifest.json"] = self._generate_skill_manifest(cap_name, sdk_doc)
-        files[f"{bundle_name}/provider_manifest.json"] = self._generate_provider_manifest(cap_name, sdk_doc)
+        files[f"{bundle_name}/skill_manifest.json"] = self._generate_skill_manifest(
+            cap_name, sdk_doc
+        )
+        files[f"{bundle_name}/provider_manifest.json"] = self._generate_provider_manifest(
+            cap_name, sdk_doc
+        )
         files[f"{bundle_name}/tests/test_{cap_name}.py"] = self._generate_tests(cap_name)
         files[f"{bundle_name}/README.md"] = self._generate_readme(bundle_name, sdk_doc, cap_name)
 
@@ -137,7 +141,7 @@ class BundleCompiler:
         return json.dumps(manifest, indent=2)
 
     def _generate_tests(self, cap_name: str) -> str:
-        return textwrap.dedent(f'''\
+        return textwrap.dedent(f"""\
             import pytest
             from {cap_name}.mcp_server import {cap_name.title()}MCPServer
 
@@ -150,10 +154,10 @@ class BundleCompiler:
                 srv = {cap_name.title()}MCPServer()
                 tools = await srv.server.list_tools()
                 assert len(tools) >= 1
-            ''')
+            """)
 
     def _generate_readme(self, bundle_name: str, sdk_doc: str, cap_name: str) -> str:
-        return textwrap.dedent(f'''\
+        return textwrap.dedent(f"""\
             # {bundle_name}
 
             Auto-generated ROSClaw Asset Bundle.
@@ -178,7 +182,7 @@ class BundleCompiler:
             ```bash
             rosclaw forge validate {bundle_name}
             ```
-            ''')
+            """)
 
     def _critic_validate(self, files: dict[str, str]) -> dict[str, bool]:
         """Run automated critic checks on generated files."""
@@ -189,14 +193,24 @@ class BundleCompiler:
                 sdk_doc_lower = content.lower()
                 break
         # Only block explicitly malicious markers; "no safety info" is fine (auto-injected)
-        explicitly_unsafe = any(marker in sdk_doc_lower for marker in [
-            "unsafe", "bypass firewall", "disable check", "ignore limit",
-            "unrestricted", "malicious", "harmful"
-        ])
+        explicitly_unsafe = any(
+            marker in sdk_doc_lower
+            for marker in [
+                "unsafe",
+                "bypass firewall",
+                "disable check",
+                "ignore limit",
+                "unrestricted",
+                "malicious",
+                "harmful",
+            ]
+        )
 
         checks = {
             "async_safe": any("async def" in content for content in files.values()),
-            "schema_complete": any("inputSchema" in content or "inputs" in content for content in files.values()),
+            "schema_complete": any(
+                "inputSchema" in content or "inputs" in content for content in files.values()
+            ),
             "safety_hooks": any("firewall_hooks" in content for content in files.values()),
             "preemption_ready": any("preemptible" in content for content in files.values()),
             "tests_present": any("test_" in fname for fname in files),

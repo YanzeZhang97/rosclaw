@@ -1,4 +1,5 @@
 """Auto event subscribers — listen to external module events."""
+
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -49,10 +50,24 @@ class AutoSubscriber:
             payload = event.payload if isinstance(event.payload, dict) else {}
         else:
             payload = {}
-        for key in ["task_id", "skill_id", "failure_mode", "phase", "severity",
-                    "evidence", "event_id", "metrics", "regression_detected",
-                    "rejection_reason", "sandbox_result", "suggestion",
-                    "search_space", "insight_type", "insight_summary", "failure_id"]:
+        for key in [
+            "task_id",
+            "skill_id",
+            "failure_mode",
+            "phase",
+            "severity",
+            "evidence",
+            "event_id",
+            "metrics",
+            "regression_detected",
+            "rejection_reason",
+            "sandbox_result",
+            "suggestion",
+            "search_space",
+            "insight_type",
+            "insight_summary",
+            "failure_id",
+        ]:
             if hasattr(event, key) and key not in payload:
                 payload[key] = getattr(event, key)
         return payload
@@ -68,16 +83,21 @@ class AutoSubscriber:
 
         fc = self.engine.create_failure_case(
             praxis_event_id=p.get("event_id", ""),
-            task_id=task_id, skill_id=skill_id,
-            phase=phase, failure_mode=failure_mode,
-            severity=severity, evidence=evidence,
+            task_id=task_id,
+            skill_id=skill_id,
+            phase=phase,
+            failure_mode=failure_mode,
+            severity=severity,
+            evidence=evidence,
         )
         logger.info("AutoSubscriber: created FailureCase %s for %s", fc.id, failure_mode)
 
         recent = self.engine.list_failures(task_id)
         if len(recent) >= self.engine.config.trigger_repeated_failure_threshold:
             prop = self.engine.create_proposal(
-                failure_case_id=fc.id, task=task_id, target_skill=skill_id,
+                failure_case_id=fc.id,
+                task=task_id,
+                target_skill=skill_id,
                 hypothesis_statement=f"Auto-repair for repeated {failure_mode} failures",
                 search_space=evidence.get("search_space", {"param_range": [0.0, 1.0]}),
                 source="failure_guided",
@@ -91,9 +111,12 @@ class AutoSubscriber:
         task_id = p.get("task_id", "unknown")
         skill_id = p.get("skill_id", "unknown")
         prop = self.engine.create_proposal(
-            failure_case_id="", task=task_id, target_skill=skill_id,
+            failure_case_id="",
+            task=task_id,
+            target_skill=skill_id,
             hypothesis_statement="Benchmark regression detected; auto-optimization triggered",
-            search_space={"param_range": [0.0, 1.0]}, source="benchmark_guided",
+            search_space={"param_range": [0.0, 1.0]},
+            source="benchmark_guided",
         )
         logger.info("AutoSubscriber: created benchmark-guided Proposal %s", prop.id)
 
@@ -102,7 +125,8 @@ class AutoSubscriber:
         task_id = p.get("task_id", "unknown")
         direction = p.get("rejection_reason", "sandbox_rejected")
         self.engine.register_deadend(
-            task_id=task_id, direction=direction,
+            task_id=task_id,
+            direction=direction,
             rejection_reason="Sandbox rejected candidate skill",
             evidence=[str(p.get("sandbox_result", ""))],
         )
@@ -116,8 +140,11 @@ class AutoSubscriber:
         if not suggestion:
             return
         self.engine.create_proposal(
-            failure_case_id=p.get("failure_id", ""), task=task_id, target_skill=skill_id,
-            hypothesis_statement=suggestion, search_space=p.get("search_space", {}),
+            failure_case_id=p.get("failure_id", ""),
+            task=task_id,
+            target_skill=skill_id,
+            hypothesis_statement=suggestion,
+            search_space=p.get("search_space", {}),
             source="how_guided",
         )
         logger.info("AutoSubscriber: created how-guided Proposal for task %s", task_id)
@@ -130,8 +157,11 @@ class AutoSubscriber:
         task_id = p.get("task_id", "")
         skill_id = p.get("skill_id", "")
         self.engine.create_proposal(
-            failure_case_id=p.get("failure_id", ""), task=task_id, target_skill=skill_id,
+            failure_case_id=p.get("failure_id", ""),
+            task=task_id,
+            target_skill=skill_id,
             hypothesis_statement=p.get("insight_summary", "Memory-guided repair proposal"),
-            search_space=p.get("search_space", {}), source="memory_guided",
+            search_space=p.get("search_space", {}),
+            source="memory_guided",
         )
         logger.info("AutoSubscriber: created memory-guided Proposal for task %s", task_id)

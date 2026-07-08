@@ -12,14 +12,19 @@ from rosclaw.mcp_drivers.serial_driver import SerialDriver
 class TestMuJoCoSimDriverLifecycle:
     def test_initialize_import_error(self, caplog):
         import logging
+
         driver = MuJoCoSimDriver("test_bot")
-        with patch.dict("sys.modules", {"mujoco": None}), caplog.at_level(logging.WARNING, logger="rosclaw.mcp_drivers.mujoco_sim"):
+        with (
+            patch.dict("sys.modules", {"mujoco": None}),
+            caplog.at_level(logging.WARNING, logger="rosclaw.mcp_drivers.mujoco_sim"),
+        ):
             driver.initialize()
         assert "mujoco not available" in caplog.text
         assert driver._driver_state.connected is True
 
     def test_initialize_no_model_path(self, caplog):
         import logging
+
         driver = MuJoCoSimDriver("test_bot", model_path="")
         with caplog.at_level(logging.WARNING, logger="rosclaw.mcp_drivers.mujoco_sim"):
             driver.initialize()
@@ -28,6 +33,7 @@ class TestMuJoCoSimDriverLifecycle:
 
     def test_initialize_model_not_found(self, caplog):
         import logging
+
         driver = MuJoCoSimDriver("test_bot", model_path="/nonexistent/model.xml")
         with caplog.at_level(logging.WARNING, logger="rosclaw.mcp_drivers.mujoco_sim"):
             driver.initialize()
@@ -125,18 +131,26 @@ class TestMuJoCoSimDriverMockMode:
 class TestSerialDriverLifecycle:
     def test_initialize_import_error(self, caplog):
         import logging
+
         driver = SerialDriver("test_bot", port="/dev/ttyUSB0")
-        with patch.dict("sys.modules", {"serial": None}), caplog.at_level(logging.WARNING, logger="rosclaw.mcp_drivers.serial"):
+        with (
+            patch.dict("sys.modules", {"serial": None}),
+            caplog.at_level(logging.WARNING, logger="rosclaw.mcp_drivers.serial"),
+        ):
             driver.initialize()
         assert "pyserial not available" in caplog.text
         assert driver._driver_state.connected is True
 
     def test_initialize_port_error(self, caplog):
         import logging
+
         fake_serial = MagicMock()
         fake_serial.Serial.side_effect = Exception("port fail")
         driver = SerialDriver("test_bot", port="/dev/fake")
-        with patch.dict("sys.modules", {"serial": fake_serial}), caplog.at_level(logging.WARNING, logger="rosclaw.mcp_drivers.serial"):
+        with (
+            patch.dict("sys.modules", {"serial": fake_serial}),
+            caplog.at_level(logging.WARNING, logger="rosclaw.mcp_drivers.serial"),
+        ):
             driver.initialize()
         assert "Could not open" in caplog.text
         assert driver._driver_state.connected is True
@@ -269,6 +283,7 @@ class TestSerialDriverMockMode:
     def test_parse_state_response_valid(self):
         driver = SerialDriver("test_bot", joint_dof=3)
         import struct
+
         fmt = f"<B{3}f{3}f{3}f"
         data = struct.pack(fmt, 0x10, 0.1, 0.2, 0.3, 0.01, 0.02, 0.03, 1.0, 2.0, 3.0)
         result = driver._parse_state_response(data)
@@ -284,6 +299,7 @@ class TestSerialDriverMockMode:
     def test_read_state_with_mock_serial(self):
         driver = SerialDriver("test_bot", joint_dof=3)
         import struct
+
         fmt = f"<B{3}f{3}f{3}f"
         data = struct.pack(fmt, 0x10, 0.1, 0.2, 0.3, 0.01, 0.02, 0.03, 1.0, 2.0, 3.0)
         mock_serial = MagicMock()

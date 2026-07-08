@@ -171,7 +171,7 @@ def benchmark_firewall() -> dict:
             name=f"j{i}",
             joint_type="revolute",
             parent="base" if i == 0 else f"link{i}",
-            child=f"link{i+1}",
+            child=f"link{i + 1}",
             limits={"lower": -1.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0},
         )
 

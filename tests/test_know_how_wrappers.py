@@ -51,44 +51,92 @@ class TestQueryKnowledgeGraph:
         assert mem.query_knowledge_graph(entity_id="r1") == []
 
     def test_filter_by_entity_id(self, mem):
-        mem._client.insert("knowledge_graph", {
-            "id": "k1", "subject": "ur5e", "predicate": "has_capability",
-            "object": "grasp", "confidence": 0.9, "source": "seed", "timestamp": 1.0,
-        })
-        mem._client.insert("knowledge_graph", {
-            "id": "k2", "subject": "panda", "predicate": "has_capability",
-            "object": "place", "confidence": 0.8, "source": "seed", "timestamp": 1.0,
-        })
+        mem._client.insert(
+            "knowledge_graph",
+            {
+                "id": "k1",
+                "subject": "ur5e",
+                "predicate": "has_capability",
+                "object": "grasp",
+                "confidence": 0.9,
+                "source": "seed",
+                "timestamp": 1.0,
+            },
+        )
+        mem._client.insert(
+            "knowledge_graph",
+            {
+                "id": "k2",
+                "subject": "panda",
+                "predicate": "has_capability",
+                "object": "place",
+                "confidence": 0.8,
+                "source": "seed",
+                "timestamp": 1.0,
+            },
+        )
         results = mem.query_knowledge_graph(entity_id="ur5e")
         assert len(results) == 1
         assert results[0]["object"] == "grasp"
 
     def test_filter_by_predicate(self, mem):
-        mem._client.insert("knowledge_graph", {
-            "id": "k1", "subject": "ur5e", "predicate": "has_capability",
-            "object": "grasp", "confidence": 0.9, "source": "seed", "timestamp": 1.0,
-        })
-        mem._client.insert("knowledge_graph", {
-            "id": "k2", "subject": "ur5e", "predicate": "has_symptom",
-            "object": "wrist_drift", "confidence": 0.7, "source": "seed", "timestamp": 1.0,
-        })
+        mem._client.insert(
+            "knowledge_graph",
+            {
+                "id": "k1",
+                "subject": "ur5e",
+                "predicate": "has_capability",
+                "object": "grasp",
+                "confidence": 0.9,
+                "source": "seed",
+                "timestamp": 1.0,
+            },
+        )
+        mem._client.insert(
+            "knowledge_graph",
+            {
+                "id": "k2",
+                "subject": "ur5e",
+                "predicate": "has_symptom",
+                "object": "wrist_drift",
+                "confidence": 0.7,
+                "source": "seed",
+                "timestamp": 1.0,
+            },
+        )
         results = mem.query_knowledge_graph(predicate="has_symptom")
         assert len(results) == 1
         assert results[0]["object"] == "wrist_drift"
 
     def test_filter_by_object_value(self, mem):
-        mem._client.insert("knowledge_graph", {
-            "id": "k1", "subject": "ur5e", "predicate": "has_capability",
-            "object": "grasp", "confidence": 0.9, "source": "seed", "timestamp": 1.0,
-        })
+        mem._client.insert(
+            "knowledge_graph",
+            {
+                "id": "k1",
+                "subject": "ur5e",
+                "predicate": "has_capability",
+                "object": "grasp",
+                "confidence": 0.9,
+                "source": "seed",
+                "timestamp": 1.0,
+            },
+        )
         results = mem.query_knowledge_graph(object_value="grasp")
         assert len(results) == 1
 
     def test_combined_filters(self, mem):
-        mem._client.insert("knowledge_graph", {
-            "id": "k1", "subject": "ur5e", "predicate": "has_capability",
-            "object": "grasp", "confidence": 0.9, "source": "seed", "timestamp": 1.0,
-        })
+        mem._client.insert(
+            "knowledge_graph",
+            {
+                "id": "k1",
+                "subject": "ur5e",
+                "predicate": "has_capability",
+                "object": "grasp",
+                "confidence": 0.9,
+                "source": "seed",
+                "timestamp": 1.0,
+            },
+        )
         results = mem.query_knowledge_graph(
             entity_id="ur5e", predicate="has_capability", object_value="grasp"
         )
@@ -96,10 +144,18 @@ class TestQueryKnowledgeGraph:
 
     def test_limit(self, mem):
         for i in range(5):
-            mem._client.insert("knowledge_graph", {
-                "id": f"k{i}", "subject": "ur5e", "predicate": "has_capability",
-                "object": f"cap{i}", "confidence": 0.5, "source": "seed", "timestamp": 1.0,
-            })
+            mem._client.insert(
+                "knowledge_graph",
+                {
+                    "id": f"k{i}",
+                    "subject": "ur5e",
+                    "predicate": "has_capability",
+                    "object": f"cap{i}",
+                    "confidence": 0.5,
+                    "source": "seed",
+                    "timestamp": 1.0,
+                },
+            )
         results = mem.query_knowledge_graph(entity_id="ur5e", limit=3)
         assert len(results) == 3
 
@@ -114,40 +170,88 @@ class TestGetHeuristicRules:
         assert mem.get_heuristic_rules() == []
 
     def test_filter_by_condition(self, mem):
-        mem._client.insert("heuristic_rules", {
-            "id": "h1", "condition": "gripper_force_low", "action": "increase_force",
-            "priority": 5, "success_count": 0, "failure_count": 0, "last_triggered": None,
-        })
-        mem._client.insert("heuristic_rules", {
-            "id": "h2", "condition": "collision_risk", "action": "slow_down",
-            "priority": 3, "success_count": 0, "failure_count": 0, "last_triggered": None,
-        })
+        mem._client.insert(
+            "heuristic_rules",
+            {
+                "id": "h1",
+                "condition": "gripper_force_low",
+                "action": "increase_force",
+                "priority": 5,
+                "success_count": 0,
+                "failure_count": 0,
+                "last_triggered": None,
+            },
+        )
+        mem._client.insert(
+            "heuristic_rules",
+            {
+                "id": "h2",
+                "condition": "collision_risk",
+                "action": "slow_down",
+                "priority": 3,
+                "success_count": 0,
+                "failure_count": 0,
+                "last_triggered": None,
+            },
+        )
         results = mem.get_heuristic_rules(condition="gripper_force_low")
         assert len(results) == 1
         assert results[0]["id"] == "h1"
 
     def test_min_priority_filter(self, mem):
-        mem._client.insert("heuristic_rules", {
-            "id": "h1", "condition": "a", "action": "act1",
-            "priority": 5, "success_count": 0, "failure_count": 0, "last_triggered": None,
-        })
-        mem._client.insert("heuristic_rules", {
-            "id": "h2", "condition": "b", "action": "act2",
-            "priority": 1, "success_count": 0, "failure_count": 0, "last_triggered": None,
-        })
+        mem._client.insert(
+            "heuristic_rules",
+            {
+                "id": "h1",
+                "condition": "a",
+                "action": "act1",
+                "priority": 5,
+                "success_count": 0,
+                "failure_count": 0,
+                "last_triggered": None,
+            },
+        )
+        mem._client.insert(
+            "heuristic_rules",
+            {
+                "id": "h2",
+                "condition": "b",
+                "action": "act2",
+                "priority": 1,
+                "success_count": 0,
+                "failure_count": 0,
+                "last_triggered": None,
+            },
+        )
         results = mem.get_heuristic_rules(min_priority=3)
         assert len(results) == 1
         assert results[0]["id"] == "h1"
 
     def test_order_by_priority_desc(self, mem):
-        mem._client.insert("heuristic_rules", {
-            "id": "h1", "condition": "a", "action": "act1",
-            "priority": 3, "success_count": 0, "failure_count": 0, "last_triggered": None,
-        })
-        mem._client.insert("heuristic_rules", {
-            "id": "h2", "condition": "b", "action": "act2",
-            "priority": 10, "success_count": 0, "failure_count": 0, "last_triggered": None,
-        })
+        mem._client.insert(
+            "heuristic_rules",
+            {
+                "id": "h1",
+                "condition": "a",
+                "action": "act1",
+                "priority": 3,
+                "success_count": 0,
+                "failure_count": 0,
+                "last_triggered": None,
+            },
+        )
+        mem._client.insert(
+            "heuristic_rules",
+            {
+                "id": "h2",
+                "condition": "b",
+                "action": "act2",
+                "priority": 10,
+                "success_count": 0,
+                "failure_count": 0,
+                "last_triggered": None,
+            },
+        )
         results = mem.get_heuristic_rules()
         assert results[0]["id"] == "h2"
         assert results[1]["id"] == "h1"

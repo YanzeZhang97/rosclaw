@@ -10,6 +10,7 @@ from typing import Any
 @dataclass
 class Proposal:
     """A proposal in the consensus protocol."""
+
     agent_id: str
     key: str
     value: Any
@@ -20,6 +21,7 @@ class Proposal:
 @dataclass
 class ConsensusEntry:
     """Consensus state for a single key."""
+
     key: str
     agreed_value: Any = None
     agreed_at: float = 0.0
@@ -84,13 +86,15 @@ class RaftLikeConsensus:
             if timestamp < latest.timestamp and self._term <= latest.term:
                 return False
 
-        entry.proposals.append(Proposal(
-            agent_id=self.agent_id,
-            key=key,
-            value=value,
-            timestamp=timestamp,
-            term=self._term,
-        ))
+        entry.proposals.append(
+            Proposal(
+                agent_id=self.agent_id,
+                key=key,
+                value=value,
+                timestamp=timestamp,
+                term=self._term,
+            )
+        )
         return True
 
     def check_commit(self, key: str) -> bool:

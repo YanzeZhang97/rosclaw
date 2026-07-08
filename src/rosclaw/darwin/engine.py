@@ -1,4 +1,5 @@
 """Darwin Engine — multi-seed evaluation and regression detection."""
+
 from __future__ import annotations
 
 import logging

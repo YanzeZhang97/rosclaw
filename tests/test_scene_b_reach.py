@@ -100,19 +100,23 @@ class TestSceneBReach:
     def test_scene_b_eventbus_trace_id_propagation(self, runtime):
         """EventBus must propagate trace_id across the pipeline."""
         # Publish an agent command with trace_id
-        runtime.event_bus.publish(Event(
-            topic="agent.command",
-            payload={"action": "reach", "target": [0.5, 0.2, 0.3]},
-            source="test_agent",
-            trace_id="trace_scene_b_001",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="agent.command",
+                payload={"action": "reach", "target": [0.5, 0.2, 0.3]},
+                source="test_agent",
+                trace_id="trace_scene_b_001",
+            )
+        )
 
         # Verify trace_id is auto-injected if missing
-        runtime.event_bus.publish(Event(
-            topic="skill.execution.start",
-            payload={"skill_name": "reach", "episode_id": "ep_scene_b_001"},
-            source="test",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={"skill_name": "reach", "episode_id": "ep_scene_b_001"},
+                source="test",
+            )
+        )
 
         history = runtime.event_bus.get_history(limit=5)
         trace_ids = [e.trace_id for e in history if e.trace_id]
@@ -126,31 +130,35 @@ class TestSceneBReach:
         subs = runtime.event_bus._subscribers.get("skill.execution.start", [])
         print(f"[DEBUG] skill.execution.start subscribers: {len(subs)}")
 
-        runtime.event_bus.publish(Event(
-            topic="skill.execution.start",
-            payload={
-                "episode_id": "ep_reach_001",
-                "skill_name": "reach",
-                "initial_state": {"joints": [0.0] * 6},
-            },
-            source="test",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={
+                    "episode_id": "ep_reach_001",
+                    "skill_name": "reach",
+                    "initial_state": {"joints": [0.0] * 6},
+                },
+                source="test",
+            )
+        )
 
         # Debug: check buffer after start
         buf = runtime._episode_recorder._buffers.get("ep_reach_001")
         print(f"[DEBUG] after start buffer: {buf.received_events if buf else 'NO BUF'}")
 
-        runtime.event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "episode_id": "ep_reach_001",
-                "skill_name": "reach",
-                "result": {"status": "success", "reward": 0.92},
-                "duration_sec": 2.5,
-                "final_state": {"joints": [0.3, -0.2, 0.1, 0, 0, 0]},
-            },
-            source="test",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "episode_id": "ep_reach_001",
+                    "skill_name": "reach",
+                    "result": {"status": "success", "reward": 0.92},
+                    "duration_sec": 2.5,
+                    "final_state": {"joints": [0.3, -0.2, 0.1, 0, 0, 0]},
+                },
+                source="test",
+            )
+        )
 
         # PracticeRecorder auto-publishes praxis.completed on skill.execution.complete
         time.sleep(0.2)
@@ -166,20 +174,25 @@ class TestSceneBReach:
         assert meta is not None
         assert meta["status"] == "success"
         # NOTE: reward may be 1.0 (default) if praxis.completed event has no explicit reward
-        assert meta["reward"] == pytest.approx(0.92, 0.01) or meta["reward"] == pytest.approx(1.0, 0.01)
+        assert meta["reward"] == pytest.approx(0.92, 0.01) or meta["reward"] == pytest.approx(
+            1.0, 0.01
+        )
 
     def test_scene_b_memory_records_experience(self, runtime):
         """Memory must record the reach task experience."""
         if runtime._memory is None:
             pytest.skip("Memory not available")
 
-        record_id = runtime._memory.write("reach_001", {
-            "event_type": "reach",
-            "instruction": "reach to target above table",
-            "outcome": "success",
-            "duration_sec": 2.5,
-            "tags": ["reach", "ur5e", "tabletop"],
-        })
+        record_id = runtime._memory.write(
+            "reach_001",
+            {
+                "event_type": "reach",
+                "instruction": "reach to target above table",
+                "outcome": "success",
+                "duration_sec": 2.5,
+                "tags": ["reach", "ur5e", "tabletop"],
+            },
+        )
         assert record_id is not None
 
         # Semantic search should find the experience
@@ -195,17 +208,20 @@ class TestSceneBReach:
 
         # Seed default rules
         import asyncio
+
         asyncio.run(runtime._how.seed_defaults())
 
         # Publish a failure event
-        runtime.event_bus.publish(Event(
-            topic="praxis.failed",
-            payload={
-                "practice_id": "ep_fail_001",
-                "error_log": "joint limit exceeded during reach",
-            },
-            source="test",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="praxis.failed",
+                payload={
+                    "practice_id": "ep_fail_001",
+                    "error_log": "joint limit exceeded during reach",
+                },
+                source="test",
+            )
+        )
 
         time.sleep(0.2)
 
@@ -219,14 +235,16 @@ class TestSceneBReach:
         critic.initialize()
 
         # Simulate a successful reach
-        runtime.event_bus.publish(Event(
-            topic="praxis.completed",
-            payload={
-                "practice_id": "ep_critic_001",
-                "outcome": {"reward": 0.95},
-            },
-            source="test",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="praxis.completed",
+                payload={
+                    "practice_id": "ep_critic_001",
+                    "outcome": {"reward": 0.95},
+                },
+                source="test",
+            )
+        )
 
         time.sleep(0.1)
 
@@ -242,45 +260,53 @@ class TestSceneBReach:
         episode_id = "ep_closed_loop_001"
 
         # 1. Agent intent
-        runtime.event_bus.publish(Event(
-            topic="agent.command",
-            payload={"action": "reach", "target": [0.5, 0.2, 0.3], "episode_id": episode_id},
-            source="agent",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="agent.command",
+                payload={"action": "reach", "target": [0.5, 0.2, 0.3], "episode_id": episode_id},
+                source="agent",
+            )
+        )
 
         # 2. Provider capability selection (simulated)
-        runtime.event_bus.publish(Event(
-            topic="agent.response",
-            payload={"status": "ok", "is_safe": True, "request_id": episode_id},
-            source="mcp_hub",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="agent.response",
+                payload={"status": "ok", "is_safe": True, "request_id": episode_id},
+                source="mcp_hub",
+            )
+        )
 
         # 3. Skill execution start
-        runtime.event_bus.publish(Event(
-            topic="skill.execution.start",
-            payload={
-                "episode_id": episode_id,
-                "skill_name": "reach",
-                "initial_state": {"joints": [0.0] * 6},
-            },
-            source="runtime",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={
+                    "episode_id": episode_id,
+                    "skill_name": "reach",
+                    "initial_state": {"joints": [0.0] * 6},
+                },
+                source="runtime",
+            )
+        )
 
         # 4. Sandbox validation (simulated ALLOW)
         # (In real scenario, Firewall would validate here)
 
         # 5. Skill execution complete (PracticeRecorder auto-publishes praxis.completed)
-        runtime.event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "episode_id": episode_id,
-                "skill_name": "reach",
-                "result": {"status": "success", "reward": 0.88},
-                "duration_sec": 3.0,
-                "final_state": {"joints": [0.3, -0.2, 0.1, 0, 0, 0]},
-            },
-            source="runtime",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "episode_id": episode_id,
+                    "skill_name": "reach",
+                    "result": {"status": "success", "reward": 0.88},
+                    "duration_sec": 3.0,
+                    "final_state": {"joints": [0.3, -0.2, 0.1, 0, 0, 0]},
+                },
+                source="runtime",
+            )
+        )
 
         time.sleep(0.3)
 

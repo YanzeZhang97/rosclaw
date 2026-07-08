@@ -32,7 +32,9 @@ class SkillEntry:
     version: str = "1.0.0"
     lineage_id: str = ""
     parent_skill_id: str = ""
-    champion_level: str = "baseline_champion"  # baseline | sim | sandbox | real_candidate | real | deprecated
+    champion_level: str = (
+        "baseline_champion"  # baseline | sim | sandbox | real_candidate | real | deprecated
+    )
     # body-system compatibility requirements (optional)
     requirements: dict[str, Any] = field(default_factory=dict)
 
@@ -113,20 +115,24 @@ class SkillRegistry(LifecycleMixin):
         if skill_id not in self._by_name[entry.name]:
             self._by_name[entry.name].append(skill_id)
 
-        logger.info("Registered skill: %s (%s) level=%s", skill_id, entry.skill_type, entry.champion_level)
+        logger.info(
+            "Registered skill: %s (%s) level=%s", skill_id, entry.skill_type, entry.champion_level
+        )
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="skill.registered",
-                payload={
-                    "skill_name": entry.name,
-                    "skill_id": skill_id,
-                    "skill_type": entry.skill_type,
-                    "version": entry.version,
-                    "champion_level": entry.champion_level,
-                },
-                source="skill_registry",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="skill.registered",
+                    payload={
+                        "skill_name": entry.name,
+                        "skill_id": skill_id,
+                        "skill_type": entry.skill_type,
+                        "version": entry.version,
+                        "champion_level": entry.champion_level,
+                    },
+                    source="skill_registry",
+                    priority=EventPriority.NORMAL,
+                )
+            )
         return skill_id
 
     def unregister(self, skill_id: str) -> bool:
@@ -165,7 +171,11 @@ class SkillRegistry(LifecycleMixin):
         return self._skills.get(versions_sorted[-1])
 
     def list_skills(
-        self, skill_type: str | None = None, champion_level: str | None = None, return_entries: bool = False, full_ids: bool = False
+        self,
+        skill_type: str | None = None,
+        champion_level: str | None = None,
+        return_entries: bool = False,
+        full_ids: bool = False,
     ) -> "list[str] | list[SkillEntry]":
         """List all registered skills with optional filtering.
 
@@ -205,17 +215,19 @@ class SkillRegistry(LifecycleMixin):
         self._champions.setdefault(entry.name, {})[to_level] = skill_id
         logger.info("Promoted %s to %s", skill_id, to_level)
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="skill.champion.promoted",
-                payload={
-                    "skill_id": skill_id,
-                    "skill_name": entry.name,
-                    "version": entry.version,
-                    "champion_level": to_level,
-                },
-                source="skill_registry",
-                priority=EventPriority.HIGH,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="skill.champion.promoted",
+                    payload={
+                        "skill_id": skill_id,
+                        "skill_name": entry.name,
+                        "version": entry.version,
+                        "champion_level": to_level,
+                    },
+                    source="skill_registry",
+                    priority=EventPriority.HIGH,
+                )
+            )
         return True
 
     def get_champion(self, name: str, level: str = "real_champion") -> SkillEntry | None:
@@ -255,12 +267,14 @@ class SkillRegistry(LifecycleMixin):
         target.updated_at = time.time()
         logger.info("Rolled back %s to version %s", name, to_version)
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="skill.rollback",
-                payload={"skill_name": name, "to_version": to_version, "skill_id": target_id},
-                source="skill_registry",
-                priority=EventPriority.HIGH,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="skill.rollback",
+                    payload={"skill_name": name, "to_version": to_version, "skill_id": target_id},
+                    source="skill_registry",
+                    priority=EventPriority.HIGH,
+                )
+            )
         return True
 
     def list_lineage(self, name: str) -> list[dict[str, Any]]:
@@ -281,9 +295,8 @@ class SkillRegistry(LifecycleMixin):
         entry.execution_count += 1
         if success:
             entry.success_rate = (
-                (entry.success_rate * (entry.execution_count - 1) + 1.0)
-                / entry.execution_count
-            )
+                entry.success_rate * (entry.execution_count - 1) + 1.0
+            ) / entry.execution_count
         else:
             entry.success_rate = (
                 entry.success_rate * (entry.execution_count - 1)

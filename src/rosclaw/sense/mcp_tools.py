@@ -55,10 +55,7 @@ def register_sense_tools(tools: dict[str, dict[str, Any]]) -> None:
 
 
 def _sense_available(hub: Any) -> bool:
-    return (
-        hub.runtime is not None
-        and getattr(hub.runtime, "sense", None) is not None
-    )
+    return hub.runtime is not None and getattr(hub.runtime, "sense", None) is not None
 
 
 def handle_get_body_sense(hub: Any, _arguments: dict[str, Any]) -> dict[str, Any]:

@@ -81,8 +81,7 @@ class FeedbackExporter:
                 result[key] = self._redact_record(value)
             elif isinstance(value, list):
                 result[key] = [
-                    self.text_redactor.redact(v) if isinstance(v, str) else v
-                    for v in value
+                    self.text_redactor.redact(v) if isinstance(v, str) else v for v in value
                 ]
             else:
                 result[key] = value

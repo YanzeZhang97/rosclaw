@@ -95,7 +95,9 @@ def test_verifier_required_event_types():
         practice_id = coord.summary.practice_id
 
         verifier = PracticeVerifier(tmp)
-        report = verifier.verify(practice_id, required_event_types=["runtime.start", "runtime.stop"])
+        report = verifier.verify(
+            practice_id, required_event_types=["runtime.start", "runtime.stop"]
+        )
         assert report.passed
 
         report2 = verifier.verify(practice_id, required_event_types=["nonexistent_event"])

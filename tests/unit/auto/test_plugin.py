@@ -1,4 +1,5 @@
 """L3: Runtime Plugin tests."""
+
 from rosclaw.auto.plugin import AutoPlugin
 
 
@@ -10,11 +11,14 @@ class FakeEventBus:
     def __init__(self):
         self.subscriptions = {}
         self.published = []
+
     def subscribe(self, topic, handler):
         self.subscriptions.setdefault(topic, []).append(handler)
+
     def unsubscribe(self, topic, handler):
         if topic in self.subscriptions:
             self.subscriptions[topic] = [h for h in self.subscriptions[topic] if h != handler]
+
     def publish(self, event):
         self.published.append(event)
 

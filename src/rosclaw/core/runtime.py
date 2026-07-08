@@ -57,6 +57,7 @@ except ImportError:
 @dataclass
 class RuntimeConfig:
     """Configuration for ROSClaw Runtime."""
+
     robot_id: str = "rosclaw_default"
     robot_model_path: str | None = None
     robot_zoo_path: str | None = None
@@ -66,16 +67,16 @@ class RuntimeConfig:
     enable_practice: bool = True
     enable_swarm: bool = False
     enable_skill_manager: bool = True
-    enable_knowledge: bool = True           # KnowledgeInterface (KNOW module)
-    enable_how: bool = True                 # HeuristicEngine (HOW module)
-    enable_auto: bool = True                # Self-Evolution Control Plane (AUTO module)
+    enable_knowledge: bool = True  # KnowledgeInterface (KNOW module)
+    enable_how: bool = True  # HeuristicEngine (HOW module)
+    enable_auto: bool = True  # Self-Evolution Control Plane (AUTO module)
     enable_provider: bool = True
     joint_dof: int = 6
     sampling_rate_hz: int = 1000
-    safety_level: str = "MODERATE"          # STRICT | MODERATE | LENIENT
+    safety_level: str = "MODERATE"  # STRICT | MODERATE | LENIENT
     timeline_output_dir: str = "./practice_data"
     enable_mcap: bool = False
-    seekdb_backend: str = "memory"          # "memory" | "sqlite"
+    seekdb_backend: str = "memory"  # "memory" | "sqlite"
     seekdb_path: str = "./seekdb.sqlite"
     # Optional SeekDB / rosclaw_practice integration for practice event persistence
     seekdb_url: str | None = field(default_factory=lambda: os.environ.get("ROSCLAW_SEEKDB_URL"))
@@ -84,14 +85,14 @@ class RuntimeConfig:
             "ROSCLAW_SEEKDB_FALLBACK_DIR", "/data/rosclaw/fallback"
         )
     )
-    embodied_memory: Any | None = None   # powermem.EmbodiedMemory instance
-    providers_dir: str | None = None     # Directory to scan for provider.yaml files
+    embodied_memory: Any | None = None  # powermem.EmbodiedMemory instance
+    providers_dir: str | None = None  # Directory to scan for provider.yaml files
     # GPU model microservice endpoints (auto-registered as HTTP providers)
-    gpu_sam3_endpoint: str | None = None      # e.g. "http://localhost:8001"
-    gpu_vggt_endpoint: str | None = None      # e.g. "http://localhost:8002"
-    gpu_minicpm_endpoint: str | None = None   # e.g. "http://localhost:8003"
-    gpu_cosmos_endpoint: str | None = None    # e.g. "http://localhost:8004"
-    event_bus: Any | None = None              # External EventBus instance
+    gpu_sam3_endpoint: str | None = None  # e.g. "http://localhost:8001"
+    gpu_vggt_endpoint: str | None = None  # e.g. "http://localhost:8002"
+    gpu_minicpm_endpoint: str | None = None  # e.g. "http://localhost:8003"
+    gpu_cosmos_endpoint: str | None = None  # e.g. "http://localhost:8004"
+    event_bus: Any | None = None  # External EventBus instance
     # HOW service client (optional). When set, Runtime talks to a local/private
     # rosclaw-how HTTP service instead of the built-in HeuristicEngine.
     how_url: str | None = field(default_factory=lambda: os.environ.get("ROSCLAW_HOW_URL"))
@@ -100,7 +101,10 @@ class RuntimeConfig:
     how_fallback_to_local: bool = True
     # KNOW optional integration with private rosclaw_know curated registry.
     know_curated_registry_enabled: bool = field(
-        default_factory=lambda: os.environ.get("ROSCLAW_KNOW_CURATED_REGISTRY_ENABLED", "").lower() in ("1", "true", "yes", "on")
+        default_factory=lambda: (
+            os.environ.get("ROSCLAW_KNOW_CURATED_REGISTRY_ENABLED", "").lower()
+            in ("1", "true", "yes", "on")
+        )
     )
     # Sense / BodySense module configuration
     enable_sense: bool = True
@@ -159,6 +163,7 @@ class Runtime(LifecycleMixin):
 
         # Module lifecycle lock
         import threading
+
         self._module_lock = threading.RLock()
 
     def _do_initialize(self) -> None:
@@ -174,6 +179,7 @@ class Runtime(LifecycleMixin):
         # Attach persistent JSONL sink so dashboards can tail live events
         if self.config.enable_event_persistence:
             from rosclaw.core.event_sink import JsonlEventSink
+
             self._event_sink = JsonlEventSink()
             self._event_sink.attach(self.event_bus)
 
@@ -184,6 +190,7 @@ class Runtime(LifecycleMixin):
         if self.config.enable_firewall and self._e_urdf is not None:
             try:
                 from rosclaw.firewall.validator import FirewallValidator
+
                 self._firewall = FirewallValidator(
                     robot_model=self._e_urdf.get_model(),
                     event_bus=self.event_bus,
@@ -198,10 +205,12 @@ class Runtime(LifecycleMixin):
         # Initialize Sandbox (Digital Twin + Physics Simulation)
         try:
             from rosclaw.sandbox.runtime_adapter import SandboxRuntimeAdapter
+
             # Map short robot_id to canonical full name via e-URDF Zoo
             canonical_robot_id = self.config.robot_id
             try:
                 from rosclaw.runtime.eurdf_loader import RobotRegistry
+
                 reg = RobotRegistry()
                 profile = reg.get(canonical_robot_id)
                 if profile is not None:
@@ -229,6 +238,7 @@ class Runtime(LifecycleMixin):
             try:
                 from rosclaw.sense.config import SenseConfig
                 from rosclaw.sense.runtime import SenseRuntime
+
                 self._sense = SenseRuntime(
                     config=SenseConfig(
                         robot_id=self.config.robot_id,
@@ -250,6 +260,7 @@ class Runtime(LifecycleMixin):
             try:
                 from rosclaw.memory.interface import MemoryInterface
                 from rosclaw.memory.seekdb_client import SeekDBMemoryClient, SeekDBSQLiteClient
+
                 if self.config.seekdb_backend == "sqlite":
                     seekdb = SeekDBSQLiteClient(self.config.seekdb_path)
                 else:
@@ -272,6 +283,7 @@ class Runtime(LifecycleMixin):
         if self.config.enable_practice:
             try:
                 from rosclaw.practice.timeline import UnifiedTimeline
+
                 self._practice = UnifiedTimeline(
                     robot_id=self.config.robot_id,
                     event_bus=self.event_bus,
@@ -288,6 +300,7 @@ class Runtime(LifecycleMixin):
             if self.config.seekdb_url:
                 try:
                     from rosclaw.practice.seekdb_bridge import SeekDBBridge
+
                     seekdb_bridge = SeekDBBridge(
                         seekdb_url=self.config.seekdb_url,
                         fallback_dir=self.config.seekdb_fallback_dir,
@@ -301,6 +314,7 @@ class Runtime(LifecycleMixin):
             # Initialize EpisodeRecorder for artifact management
             try:
                 from rosclaw.practice.episode_recorder import EpisodeRecorder
+
                 self._episode_recorder = EpisodeRecorder(
                     robot_id=self.config.robot_id,
                     event_bus=self.event_bus,
@@ -315,6 +329,7 @@ class Runtime(LifecycleMixin):
             # Initialize Critic for automatic success detection
             try:
                 from rosclaw.critic.basic_critic import BasicCritic
+
                 self._critic = BasicCritic(
                     robot_id=self.config.robot_id,
                     event_bus=self.event_bus,
@@ -328,6 +343,7 @@ class Runtime(LifecycleMixin):
         if self.config.enable_swarm:
             try:
                 from rosclaw.swarm.manager import SwarmRuntimeManager
+
                 self._swarm = SwarmRuntimeManager(event_bus=self.event_bus)
                 self._modules.append(self._swarm)
                 logger.info("Collaboration Grounding (Swarm) initialized")
@@ -339,6 +355,7 @@ class Runtime(LifecycleMixin):
             try:
                 from rosclaw.skill_manager.executor import SkillExecutor
                 from rosclaw.skill_manager.registry import SkillRegistry
+
                 registry = SkillRegistry(event_bus=self.event_bus)
                 self._skill_manager = SkillExecutor(
                     self.event_bus,
@@ -357,6 +374,7 @@ class Runtime(LifecycleMixin):
             try:
                 from rosclaw.know.interface import KnowledgeInterface
                 from rosclaw.know.storage import seed_knowledge_graph
+
                 # Reuse Memory's SeekDB client if available
                 if self._memory is not None:
                     seekdb = getattr(self._memory, "seekdb_client", None)
@@ -378,6 +396,7 @@ class Runtime(LifecycleMixin):
                 # working with its hard-coded fallback patterns.
                 try:
                     from rosclaw.know.batch_engine import KnowledgeBatchEngine
+
                     self._knowledge_batch = KnowledgeBatchEngine(
                         runtime=self,
                         assets_path="data/knowledge_assets",
@@ -392,6 +411,7 @@ class Runtime(LifecycleMixin):
 
                 try:
                     from rosclaw.know.assets_loader import AssetsLoader
+
                     self._knowledge_assets = AssetsLoader(
                         runtime=self,
                         assets_path="data/knowledge_assets",
@@ -419,6 +439,7 @@ class Runtime(LifecycleMixin):
         if self.config.enable_auto:
             try:
                 from rosclaw.auto.plugin import AutoPlugin
+
                 # Reuse Memory's SeekDB client if available
                 if self._memory is not None:
                     seekdb = getattr(self._memory, "seekdb_client", None)
@@ -426,7 +447,9 @@ class Runtime(LifecycleMixin):
                     config={},
                     event_bus=self.event_bus,
                     seekdb_client=seekdb,
-                    skill_registry=getattr(self._skill_manager, "registry", None) if self._skill_manager else None,
+                    skill_registry=getattr(self._skill_manager, "registry", None)
+                    if self._skill_manager
+                    else None,
                     sense_runtime=self._sense,
                 )
                 self._modules.append(self._auto)
@@ -473,13 +496,16 @@ class Runtime(LifecycleMixin):
         if self.config.how_url:
             try:
                 from rosclaw.how.client import HowClient
+
                 client = HowClient(
                     self.config.how_url,
                     api_key=self.config.how_api_key,
                     timeout=self.config.how_timeout,
                 )
                 self._run_async(client.initialize())
-                logger.info("Heuristic Grounding (HowClient) initialized at %s", self.config.how_url)
+                logger.info(
+                    "Heuristic Grounding (HowClient) initialized at %s", self.config.how_url
+                )
                 return client
             except Exception as exc:  # noqa: BLE001
                 logger.warning("HowClient initialization failed: %s", exc)
@@ -492,6 +518,7 @@ class Runtime(LifecycleMixin):
             return None
 
         from rosclaw.how.engine import HeuristicEngine
+
         engine = HeuristicEngine(
             seekdb_client=seekdb,
             knowledge_interface=self._knowledge,
@@ -510,12 +537,14 @@ class Runtime(LifecycleMixin):
             for module in self._modules:
                 if isinstance(module, LifecycleMixin) and module.is_ready:
                     module.start()
-        self.event_bus.publish(Event(
-            topic="runtime.status",
-            payload={"state": "running", "robot_id": self.config.robot_id},
-            source="runtime",
-            priority=EventPriority.HIGH,
-        ))
+        self.event_bus.publish(
+            Event(
+                topic="runtime.status",
+                payload={"state": "running", "robot_id": self.config.robot_id},
+                source="runtime",
+                priority=EventPriority.HIGH,
+            )
+        )
         logger.info("All modules started")
 
     def _do_stop(self) -> None:
@@ -524,12 +553,14 @@ class Runtime(LifecycleMixin):
         if self._event_sink is not None:
             self._event_sink.close()
             self._event_sink = None
-        self.event_bus.publish(Event(
-            topic="runtime.status",
-            payload={"state": "shutting_down", "robot_id": self.config.robot_id},
-            source="runtime",
-            priority=EventPriority.CRITICAL,
-        ))
+        self.event_bus.publish(
+            Event(
+                topic="runtime.status",
+                payload={"state": "shutting_down", "robot_id": self.config.robot_id},
+                source="runtime",
+                priority=EventPriority.CRITICAL,
+            )
+        )
         # Stop in reverse order
         with self._module_lock:
             for module in reversed(self._modules):
@@ -545,7 +576,9 @@ class Runtime(LifecycleMixin):
         self.event_bus.subscribe("firewall.action_blocked", self._on_firewall_action_blocked)
         self.event_bus.subscribe("rosclaw.sandbox.episode.failed", self._on_sandbox_episode_failed)
         self.event_bus.subscribe("rosclaw.sandbox.action.blocked", self._on_sandbox_action_blocked)
-        self.event_bus.subscribe("rosclaw.runtime.execution.failed", self._on_runtime_execution_failed)
+        self.event_bus.subscribe(
+            "rosclaw.runtime.execution.failed", self._on_runtime_execution_failed
+        )
         # Auto-sync critic judgments to Memory for closed-loop experience retention
         self.event_bus.subscribe("rosclaw.critic.judgment", self._on_critic_judgment)
         # Route capability requests from MCPHub through Provider layer via EventBus
@@ -554,12 +587,14 @@ class Runtime(LifecycleMixin):
     def _on_safety_violation(self, event: Event) -> None:
         """Handle safety violation events."""
         logger.info(f"SAFETY VIOLATION: {event.payload}")
-        self.event_bus.publish(Event(
-            topic="robot.emergency_stop",
-            payload={"reason": event.payload},
-            source="runtime",
-            priority=EventPriority.CRITICAL,
-        ))
+        self.event_bus.publish(
+            Event(
+                topic="robot.emergency_stop",
+                payload={"reason": event.payload},
+                source="runtime",
+                priority=EventPriority.CRITICAL,
+            )
+        )
 
     def _on_firewall_action_blocked(self, event: Event) -> None:
         """Handle firewall action blocked: query heuristic recovery.
@@ -574,18 +609,23 @@ class Runtime(LifecycleMixin):
             request_id = event.payload.get("request_id", "")
             violations = event.payload.get("violations", [])
             error_log = "; ".join(v.get("description", "") for v in violations)
-            recovery = self._run_async(self._how.suggest_recovery(error_log, context={"request_id": request_id}))
+            recovery = self._run_async(
+                self._how.suggest_recovery(error_log, context={"request_id": request_id})
+            )
             if recovery:
                 from rosclaw.how.recovery import RecoveryFormatter
+
                 payload = RecoveryFormatter.to_event_payload(
                     recovery, request_id=request_id, source="heuristic_engine"
                 )
-                self.event_bus.publish(Event(
-                    topic="heuristic.recovery_suggested",
-                    payload=payload,
-                    source="runtime",
-                    priority=EventPriority.HIGH,
-                ))
+                self.event_bus.publish(
+                    Event(
+                        topic="heuristic.recovery_suggested",
+                        payload=payload,
+                        source="runtime",
+                        priority=EventPriority.HIGH,
+                    )
+                )
                 logger.info(f"Heuristic recovery suggested for {request_id}: {recovery['action']}")
         except Exception as e:
             logger.info(f"Heuristic recovery failed: {e}")
@@ -597,6 +637,7 @@ class Runtime(LifecycleMixin):
         ``asyncio.run`` from inside an already-running event loop.
         """
         from rosclaw.core.async_utils import run_sync
+
         return run_sync(coro)
 
     def _on_sandbox_episode_failed(self, event: Event) -> None:
@@ -609,23 +650,29 @@ class Runtime(LifecycleMixin):
             failure_type = event.payload.get("failure_type", "")
             request_id = event.payload.get("request_id", "")
             re = RecoveryEngine(self._how)
-            hint = self._run_async(re.generate_recovery_hint(
-                failure_type,
-                context={"request_id": request_id, "source": "sandbox"},
-                sources=["sandbox_episode"],
-                request_id=request_id,
-                previous_scores=event.payload.get("previous_scores"),
-                current_iteration=event.payload.get("current_iteration"),
-            ))
+            hint = self._run_async(
+                re.generate_recovery_hint(
+                    failure_type,
+                    context={"request_id": request_id, "source": "sandbox"},
+                    sources=["sandbox_episode"],
+                    request_id=request_id,
+                    previous_scores=event.payload.get("previous_scores"),
+                    current_iteration=event.payload.get("current_iteration"),
+                )
+            )
             if hint:
                 payload = re.format_for_eventbus(hint, request_id=request_id)
-                self.event_bus.publish(Event(
-                    topic="rosclaw.how.recovery_hint.generated",
-                    payload=payload,
-                    source="runtime",
-                    priority=EventPriority.HIGH,
-                ))
-                logger.info(f"RecoveryHint generated for sandbox failure {request_id}: {hint['hint']}")
+                self.event_bus.publish(
+                    Event(
+                        topic="rosclaw.how.recovery_hint.generated",
+                        payload=payload,
+                        source="runtime",
+                        priority=EventPriority.HIGH,
+                    )
+                )
+                logger.info(
+                    f"RecoveryHint generated for sandbox failure {request_id}: {hint['hint']}"
+                )
         except Exception as e:
             logger.info(f"RecoveryHint generation failed: {e}")
 
@@ -639,23 +686,29 @@ class Runtime(LifecycleMixin):
             failure_type = event.payload.get("reason", "")
             request_id = event.payload.get("request_id", "")
             re = RecoveryEngine(self._how)
-            hint = self._run_async(re.generate_recovery_hint(
-                failure_type,
-                context={"request_id": request_id, "source": "sandbox"},
-                sources=["sandbox_action"],
-                request_id=request_id,
-                previous_scores=event.payload.get("previous_scores"),
-                current_iteration=event.payload.get("current_iteration"),
-            ))
+            hint = self._run_async(
+                re.generate_recovery_hint(
+                    failure_type,
+                    context={"request_id": request_id, "source": "sandbox"},
+                    sources=["sandbox_action"],
+                    request_id=request_id,
+                    previous_scores=event.payload.get("previous_scores"),
+                    current_iteration=event.payload.get("current_iteration"),
+                )
+            )
             if hint:
                 payload = re.format_for_eventbus(hint, request_id=request_id)
-                self.event_bus.publish(Event(
-                    topic="rosclaw.how.recovery_hint.generated",
-                    payload=payload,
-                    source="runtime",
-                    priority=EventPriority.HIGH,
-                ))
-                logger.info(f"RecoveryHint generated for blocked action {request_id}: {hint['hint']}")
+                self.event_bus.publish(
+                    Event(
+                        topic="rosclaw.how.recovery_hint.generated",
+                        payload=payload,
+                        source="runtime",
+                        priority=EventPriority.HIGH,
+                    )
+                )
+                logger.info(
+                    f"RecoveryHint generated for blocked action {request_id}: {hint['hint']}"
+                )
         except Exception as e:
             logger.info(f"RecoveryHint generation failed: {e}")
 
@@ -669,23 +722,29 @@ class Runtime(LifecycleMixin):
             failure_type = event.payload.get("error_type", "")
             request_id = event.payload.get("request_id", "")
             re = RecoveryEngine(self._how)
-            hint = self._run_async(re.generate_recovery_hint(
-                failure_type,
-                context={"request_id": request_id, "source": "runtime"},
-                sources=["runtime_execution"],
-                request_id=request_id,
-                previous_scores=event.payload.get("previous_scores"),
-                current_iteration=event.payload.get("current_iteration"),
-            ))
+            hint = self._run_async(
+                re.generate_recovery_hint(
+                    failure_type,
+                    context={"request_id": request_id, "source": "runtime"},
+                    sources=["runtime_execution"],
+                    request_id=request_id,
+                    previous_scores=event.payload.get("previous_scores"),
+                    current_iteration=event.payload.get("current_iteration"),
+                )
+            )
             if hint:
                 payload = re.format_for_eventbus(hint, request_id=request_id)
-                self.event_bus.publish(Event(
-                    topic="rosclaw.how.recovery_hint.generated",
-                    payload=payload,
-                    source="runtime",
-                    priority=EventPriority.HIGH,
-                ))
-                logger.info(f"RecoveryHint generated for execution failure {request_id}: {hint['hint']}")
+                self.event_bus.publish(
+                    Event(
+                        topic="rosclaw.how.recovery_hint.generated",
+                        payload=payload,
+                        source="runtime",
+                        priority=EventPriority.HIGH,
+                    )
+                )
+                logger.info(
+                    f"RecoveryHint generated for execution failure {request_id}: {hint['hint']}"
+                )
         except Exception as e:
             logger.info(f"RecoveryHint generation failed: {e}")
 
@@ -731,7 +790,9 @@ class Runtime(LifecycleMixin):
                     "source": "critic_judgment",
                 },
             )
-            logger.info(f"Critic judgment auto-synced to Memory: {episode_id} ({status}, r={reward})")
+            logger.info(
+                f"Critic judgment auto-synced to Memory: {episode_id} ({status}, r={reward})"
+            )
         except Exception as e:
             logger.info(f"Critic judgment Memory sync failed (non-fatal): {e}")
 
@@ -763,6 +824,7 @@ class Runtime(LifecycleMixin):
 
         try:
             from rosclaw.provider.core.request import ProviderRequest
+
             req = ProviderRequest(
                 request_id=request_id,
                 capability=capability,
@@ -771,28 +833,32 @@ class Runtime(LifecycleMixin):
                 constraints=payload.get("constraints", {}),
             )
             result = self._run_async(self._capability_router.invoke(req))
-            self.event_bus.publish(Event(
-                topic="agent.capability.response",
-                payload={
-                    "request_id": request_id,
-                    "result": {
-                        "status": "ok" if result.is_ok else "failed",
-                        "capability": capability,
-                        "provider": getattr(result, "provider", ""),
-                        "result": getattr(result, "result", {}),
+            self.event_bus.publish(
+                Event(
+                    topic="agent.capability.response",
+                    payload={
+                        "request_id": request_id,
+                        "result": {
+                            "status": "ok" if result.is_ok else "failed",
+                            "capability": capability,
+                            "provider": getattr(result, "provider", ""),
+                            "result": getattr(result, "result", {}),
+                        },
                     },
-                },
-                source="runtime",
-            ))
+                    source="runtime",
+                )
+            )
         except Exception as e:
-            self.event_bus.publish(Event(
-                topic="agent.capability.response",
-                payload={
-                    "request_id": request_id,
-                    "result": {"status": "error", "error": str(e)},
-                },
-                source="runtime",
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="agent.capability.response",
+                    payload={
+                        "request_id": request_id,
+                        "result": {"status": "error", "error": str(e)},
+                    },
+                    source="runtime",
+                )
+            )
 
     def register_driver(self, name: str, driver: Any) -> None:
         """Register an MCP driver with the runtime."""
@@ -880,6 +946,7 @@ class Runtime(LifecycleMixin):
             return
         try:
             from rosclaw.provider.loader import ProviderLoader
+
             loader = ProviderLoader(self._provider_registry)
             loaded = loader.scan_directory(self.config.providers_dir)
             if loaded:
@@ -903,35 +970,47 @@ class Runtime(LifecycleMixin):
         self.event_bus.subscribe("provider_health_changed", self._on_provider_health_changed)
 
         self._provider_registry.register(
-            ProviderManifest.from_dict({
-                "name": "mock_vlm", "version": "0.1.0", "type": "vlm",
-                "capabilities": ["vlm.object_grounding", "vlm.scene_understanding"],
-                "modalities": {"input": ["image", "text"], "output": ["object_list"]},
-                "safety": {"executable": False, "requires_guard": False},
-            }),
+            ProviderManifest.from_dict(
+                {
+                    "name": "mock_vlm",
+                    "version": "0.1.0",
+                    "type": "vlm",
+                    "capabilities": ["vlm.object_grounding", "vlm.scene_understanding"],
+                    "modalities": {"input": ["image", "text"], "output": ["object_list"]},
+                    "safety": {"executable": False, "requires_guard": False},
+                }
+            ),
             lambda m: MockVLMProvider(m),
             auto_load=False,
         )
         self._provider_registry.set_provider_health("mock_vlm", ok=True)
 
         self._provider_registry.register(
-            ProviderManifest.from_dict({
-                "name": "mock_skill", "version": "0.1.0", "type": "skill",
-                "capabilities": ["skill.grasp", "skill.place", "skill.pick_and_place"],
-                "embodiment": {"supported_robots": []},
-                "safety": {"executable": True, "requires_guard": True},
-            }),
+            ProviderManifest.from_dict(
+                {
+                    "name": "mock_skill",
+                    "version": "0.1.0",
+                    "type": "skill",
+                    "capabilities": ["skill.grasp", "skill.place", "skill.pick_and_place"],
+                    "embodiment": {"supported_robots": []},
+                    "safety": {"executable": True, "requires_guard": True},
+                }
+            ),
             lambda m: MockSkillProvider(m),
             auto_load=False,
         )
         self._provider_registry.set_provider_health("mock_skill", ok=True)
 
         self._provider_registry.register(
-            ProviderManifest.from_dict({
-                "name": "mock_critic", "version": "0.1.0", "type": "critic",
-                "capabilities": ["critic.success_detection", "critic.retry_advice"],
-                "safety": {"executable": False, "requires_guard": False},
-            }),
+            ProviderManifest.from_dict(
+                {
+                    "name": "mock_critic",
+                    "version": "0.1.0",
+                    "type": "critic",
+                    "capabilities": ["critic.success_detection", "critic.retry_advice"],
+                    "safety": {"executable": False, "requires_guard": False},
+                }
+            ),
             lambda m: MockCriticProvider(m),
             auto_load=False,
         )
@@ -939,21 +1018,27 @@ class Runtime(LifecycleMixin):
 
         # Register DeepSeek LLM provider (requires DEEPSEEK_API_KEY)
         self._provider_registry.register(
-            ProviderManifest.from_dict({
-                "name": "deepseek", "version": "1.0.0", "type": "llm",
-                "capabilities": ["llm.task_planning", "llm.summary", "llm.chat"],
-                "safety": {"executable": False, "requires_guard": False},
-            }),
+            ProviderManifest.from_dict(
+                {
+                    "name": "deepseek",
+                    "version": "1.0.0",
+                    "type": "llm",
+                    "capabilities": ["llm.task_planning", "llm.summary", "llm.chat"],
+                    "safety": {"executable": False, "requires_guard": False},
+                }
+            ),
             lambda m: DeepSeekProvider(m),
             auto_load=False,
         )
         # Health check: verify API key AND ping endpoint
         import os
+
         api_key = os.environ.get("DEEPSEEK_API_KEY", "")
         healthy = False
         if api_key:
             try:
                 import urllib.request
+
                 req = urllib.request.Request(
                     f"{os.environ.get('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')}/models",
                     headers={"Authorization": f"Bearer {api_key}"},
@@ -981,29 +1066,38 @@ class Runtime(LifecycleMixin):
         gpu_configs = [
             {
                 "name": "gpu_sam3",
-                "endpoint": self.config.gpu_sam3_endpoint or os.getenv("SAM3_ENDPOINT", "http://localhost:8001"),
+                "endpoint": self.config.gpu_sam3_endpoint
+                or os.getenv("SAM3_ENDPOINT", "http://localhost:8001"),
                 "capabilities": ["segmentation.mask", "segmentation.track"],
                 "type": "segmentation",
                 "modalities": {"input": ["image"], "output": ["mask", "bbox"]},
             },
             {
                 "name": "gpu_vggt",
-                "endpoint": self.config.gpu_vggt_endpoint or os.getenv("VGGT_ENDPOINT", "http://localhost:8002"),
+                "endpoint": self.config.gpu_vggt_endpoint
+                or os.getenv("VGGT_ENDPOINT", "http://localhost:8002"),
                 "capabilities": ["geometry.depth", "geometry.pose", "geometry.point_cloud"],
                 "type": "geometry",
                 "modalities": {"input": ["image"], "output": ["depth", "pointcloud", "pose"]},
             },
             {
                 "name": "gpu_minicpm",
-                "endpoint": self.config.gpu_minicpm_endpoint or os.getenv("MINICPM_ENDPOINT", "http://localhost:8003"),
+                "endpoint": self.config.gpu_minicpm_endpoint
+                or os.getenv("MINICPM_ENDPOINT", "http://localhost:8003"),
                 "capabilities": ["vlm.vqa", "vlm.scene_understanding", "vlm.object_grounding"],
                 "type": "vlm",
                 "modalities": {"input": ["image", "text"], "output": ["text", "bbox"]},
             },
             {
                 "name": "gpu_cosmos",
-                "endpoint": self.config.gpu_cosmos_endpoint or os.getenv("COSMOS_ENDPOINT", "http://localhost:8004"),
-                "capabilities": ["reasoning.physical", "reasoning.risk_explain", "critic.risk", "world.risk"],
+                "endpoint": self.config.gpu_cosmos_endpoint
+                or os.getenv("COSMOS_ENDPOINT", "http://localhost:8004"),
+                "capabilities": [
+                    "reasoning.physical",
+                    "reasoning.risk_explain",
+                    "critic.risk",
+                    "world.risk",
+                ],
                 "type": "reasoning",
                 "modalities": {"input": ["image", "text"], "output": ["text", "risk_score"]},
             },
@@ -1014,20 +1108,22 @@ class Runtime(LifecycleMixin):
             if not endpoint:
                 continue
             try:
-                manifest = ProviderManifest.from_dict({
-                    "name": cfg["name"],
-                    "version": "1.0.0",
-                    "type": cfg["type"],
-                    "capabilities": cfg["capabilities"],
-                    "modalities": cfg["modalities"],
-                    "runtime": {
-                        "backend": "http",
-                        "protocol": "http",
-                        "endpoint": endpoint,
-                        "device": "cuda",
-                    },
-                    "safety": {"executable": False, "requires_guard": True},
-                })
+                manifest = ProviderManifest.from_dict(
+                    {
+                        "name": cfg["name"],
+                        "version": "1.0.0",
+                        "type": cfg["type"],
+                        "capabilities": cfg["capabilities"],
+                        "modalities": cfg["modalities"],
+                        "runtime": {
+                            "backend": "http",
+                            "protocol": "http",
+                            "endpoint": endpoint,
+                            "device": "cuda",
+                        },
+                        "safety": {"executable": False, "requires_guard": True},
+                    }
+                )
                 self._provider_registry.register(
                     manifest,
                     lambda m: GenericProvider(m),
@@ -1037,6 +1133,7 @@ class Runtime(LifecycleMixin):
                 healthy = False
                 try:
                     import urllib.request
+
                     req = urllib.request.Request(f"{endpoint}/health", method="GET")
                     with urllib.request.urlopen(req, timeout=2) as resp:
                         healthy = resp.status == 200
@@ -1052,11 +1149,13 @@ class Runtime(LifecycleMixin):
         """Load robot e-URDF from file path or e-URDF Zoo."""
         if self.config.robot_model_path:
             from rosclaw.e_urdf.parser import EURDFParser
+
             self._e_urdf = EURDFParser(self.config.robot_model_path)
             logger.info(f"Physical Grounding (e-URDF) loaded: {self.config.robot_model_path}")
             return
         try:
             from rosclaw.runtime.eurdf_loader import EURDFLoader
+
             loader = EURDFLoader(self.config.robot_zoo_path)
             robot_id = self.config.default_eurdf_robot
             self._robot_profile = loader.load(robot_id)
@@ -1065,19 +1164,22 @@ class Runtime(LifecycleMixin):
             xml_path = robot_dir / "robot.urdf"
             mjcf_path = robot_dir / "robot.mjcf.xml"
             from rosclaw.e_urdf.parser import EURDFParser
+
             if xml_path.exists():
                 self._e_urdf = EURDFParser(str(xml_path))
             elif mjcf_path.exists():
                 self._e_urdf = EURDFParser(str(mjcf_path))
-            self.event_bus.publish(Event(
-                topic="rosclaw.runtime.robot_loaded",
-                payload={
-                    "robot_id": robot_id,
-                    "profile": self._robot_profile.to_dict(),
-                },
-                source="runtime",
-                priority=EventPriority.HIGH,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="rosclaw.runtime.robot_loaded",
+                    payload={
+                        "robot_id": robot_id,
+                        "profile": self._robot_profile.to_dict(),
+                    },
+                    source="runtime",
+                    priority=EventPriority.HIGH,
+                )
+            )
             logger.info(f"Robot '{robot_id}' loaded from e-URDF Zoo")
         except Exception as e:
             logger.info(f"Failed to load robot from zoo: {e}")
@@ -1117,13 +1219,15 @@ class Runtime(LifecycleMixin):
                 return {"ok": True}
 
         self._provider_registry.register(
-            ProviderManifest.from_dict({
-                "name": "robot_capabilities",
-                "version": "1.0",
-                "type": "robot",
-                "capabilities": cap_names,
-                "safety": {"executable": True, "requires_guard": True},
-            }),
+            ProviderManifest.from_dict(
+                {
+                    "name": "robot_capabilities",
+                    "version": "1.0",
+                    "type": "robot",
+                    "capabilities": cap_names,
+                    "safety": {"executable": True, "requires_guard": True},
+                }
+            ),
             lambda m: RobotCapabilityProvider(m),
             auto_load=False,
         )
@@ -1165,7 +1269,9 @@ class Runtime(LifecycleMixin):
             return False
         return self._memory.update_world_object_pose(obj_id, pose, state)
 
-    def search_world_objects(self, center: Any, radius: float, scene_id: str | None = None) -> list[Any]:
+    def search_world_objects(
+        self, center: Any, radius: float, scene_id: str | None = None
+    ) -> list[Any]:
         """Search world objects within spatial radius."""
         if self._memory is None:
             return []
@@ -1187,7 +1293,9 @@ class Runtime(LifecycleMixin):
         """Sync sensor detections with world model (Object Permanence)."""
         if self._memory is None:
             return None
-        return self._memory.sync_scene_objects(scene_id, detections, timestamp_sec, occlusion_radius)
+        return self._memory.sync_scene_objects(
+            scene_id, detections, timestamp_sec, occlusion_radius
+        )
 
     def cognitive_search(
         self,
@@ -1200,7 +1308,9 @@ class Runtime(LifecycleMixin):
         """Cognitive search: semantic + spatial + temporal."""
         if self._memory is None:
             return []
-        return self._memory.cognitive_search(query, spatial_center, spatial_radius, temporal_interval, limit)
+        return self._memory.cognitive_search(
+            query, spatial_center, spatial_radius, temporal_interval, limit
+        )
 
     def record_trajectory(self, content: str, waypoints: list[tuple[Any, float]]) -> int | None:
         """Record a trajectory. Returns memory_id or None."""
@@ -1245,26 +1355,34 @@ class Runtime(LifecycleMixin):
                 know_result = self._knowledge.query_for_provider_selection(
                     capability_name, self.config.robot_id
                 )
-                logger.info(f"KNOW pre-check for {capability_name}: "
-                            f"has_capability={know_result.get('has_capability', False)}")
+                logger.info(
+                    f"KNOW pre-check for {capability_name}: "
+                    f"has_capability={know_result.get('has_capability', False)}"
+                )
             except Exception as e:
                 logger.info(f"KNOW pre-check failed (non-fatal): {e}")
 
         # Publish pre-check event for Practice/Memory tracking
         if self.event_bus is not None and know_result is not None:
-            self.event_bus.publish(Event(
-                topic="rosclaw.provider.inference.requested",
-                payload={
-                    "capability": capability_name,
-                    "robot_id": self.config.robot_id,
-                    "know_result": know_result,
-                },
-                source="runtime",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="rosclaw.provider.inference.requested",
+                    payload={
+                        "capability": capability_name,
+                        "robot_id": self.config.robot_id,
+                        "know_result": know_result,
+                    },
+                    source="runtime",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
         # Lazy init: if provider layer is importable but not initialized, set it up now
-        if self._capability_router is None and ProviderRegistry is not None and CapabilityRouter is not None:
+        if (
+            self._capability_router is None
+            and ProviderRegistry is not None
+            and CapabilityRouter is not None
+        ):
             try:
                 self._provider_registry = ProviderRegistry(event_bus=self.event_bus)
                 self._capability_router = CapabilityRouter(self._provider_registry)
@@ -1279,7 +1397,10 @@ class Runtime(LifecycleMixin):
                 return {
                     "capability": capability_name,
                     "status": "ok",
-                    "result": {"mock": True, "objects": [{"label": "mock_object", "confidence": 0.95}]},
+                    "result": {
+                        "mock": True,
+                        "objects": [{"label": "mock_object", "confidence": 0.95}],
+                    },
                     "provider": "mock_fallback",
                     "note": "CapabilityRouter not initialized — mock fallback used",
                 }
@@ -1300,6 +1421,7 @@ class Runtime(LifecycleMixin):
 
         try:
             from rosclaw.provider.core.request import ProviderRequest
+
             request = ProviderRequest(
                 capability=capability_name,
                 inputs=inputs,
@@ -1359,6 +1481,7 @@ class Runtime(LifecycleMixin):
             return {"decision": "ALLOW", "reason": "firewall_disabled", "violations": []}
         try:
             from rosclaw.firewall.validator import ValidationRequest
+
             trajectory = action.get("trajectory", [])
             request = ValidationRequest(
                 request_id=action.get("request_id", "sandbox_check_001"),
@@ -1408,21 +1531,23 @@ class Runtime(LifecycleMixin):
         episode_id = f"ep_{int(t0)}_{uuid.uuid4().hex[:6]}"
 
         # 1. skill.execution.start
-        self.event_bus.publish(Event(
-            topic="skill.execution.start",
-            payload={
-                "episode_id": episode_id,
-                "request_id": request_id,
-                "skill_name": skill_name,
-                "instruction": instruction,
-                "parameters": action.get("parameters", {}),
-                "robot_id": self.config.robot_id,
-                "agent_request": action,
-            },
-            source="runtime",
-            priority=EventPriority.HIGH,
-            trace_id=request_id,
-        ))
+        self.event_bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={
+                    "episode_id": episode_id,
+                    "request_id": request_id,
+                    "skill_name": skill_name,
+                    "instruction": instruction,
+                    "parameters": action.get("parameters", {}),
+                    "robot_id": self.config.robot_id,
+                    "agent_request": action,
+                },
+                source="runtime",
+                priority=EventPriority.HIGH,
+                trace_id=request_id,
+            )
+        )
 
         # 2. Provider inference (action plan)
         provider_result: dict[str, Any] = {}
@@ -1438,19 +1563,21 @@ class Runtime(LifecycleMixin):
         is_blocked = sandbox_result.get("decision") == "BLOCK"
 
         # 4. provider.inference.completed
-        self.event_bus.publish(Event(
-            topic="rosclaw.provider.inference.completed",
-            payload={
-                "episode_id": episode_id,
-                "request_id": request_id,
-                "capability": action.get("capability", ""),
-                "provider": provider_result.get("provider", ""),
-                "status": provider_result.get("status", "unknown"),
-                "latency_ms": int((time.time() - t0) * 1000),
-            },
-            source="runtime",
-            priority=EventPriority.NORMAL,
-        ))
+        self.event_bus.publish(
+            Event(
+                topic="rosclaw.provider.inference.completed",
+                payload={
+                    "episode_id": episode_id,
+                    "request_id": request_id,
+                    "capability": action.get("capability", ""),
+                    "provider": provider_result.get("provider", ""),
+                    "status": provider_result.get("status", "unknown"),
+                    "latency_ms": int((time.time() - t0) * 1000),
+                },
+                source="runtime",
+                priority=EventPriority.NORMAL,
+            )
+        )
 
         # 5. Generate real joint trajectory via sandbox physics
         trajectory_data: list[dict] = []
@@ -1473,15 +1600,14 @@ class Runtime(LifecycleMixin):
 
                     # Use real physics stepping if sandbox has MuJoCo model
                     has_real_physics = (
-                        self._sandbox is not None
-                        and getattr(self._sandbox, "has_physics", False)  # noqa: W503
+                        self._sandbox is not None and getattr(self._sandbox, "has_physics", False)  # noqa: W503
                     )
                     dt = 0.01
                     for i, waypoint in enumerate(raw_trajectory):
                         if has_real_physics:
                             state = self._sandbox.simulate_step(waypoint)
                             if state:
-                                joint_positions = state.get("qpos", waypoint)[:len(waypoint)]
+                                joint_positions = state.get("qpos", waypoint)[: len(waypoint)]
                                 timestamp = state.get("time", i * dt)
                             else:
                                 joint_positions = waypoint
@@ -1489,13 +1615,15 @@ class Runtime(LifecycleMixin):
                         else:
                             joint_positions = waypoint
                             timestamp = i * dt
-                        trajectory_data.append({
-                            "timestamp": timestamp,
-                            "joint_positions": joint_positions,
-                            "phase": "approach" if i < len(raw_trajectory) * 0.3 else (
-                                "grasp" if i < len(raw_trajectory) * 0.6 else "retract"
-                            ),
-                        })
+                        trajectory_data.append(
+                            {
+                                "timestamp": timestamp,
+                                "joint_positions": joint_positions,
+                                "phase": "approach"
+                                if i < len(raw_trajectory) * 0.3
+                                else ("grasp" if i < len(raw_trajectory) * 0.6 else "retract"),
+                            }
+                        )
 
                     if validation.get("is_safe", True):
                         result = {
@@ -1520,11 +1648,13 @@ class Runtime(LifecycleMixin):
             else:
                 raw_trajectory = self._generate_trajectory(action)
                 for i, waypoint in enumerate(raw_trajectory):
-                    trajectory_data.append({
-                        "timestamp": i * 0.01,
-                        "joint_positions": waypoint,
-                        "phase": "mock",
-                    })
+                    trajectory_data.append(
+                        {
+                            "timestamp": i * 0.01,
+                            "joint_positions": waypoint,
+                            "phase": "mock",
+                        }
+                    )
                 result = {
                     "status": "ok",
                     "trajectory": raw_trajectory,
@@ -1537,85 +1667,99 @@ class Runtime(LifecycleMixin):
 
         # 6. sandbox events
         if is_blocked:
-            self.event_bus.publish(Event(
-                topic="firewall.action_blocked",
-                payload={
-                    "episode_id": episode_id,
-                    "request_id": request_id,
-                    "action": action,
-                    "violations": sandbox_result.get("violations", []),
-                    "reason": sandbox_result.get("reason", ""),
-                },
-                source="sandbox",
-                priority=EventPriority.HIGH,
-                trace_id=request_id,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="firewall.action_blocked",
+                    payload={
+                        "episode_id": episode_id,
+                        "request_id": request_id,
+                        "action": action,
+                        "violations": sandbox_result.get("violations", []),
+                        "reason": sandbox_result.get("reason", ""),
+                    },
+                    source="sandbox",
+                    priority=EventPriority.HIGH,
+                    trace_id=request_id,
+                )
+            )
             # Memory auto-ingests firewall.action_blocked via EventBus subscription
             # (see MemoryInterface._on_firewall_action_blocked)
             # How recovery hint generation (P0-6)
             if self._how is not None:
                 try:
-                    hint = self._run_async(self._how.generate_recovery_hint(
-                        "firewall_blocked",
-                        context={
-                            "skill_name": skill_name,
-                            "instruction": instruction,
-                            "violations": sandbox_result.get("violations", []),
-                            "reason": sandbox_result.get("reason", ""),
-                        },
-                    ))
-                    if hint:
-                        self.event_bus.publish(Event(
-                            topic="rosclaw.how.recovery_hint.generated",
-                            payload={
-                                "episode_id": episode_id,
-                                "request_id": request_id,
-                                "hint": hint.get("hint", ""),
-                                "rule_id": hint.get("rule_id", ""),
-                                "failure_type": "firewall_blocked",
+                    hint = self._run_async(
+                        self._how.generate_recovery_hint(
+                            "firewall_blocked",
+                            context={
+                                "skill_name": skill_name,
+                                "instruction": instruction,
+                                "violations": sandbox_result.get("violations", []),
+                                "reason": sandbox_result.get("reason", ""),
                             },
-                            source="how",
-                            priority=EventPriority.HIGH,
-                        ))
+                        )
+                    )
+                    if hint:
+                        self.event_bus.publish(
+                            Event(
+                                topic="rosclaw.how.recovery_hint.generated",
+                                payload={
+                                    "episode_id": episode_id,
+                                    "request_id": request_id,
+                                    "hint": hint.get("hint", ""),
+                                    "rule_id": hint.get("rule_id", ""),
+                                    "failure_type": "firewall_blocked",
+                                },
+                                source="how",
+                                priority=EventPriority.HIGH,
+                            )
+                        )
                 except Exception as e:
                     logger.info(f"How recovery hint failed (non-fatal): {e}")
         else:
-            self.event_bus.publish(Event(
-                topic="rosclaw.sandbox.episode.started",
-                payload={
-                    "episode_id": episode_id,
-                    "request_id": request_id,
-                    "world_id": getattr(self._sandbox, "_world_id", "empty") if self._sandbox else "empty",
-                    "robot_id": self.config.robot_id,
-                },
-                source="sandbox",
-                priority=EventPriority.NORMAL,
-            ))
-            self.event_bus.publish(Event(
-                topic="rosclaw.sandbox.action.allowed",
-                payload={
-                    "episode_id": episode_id,
-                    "request_id": request_id,
-                    "risk_score": sandbox_result.get("risk_score", 0.0),
-                },
-                source="sandbox",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="rosclaw.sandbox.episode.started",
+                    payload={
+                        "episode_id": episode_id,
+                        "request_id": request_id,
+                        "world_id": getattr(self._sandbox, "_world_id", "empty")
+                        if self._sandbox
+                        else "empty",
+                        "robot_id": self.config.robot_id,
+                    },
+                    source="sandbox",
+                    priority=EventPriority.NORMAL,
+                )
+            )
+            self.event_bus.publish(
+                Event(
+                    topic="rosclaw.sandbox.action.allowed",
+                    payload={
+                        "episode_id": episode_id,
+                        "request_id": request_id,
+                        "risk_score": sandbox_result.get("risk_score", 0.0),
+                    },
+                    source="sandbox",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
         # 7. skill.execution.complete
-        self.event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "episode_id": episode_id,
-                "request_id": request_id,
-                "skill_name": skill_name,
-                "result": result,
-                "duration_sec": duration,
-                "trajectory_waypoints": len(trajectory_data),
-            },
-            source="runtime",
-            priority=EventPriority.HIGH,
-        ))
+        self.event_bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "episode_id": episode_id,
+                    "request_id": request_id,
+                    "skill_name": skill_name,
+                    "result": result,
+                    "duration_sec": duration,
+                    "trajectory_waypoints": len(trajectory_data),
+                },
+                source="runtime",
+                priority=EventPriority.HIGH,
+            )
+        )
 
         # 8. Critic evaluation
         critic_reward = 0.0
@@ -1640,37 +1784,41 @@ class Runtime(LifecycleMixin):
             critic_reward = -1.0
             critic_status = "FAILED"
 
-        self.event_bus.publish(Event(
-            topic="rosclaw.critic.success.detected",
-            payload={
-                "episode_id": episode_id,
-                "request_id": request_id,
-                "reward": critic_reward,
-                "status": critic_status,
-                "skill_name": skill_name,
-            },
-            source="critic",
-            priority=EventPriority.NORMAL,
-        ))
+        self.event_bus.publish(
+            Event(
+                topic="rosclaw.critic.success.detected",
+                payload={
+                    "episode_id": episode_id,
+                    "request_id": request_id,
+                    "reward": critic_reward,
+                    "status": critic_status,
+                    "skill_name": skill_name,
+                },
+                source="critic",
+                priority=EventPriority.NORMAL,
+            )
+        )
 
         # 9. praxis.completed / praxis.failed
         final_event_topic = "praxis.completed" if result.get("status") == "ok" else "praxis.failed"
-        self.event_bus.publish(Event(
-            topic=final_event_topic,
-            payload={
-                "episode_id": episode_id,
-                "event_type": "success" if result.get("status") == "ok" else "failure",
-                "correlation_id": request_id,
-                "instruction": instruction,
-                "initial_state": action.get("initial_state"),
-                "final_state": result,
-                "duration_sec": duration,
-                "outcome": {"reward": critic_reward, "status": critic_status},
-                "trajectory": trajectory_data,
-            },
-            source="runtime",
-            priority=EventPriority.NORMAL,
-        ))
+        self.event_bus.publish(
+            Event(
+                topic=final_event_topic,
+                payload={
+                    "episode_id": episode_id,
+                    "event_type": "success" if result.get("status") == "ok" else "failure",
+                    "correlation_id": request_id,
+                    "instruction": instruction,
+                    "initial_state": action.get("initial_state"),
+                    "final_state": result,
+                    "duration_sec": duration,
+                    "outcome": {"reward": critic_reward, "status": critic_status},
+                    "trajectory": trajectory_data,
+                },
+                source="runtime",
+                priority=EventPriority.NORMAL,
+            )
+        )
 
         # 10. Memory auto-ingest
         if self._memory is not None:
@@ -1705,32 +1853,36 @@ class Runtime(LifecycleMixin):
                 logger.info(f"Memory auto-ingest failed (non-fatal): {e}")
 
         # 11. dashboard.trace.updated
-        self.event_bus.publish(Event(
-            topic="rosclaw.dashboard.trace.updated",
-            payload={
-                "episode_id": episode_id,
-                "request_id": request_id,
-                "robot_id": self.config.robot_id,
-                "skill_name": skill_name,
-                "status": result.get("status", "unknown"),
-                "critic_reward": critic_reward,
-                "duration_sec": duration,
-            },
-            source="dashboard",
-            priority=EventPriority.LOW,
-        ))
+        self.event_bus.publish(
+            Event(
+                topic="rosclaw.dashboard.trace.updated",
+                payload={
+                    "episode_id": episode_id,
+                    "request_id": request_id,
+                    "robot_id": self.config.robot_id,
+                    "skill_name": skill_name,
+                    "status": result.get("status", "unknown"),
+                    "critic_reward": critic_reward,
+                    "duration_sec": duration,
+                },
+                source="dashboard",
+                priority=EventPriority.LOW,
+            )
+        )
 
         # KNOW post-execution recording
         if self._knowledge is not None:
             try:
-                self._knowledge.record_knowledge_usage({
-                    "episode_id": episode_id,
-                    "robot_id": self.config.robot_id,
-                    "action": action,
-                    "result": result,
-                    "duration_sec": duration,
-                    "knowledge_queried": True,
-                })
+                self._knowledge.record_knowledge_usage(
+                    {
+                        "episode_id": episode_id,
+                        "robot_id": self.config.robot_id,
+                        "action": action,
+                        "result": result,
+                        "duration_sec": duration,
+                        "knowledge_queried": True,
+                    }
+                )
             except Exception as e:
                 logger.info(f"KNOW post-execution recording failed (non-fatal): {e}")
 
@@ -1738,7 +1890,11 @@ class Runtime(LifecycleMixin):
 
     def _generate_trajectory(self, action: dict[str, Any]) -> list[list[float]]:
         """Generate a joint trajectory from action parameters."""
-        target = action.get("target_pose") or action.get("target") or action.get("parameters", {}).get("target_pose")
+        target = (
+            action.get("target_pose")
+            or action.get("target")
+            or action.get("parameters", {}).get("target_pose")
+        )
         if target and isinstance(target, list):
             steps = 10
             start = [0.0] * len(target)
@@ -1758,7 +1914,10 @@ class Runtime(LifecycleMixin):
 
     def get_status(self) -> dict:
         """Get comprehensive runtime status."""
-        sense_status: dict[str, Any] = {"enabled": self.config.enable_sense, "available": self._sense is not None}
+        sense_status: dict[str, Any] = {
+            "enabled": self.config.enable_sense,
+            "available": self._sense is not None,
+        }
         if self._sense is not None:
             try:
                 latest = self._sense.get_body_sense()
@@ -1790,9 +1949,7 @@ class Runtime(LifecycleMixin):
             "body_sense": sense_status,
             "embodied_memory": {
                 "attached": self.config.embodied_memory is not None,
-                "has_world_objects": (
-                    self._memory.has_embodied_memory if self._memory else False
-                ),
+                "has_world_objects": (self._memory.has_embodied_memory if self._memory else False),
             },
             "drivers": list(self._mcp_drivers.keys()),
         }
@@ -1817,14 +1974,17 @@ class _HowProxy:
 
         def _wrapper(*args, **kwargs):
             import asyncio
+
             # Publish request event for observability / decoupling
             if self._event_bus is not None:
                 with contextlib.suppress(Exception):
-                    self._event_bus.publish(Event(
-                        topic=f"how.{name}.requested",
-                        payload={"method": name, "args": str(args), "kwargs": str(kwargs)},
-                        source="runtime_proxy",
-                    ))
+                    self._event_bus.publish(
+                        Event(
+                            topic=f"how.{name}.requested",
+                            payload={"method": name, "args": str(args), "kwargs": str(kwargs)},
+                            source="runtime_proxy",
+                        )
+                    )
 
             # Execute the real call (async → sync via _run_async)
             try:
@@ -1835,21 +1995,25 @@ class _HowProxy:
             except Exception as exc:
                 if self._event_bus is not None:
                     with contextlib.suppress(Exception):
-                        self._event_bus.publish(Event(
-                            topic=f"how.{name}.failed",
-                            payload={"method": name, "error": str(exc)},
-                            source="runtime_proxy",
-                        ))
+                        self._event_bus.publish(
+                            Event(
+                                topic=f"how.{name}.failed",
+                                payload={"method": name, "error": str(exc)},
+                                source="runtime_proxy",
+                            )
+                        )
                 raise
 
             # Publish completion event
             if self._event_bus is not None:
                 with contextlib.suppress(Exception):
-                    self._event_bus.publish(Event(
-                        topic=f"how.{name}.completed",
-                        payload={"method": name, "result_type": type(result).__name__},
-                        source="runtime_proxy",
-                    ))
+                    self._event_bus.publish(
+                        Event(
+                            topic=f"how.{name}.completed",
+                            payload={"method": name, "result_type": type(result).__name__},
+                            source="runtime_proxy",
+                        )
+                    )
             return result
 
         return _wrapper
@@ -1875,31 +2039,37 @@ class _MemoryProxy:
         def _wrapper(*args, **kwargs):
             if self._event_bus is not None:
                 with contextlib.suppress(Exception):
-                    self._event_bus.publish(Event(
-                        topic=f"memory.{name}.requested",
-                        payload={"method": name, "args": str(args), "kwargs": str(kwargs)},
-                        source="runtime_proxy",
-                    ))
+                    self._event_bus.publish(
+                        Event(
+                            topic=f"memory.{name}.requested",
+                            payload={"method": name, "args": str(args), "kwargs": str(kwargs)},
+                            source="runtime_proxy",
+                        )
+                    )
 
             try:
                 result = attr(*args, **kwargs)
             except Exception as exc:
                 if self._event_bus is not None:
                     with contextlib.suppress(Exception):
-                        self._event_bus.publish(Event(
-                            topic=f"memory.{name}.failed",
-                            payload={"method": name, "error": str(exc)},
-                            source="runtime_proxy",
-                        ))
+                        self._event_bus.publish(
+                            Event(
+                                topic=f"memory.{name}.failed",
+                                payload={"method": name, "error": str(exc)},
+                                source="runtime_proxy",
+                            )
+                        )
                 raise
 
             if self._event_bus is not None:
                 with contextlib.suppress(Exception):
-                    self._event_bus.publish(Event(
-                        topic=f"memory.{name}.completed",
-                        payload={"method": name, "result_type": type(result).__name__},
-                        source="runtime_proxy",
-                    ))
+                    self._event_bus.publish(
+                        Event(
+                            topic=f"memory.{name}.completed",
+                            payload={"method": name, "result_type": type(result).__name__},
+                            source="runtime_proxy",
+                        )
+                    )
             return result
 
         return _wrapper

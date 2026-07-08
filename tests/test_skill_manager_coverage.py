@@ -32,10 +32,12 @@ class TestSkillRegistryEventHandlers:
         reg = SkillRegistry(event_bus=bus)
         reg.initialize()
         reg.register(SkillEntry(name="pick", description="", skill_type="programmed"))
-        bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"skill_name": "pick", "result": {"status": "failure"}},
-        ))
+        bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={"skill_name": "pick", "result": {"status": "failure"}},
+            )
+        )
         skill = reg.get("pick")
         assert skill.execution_count == 1
         assert skill.success_rate == 0.0
@@ -46,7 +48,9 @@ class TestSkillRegistryEventHandlers:
         reg = SkillRegistry(event_bus=bus)
         reg.initialize()
         reg.register(SkillEntry(name="pick", description="", skill_type="programmed"))
-        bus.publish(Event(topic="skill.execution.complete", payload={"result": {"status": "success"}}))
+        bus.publish(
+            Event(topic="skill.execution.complete", payload={"result": {"status": "success"}})
+        )
         skill = reg.get("pick")
         assert skill.execution_count == 0
         reg.stop()
@@ -55,6 +59,7 @@ class TestSkillRegistryEventHandlers:
 class TestSkillRegistryRegister:
     def test_register_overwrite(self, caplog):
         import logging
+
         reg = SkillRegistry()
         reg.initialize()
         reg.register(SkillEntry(name="pick", description="First", skill_type="programmed"))
@@ -119,18 +124,22 @@ class TestSkillRegistryListAndFind:
     def test_find_by_precondition(self):
         reg = SkillRegistry()
         reg.initialize()
-        reg.register(SkillEntry(
-            name="pick",
-            description="",
-            skill_type="programmed",
-            preconditions=["object_visible", "gripper_empty"],
-        ))
-        reg.register(SkillEntry(
-            name="place",
-            description="",
-            skill_type="programmed",
-            preconditions=["gripper_full"],
-        ))
+        reg.register(
+            SkillEntry(
+                name="pick",
+                description="",
+                skill_type="programmed",
+                preconditions=["object_visible", "gripper_empty"],
+            )
+        )
+        reg.register(
+            SkillEntry(
+                name="place",
+                description="",
+                skill_type="programmed",
+                preconditions=["gripper_full"],
+            )
+        )
         found = reg.find_by_precondition("gripper_empty")
         assert len(found) == 1
         assert found[0].name == "pick"

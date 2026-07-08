@@ -118,11 +118,16 @@ class TestPhase3Forge:
         from rosclaw.mcp.minimal_server import ROSClawMinimalMCPServer
 
         server = ROSClawMinimalMCPServer()
-        result = asyncio.run(server._handle_system_tool("system.compile_asset_bundle", {
-            "sdk_doc": "Test SDK for validation",
-            "bundle_name": "test_bundle",
-            "staging": True,
-        }))
+        result = asyncio.run(
+            server._handle_system_tool(
+                "system.compile_asset_bundle",
+                {
+                    "sdk_doc": "Test SDK for validation",
+                    "bundle_name": "test_bundle",
+                    "staging": True,
+                },
+            )
+        )
         assert result["status"] == "generated"
         assert result.get("staging_ready") is True
         assert "validation" in result
@@ -153,7 +158,8 @@ class TestPhase3MuJoCoRealPhysics:
         with tempfile.TemporaryDirectory():
             result = subprocess.run(
                 [sys.executable, "-m", "rosclaw.examples.g1_free_floating_walk"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
                 cwd=str(Path(__file__).parent.parent),
                 timeout=20,
             )

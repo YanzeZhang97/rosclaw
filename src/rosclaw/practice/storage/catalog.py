@@ -238,9 +238,7 @@ class PracticeCatalog:
             existing = {row[1] for row in cursor.fetchall()}
             for column in expected_columns:
                 if column not in existing:
-                    logger.info(
-                        "Migrating table %s: adding column %s", table, column
-                    )
+                    logger.info("Migrating table %s: adding column %s", table, column)
                     self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {column}")
 
     def close(self) -> None:

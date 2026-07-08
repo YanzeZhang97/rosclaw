@@ -131,9 +131,7 @@ def test_migration_preserves_existing_data(tmp_path: Path):
     db_path = tmp_path / "existing.sqlite"
     # Simulate an existing v1 catalog
     conn = sqlite3.connect(db_path)
-    conn.execute(
-        "CREATE TABLE practices (practice_id TEXT PRIMARY KEY, robot_id TEXT)"
-    )
+    conn.execute("CREATE TABLE practices (practice_id TEXT PRIMARY KEY, robot_id TEXT)")
     conn.execute("INSERT INTO practices VALUES ('prac_old', 'r1')")
     conn.commit()
     conn.close()

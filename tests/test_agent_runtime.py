@@ -1,6 +1,5 @@
 """Tests for Agent Runtime."""
 
-
 from rosclaw.agent_runtime.mcp_hub import AgentContext, MCPHub
 from rosclaw.core.event_bus import Event, EventBus
 
@@ -43,7 +42,9 @@ async def test_mcp_hub_handle_move_joints_timeout():
     # Use a short timeout so the no-response fallback is exercised quickly.
     hub._default_timeout = 1.0
     # No response handler registered, so it should timeout and fallback
-    result = await hub.handle_tool_call("move_joints", {"joint_positions": [0.1] * 6, "duration": 1.0})
+    result = await hub.handle_tool_call(
+        "move_joints", {"joint_positions": [0.1] * 6, "duration": 1.0}
+    )
     assert result["status"] == "command_issued"
     assert result["action"] == "move_joints"
     hub.stop()
@@ -59,20 +60,24 @@ async def test_mcp_hub_handle_move_joints_with_response():
     def mock_executor(event):
         request_id = event.metadata.get("request_id")
         if request_id and event.payload.get("action") == "move_joints":
-            bus.publish(Event(
-                topic="agent.response",
-                payload={
-                    "status": "success",
-                    "action": "move_joints",
-                    "final_positions": event.payload["joint_positions"],
-                },
-                source="mock_executor",
-                metadata={"request_id": request_id},
-            ))
+            bus.publish(
+                Event(
+                    topic="agent.response",
+                    payload={
+                        "status": "success",
+                        "action": "move_joints",
+                        "final_positions": event.payload["joint_positions"],
+                    },
+                    source="mock_executor",
+                    metadata={"request_id": request_id},
+                )
+            )
 
     bus.subscribe("agent.command", mock_executor)
 
-    result = await hub.handle_tool_call("move_joints", {"joint_positions": [0.1] * 6, "duration": 1.0})
+    result = await hub.handle_tool_call(
+        "move_joints", {"joint_positions": [0.1] * 6, "duration": 1.0}
+    )
     assert result["status"] == "success"
     assert result["action"] == "move_joints"
     hub.stop()
@@ -128,12 +133,14 @@ async def test_mcp_hub_command_response_pattern():
         received_requests.append(event.metadata.get("request_id"))
         request_id = event.metadata.get("request_id")
         # Simulate async processing
-        bus.publish(Event(
-            topic="agent.response",
-            payload={"status": "completed", "request_id": request_id},
-            source="mock",
-            metadata={"request_id": request_id},
-        ))
+        bus.publish(
+            Event(
+                topic="agent.response",
+                payload={"status": "completed", "request_id": request_id},
+                source="mock",
+                metadata={"request_id": request_id},
+            )
+        )
 
     bus.subscribe("agent.command", mock_handler)
 
@@ -147,6 +154,7 @@ async def test_mcp_hub_command_response_pattern():
 # ------------------------------------------------------------------
 # Provider-aware MCPHub tests
 # ------------------------------------------------------------------
+
 
 def test_mcp_hub_semantic_tools_with_runtime():
     """When attached to a Runtime with provider layer, MCPHub exposes semantic tools."""
@@ -229,10 +237,13 @@ async def test_mcp_hub_delegate_skill_via_provider():
     hub = MCPHub(bus, robot_id="test_bot", runtime=runtime)
     hub.initialize()
 
-    result = await hub.handle_tool_call("delegate_skill", {
-        "skill": "grasp",
-        "target": {"object": "red cup"},
-    })
+    result = await hub.handle_tool_call(
+        "delegate_skill",
+        {
+            "skill": "grasp",
+            "target": {"object": "red cup"},
+        },
+    )
     assert result.get("status") == "ok", f"Expected ok, got: {result}"
     assert result["capability"] == "skill.grasp"
     assert result["result"]["skill"] == "grasp"
@@ -253,9 +264,12 @@ async def test_mcp_hub_verify_task_success_via_provider():
     hub = MCPHub(bus, robot_id="test_bot", runtime=runtime)
     hub.initialize()
 
-    result = await hub.handle_tool_call("verify_task_success", {
-        "task_description": "pick up the red cup",
-    })
+    result = await hub.handle_tool_call(
+        "verify_task_success",
+        {
+            "task_description": "pick up the red cup",
+        },
+    )
     assert result.get("status") == "ok", f"Expected ok, got: {result}"
     assert result["capability"] == "critic.success_detection"
     assert result["result"]["success"] is True

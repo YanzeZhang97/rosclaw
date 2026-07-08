@@ -51,6 +51,7 @@ def create_g1_model():
 
 def run_demo(duration=3.0):
     import mujoco
+
     xml = create_g1_model()
     model = mujoco.MjModel.from_xml_string(xml)
     data = mujoco.MjData(model)

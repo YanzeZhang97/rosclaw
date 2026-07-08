@@ -15,7 +15,13 @@ class TestDeepSeekConfig:
         assert cfg.api_key == ""
 
     def test_custom_config(self):
-        cfg = DeepSeekConfig(api_key="sk-test", base_url="http://localhost", model="m", temperature=0.5, max_tokens=100)
+        cfg = DeepSeekConfig(
+            api_key="sk-test",
+            base_url="http://localhost",
+            model="m",
+            temperature=0.5,
+            max_tokens=100,
+        )
         assert cfg.api_key == "sk-test"
         assert cfg.base_url == "http://localhost"
         assert cfg.model == "m"
@@ -47,6 +53,7 @@ class TestDeepSeekClient:
     def test_get_client_import_error(self, monkeypatch):
         """Simulate openai not installed by blocking the import."""
         import builtins
+
         real_import = builtins.__import__
 
         def fake_import(name, *args, **kwargs):
@@ -69,6 +76,7 @@ class TestDeepSeekClient:
 
     def test_analyze_failure_with_heuristic_hit(self):
         """analyze_failure uses heuristic_engine when provided and match found."""
+
         class FakeHeuristic:
             async def suggest_recovery(self, error_log):
                 return {"action": "retry", "rule_id": "R1", "condition": "test"}
@@ -82,6 +90,7 @@ class TestDeepSeekClient:
 
     def test_analyze_failure_with_heuristic_miss(self):
         """analyze_failure falls back to LLM when heuristic returns None."""
+
         class FakeHeuristic:
             async def suggest_recovery(self, error_log):
                 return None
@@ -93,6 +102,7 @@ class TestDeepSeekClient:
 
     def test_analyze_failure_heuristic_exception_fallback(self):
         """analyze_failure catches heuristic exception and falls back."""
+
         class BadHeuristic:
             async def suggest_recovery(self, error_log):
                 raise RuntimeError("boom")

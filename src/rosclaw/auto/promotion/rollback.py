@@ -1,4 +1,5 @@
 """RollbackManager — skill rollback and restore."""
+
 import logging
 from typing import Any
 
@@ -40,8 +41,9 @@ class RollbackManager:
             logger.warning("RollbackManager: no champion at level %s for %s", target_level, task_id)
             return None
 
-        logger.info("RollbackManager: rolled back %s from %s to %s",
-                    task_id, current.level, target.level)
+        logger.info(
+            "RollbackManager: rolled back %s from %s to %s", task_id, current.level, target.level
+        )
         return target
 
     def create_rollback_patch(self, from_skill: str, to_skill: str) -> Patch:
@@ -51,12 +53,14 @@ class RollbackManager:
             proposal_id="rollback",
             patch_type="config_patch",
             target_skill=from_skill,
-            changes=[{
-                "action": "rollback",
-                "from": from_skill,
-                "to": to_skill,
-                "reason": "Manual or automatic rollback",
-            }],
+            changes=[
+                {
+                    "action": "rollback",
+                    "from": from_skill,
+                    "to": to_skill,
+                    "reason": "Manual or automatic rollback",
+                }
+            ],
             rollback_plan={"restore_from": to_skill},
             human_approval_required=False,
         )

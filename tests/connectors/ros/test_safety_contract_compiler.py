@@ -30,9 +30,16 @@ def _make_manifest(topics=None, services=None) -> CapabilityManifest:
 
 
 def test_read_only_observation_allowed():
-    manifest = _make_manifest(topics=[
-        RosTopicInfo(name="/camera/image_raw", msg_type="sensor_msgs/msg/Image", is_sensor=True, risk_hint="low"),
-    ])
+    manifest = _make_manifest(
+        topics=[
+            RosTopicInfo(
+                name="/camera/image_raw",
+                msg_type="sensor_msgs/msg/Image",
+                is_sensor=True,
+                risk_hint="low",
+            ),
+        ]
+    )
     compiler = SafetyContractCompiler()
     contract = compiler.compile(manifest)
     decision = compiler.evaluate(contract, "turtlesim.observe.camera.rgb", {})
@@ -40,20 +47,36 @@ def test_read_only_observation_allowed():
 
 
 def test_high_risk_velocity_without_duration_blocked():
-    manifest = _make_manifest(topics=[
-        RosTopicInfo(name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist", is_command=True, risk_hint="high"),
-    ])
+    manifest = _make_manifest(
+        topics=[
+            RosTopicInfo(
+                name="/turtle1/cmd_vel",
+                msg_type="geometry_msgs/msg/Twist",
+                is_command=True,
+                risk_hint="high",
+            ),
+        ]
+    )
     compiler = SafetyContractCompiler()
     contract = compiler.compile(manifest)
-    decision = compiler.evaluate(contract, "turtlesim.base.velocity_command", {"linear": {"x": 0.1}})
+    decision = compiler.evaluate(
+        contract, "turtlesim.base.velocity_command", {"linear": {"x": 0.1}}
+    )
     assert decision.decision == "BLOCK"
     assert "velocity_command_requires_duration" in decision.violated_constraints
 
 
 def test_high_risk_velocity_too_fast_blocked():
-    manifest = _make_manifest(topics=[
-        RosTopicInfo(name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist", is_command=True, risk_hint="high"),
-    ])
+    manifest = _make_manifest(
+        topics=[
+            RosTopicInfo(
+                name="/turtle1/cmd_vel",
+                msg_type="geometry_msgs/msg/Twist",
+                is_command=True,
+                risk_hint="high",
+            ),
+        ]
+    )
     compiler = SafetyContractCompiler()
     contract = compiler.compile(manifest)
     args = {
@@ -67,9 +90,16 @@ def test_high_risk_velocity_too_fast_blocked():
 
 
 def test_excessive_duration_blocked():
-    manifest = _make_manifest(topics=[
-        RosTopicInfo(name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist", is_command=True, risk_hint="high"),
-    ])
+    manifest = _make_manifest(
+        topics=[
+            RosTopicInfo(
+                name="/turtle1/cmd_vel",
+                msg_type="geometry_msgs/msg/Twist",
+                is_command=True,
+                risk_hint="high",
+            ),
+        ]
+    )
     compiler = SafetyContractCompiler()
     contract = compiler.compile(manifest)
     args = {
@@ -83,9 +113,16 @@ def test_excessive_duration_blocked():
 
 
 def test_safe_velocity_allowed():
-    manifest = _make_manifest(topics=[
-        RosTopicInfo(name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist", is_command=True, risk_hint="high"),
-    ])
+    manifest = _make_manifest(
+        topics=[
+            RosTopicInfo(
+                name="/turtle1/cmd_vel",
+                msg_type="geometry_msgs/msg/Twist",
+                is_command=True,
+                risk_hint="high",
+            ),
+        ]
+    )
     compiler = SafetyContractCompiler()
     contract = compiler.compile(manifest)
     args = {
@@ -101,7 +138,9 @@ def test_forbidden_pattern_blocked():
     cap = RosCapability(
         id="robot.raw_torque_command",
         kind="actuation",
-        interface=RosInterface(ros_kind="topic", name="/raw_torque_command", msg_type="std_msgs/Float64"),
+        interface=RosInterface(
+            ros_kind="topic", name="/raw_torque_command", msg_type="std_msgs/Float64"
+        ),
         risk=RosCapabilityRisk(level="high", read_only=False, destructive=True),
     )
     manifest = CapabilityManifest(robot_id="robot", capabilities=[cap])

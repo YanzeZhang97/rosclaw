@@ -109,7 +109,7 @@ class DashboardServer:
 
     def detach_from_event_bus(self) -> None:
         """Unsubscribe from EventBus."""
-        if hasattr(self, '_event_bus_subscriptions') and self._event_bus_subscriptions is not None:
+        if hasattr(self, "_event_bus_subscriptions") and self._event_bus_subscriptions is not None:
             # EventBus unsubscribe API varies by implementation
             self._event_bus_subscriptions = None
 
@@ -160,13 +160,15 @@ class DashboardServer:
         for rid in registry.list_available():
             profile = registry.get(rid)
             if profile is not None:
-                robots.append({
-                    "robot_id": profile.robot_id,
-                    "name": profile.name,
-                    "vendor": profile.vendor,
-                    "dof": profile.embodiment.dof,
-                    "capabilities": len(profile.capability.capabilities),
-                })
+                robots.append(
+                    {
+                        "robot_id": profile.robot_id,
+                        "name": profile.name,
+                        "vendor": profile.vendor,
+                        "dof": profile.embodiment.dof,
+                        "capabilities": len(profile.capability.capabilities),
+                    }
+                )
         return robots
 
     def get_body_summary(self, workspace: Path | str | None = None) -> dict[str, Any]:
@@ -338,7 +340,6 @@ class DashboardServer:
         """Return First Boot state for the dashboard wizard."""
         ws = Path(workspace) if workspace else None
         return get_firstboot_state(ws)
-
 
     # ── Auto Evolution API ──
 

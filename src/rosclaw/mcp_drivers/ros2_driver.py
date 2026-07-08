@@ -65,23 +65,23 @@ class ROS2Driver(BaseDriver):
             "velocities": list(msg.velocity),
             "efforts": list(msg.effort),
         }
-        self._driver_state.joint_positions = list(msg.position)[:self.joint_dof]
-        self._driver_state.joint_velocities = list(msg.velocity)[:self.joint_dof]
-        self._driver_state.joint_torques = list(msg.effort)[:self.joint_dof]
+        self._driver_state.joint_positions = list(msg.position)[: self.joint_dof]
+        self._driver_state.joint_velocities = list(msg.velocity)[: self.joint_dof]
+        self._driver_state.joint_torques = list(msg.effort)[: self.joint_dof]
 
     def get_joint_positions(self) -> list[float]:
         if self._latest_joint_state:
-            return self._latest_joint_state["positions"][:self.joint_dof]
+            return self._latest_joint_state["positions"][: self.joint_dof]
         return [0.0] * self.joint_dof
 
     def get_joint_velocities(self) -> list[float]:
         if self._latest_joint_state:
-            return self._latest_joint_state["velocities"][:self.joint_dof]
+            return self._latest_joint_state["velocities"][: self.joint_dof]
         return [0.0] * self.joint_dof
 
     def get_joint_torques(self) -> list[float]:
         if self._latest_joint_state:
-            return self._latest_joint_state["efforts"][:self.joint_dof]
+            return self._latest_joint_state["efforts"][: self.joint_dof]
         return [0.0] * self.joint_dof
 
     def move_joints(self, positions: list[float], duration: float = 2.0) -> bool:

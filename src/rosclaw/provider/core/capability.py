@@ -58,11 +58,11 @@ CAPABILITY_CATALOG: dict[str, list[str]] = {
     ],
     CapabilityDomain.VLM: [
         "scene_understanding",
-        "scene",                     # GPU provider alias
+        "scene",  # GPU provider alias
         "visual_question_answering",
-        "vqa",                       # GPU provider alias
+        "vqa",  # GPU provider alias
         "object_grounding",
-        "grounding",                 # GPU provider alias
+        "grounding",  # GPU provider alias
         "object_detection",
         "segmentation",
         "affordance_estimation",

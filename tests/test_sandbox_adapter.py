@@ -13,11 +13,17 @@ from rosclaw.sense.runtime import SenseRuntime
 class TestSandboxRuntimeAdapterLifecycle:
     def test_initialize_import_error_creates_stub(self, caplog):
         import logging
+
         bus = EventBus()
         config = {"engine": "mujoco", "world_id": "empty", "robot_id": "test_bot"}
         adapter = SandboxRuntimeAdapter(config, event_bus=bus)
         # Patch Sandbox.create to raise ImportError (caught by except ImportError)
-        with patch("rosclaw.sandbox.sandbox_api.Sandbox.create", side_effect=ImportError("no module")), caplog.at_level(logging.WARNING, logger="rosclaw.sandbox.runtime_adapter"):
+        with (
+            patch(
+                "rosclaw.sandbox.sandbox_api.Sandbox.create", side_effect=ImportError("no module")
+            ),
+            caplog.at_level(logging.WARNING, logger="rosclaw.sandbox.runtime_adapter"),
+        ):
             adapter.initialize()
         assert "Sandbox not available" in caplog.text
         assert adapter._sandbox_service is not None
@@ -26,11 +32,15 @@ class TestSandboxRuntimeAdapterLifecycle:
 
     def test_initialize_exception_creates_stub(self, caplog):
         import logging
+
         bus = EventBus()
         config = {"engine": "mujoco", "world_id": "empty", "robot_id": "test_bot"}
         adapter = SandboxRuntimeAdapter(config, event_bus=bus)
         # Patch Sandbox.create to raise RuntimeError (caught by except Exception)
-        with patch("rosclaw.sandbox.sandbox_api.Sandbox.create", side_effect=RuntimeError("boom")), caplog.at_level(logging.WARNING, logger="rosclaw.sandbox.runtime_adapter"):
+        with (
+            patch("rosclaw.sandbox.sandbox_api.Sandbox.create", side_effect=RuntimeError("boom")),
+            caplog.at_level(logging.WARNING, logger="rosclaw.sandbox.runtime_adapter"),
+        ):
             adapter.initialize()
         assert "Failed to create sandbox" in caplog.text
         assert adapter._sandbox_service is not None
@@ -50,6 +60,7 @@ class TestSandboxRuntimeAdapterLifecycle:
 
     def test_start_calls_reset(self, caplog):
         import logging
+
         bus = EventBus()
         config = {"engine": "mujoco", "world_id": "empty", "robot_id": "test_bot"}
         adapter = SandboxRuntimeAdapter(config, event_bus=bus)
@@ -63,6 +74,7 @@ class TestSandboxRuntimeAdapterLifecycle:
 
     def test_stop_calls_close(self, caplog):
         import logging
+
         bus = EventBus()
         config = {"engine": "mujoco", "world_id": "empty", "robot_id": "test_bot"}
         adapter = SandboxRuntimeAdapter(config, event_bus=bus)
@@ -106,7 +118,9 @@ class TestSandboxRuntimeAdapterValidateTrajectory:
         config = {"engine": "mujoco", "world_id": "empty", "robot_id": "test_bot"}
         adapter = SandboxRuntimeAdapter(config, event_bus=bus)
         adapter._sandbox_service = MagicMock()
-        with patch("rosclaw.sandbox.firewall.gate.FirewallGate", side_effect=RuntimeError("gate error")):
+        with patch(
+            "rosclaw.sandbox.firewall.gate.FirewallGate", side_effect=RuntimeError("gate error")
+        ):
             result = adapter.validate_trajectory([[0.0, 0.0, 0.0]])
         assert result["is_safe"] is False
         assert "Validation error" in result["reason"]
@@ -265,7 +279,9 @@ class TestSandboxRuntimeAdapterSenseAware:
     def _make_adapter(self, sense_runtime=None):
         bus = EventBus()
         config = {"engine": "mujoco", "world_id": "empty", "robot_id": "test_bot"}
-        runtime_wrapper = type("FakeRuntime", (), {"sense": sense_runtime})() if sense_runtime else None
+        runtime_wrapper = (
+            type("FakeRuntime", (), {"sense": sense_runtime})() if sense_runtime else None
+        )
         adapter = SandboxRuntimeAdapter(config, event_bus=bus, runtime=runtime_wrapper)
         adapter._sandbox_service = MagicMock()
         return adapter
@@ -320,6 +336,7 @@ class TestSandboxRuntimeAdapterSenseAware:
 
     def test_validate_adapter_failure_falls_back(self, sense_runtime, caplog):
         import logging
+
         adapter = self._make_adapter(sense_runtime)
         adapter._sandbox_context_adapter = MagicMock()
         adapter._sandbox_context_adapter.apply.side_effect = RuntimeError("adapter broken")

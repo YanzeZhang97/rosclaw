@@ -49,12 +49,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Mock Action Server (simulates robot controller)
 # ------------------------------------------------------------------
+
 
 class MockTrajectoryActionServer:
     """Simulates a joint trajectory controller that accepts/rejects goals."""
@@ -131,6 +133,7 @@ def next_name(base: str) -> str:
 # Tests
 # ------------------------------------------------------------------
 
+
 @test("ActionClient connects to ActionServer")
 def test_action_client_connects():
     _cleanup()
@@ -178,10 +181,13 @@ def test_execute_trajectory_success():
 
     # Spin executor in background thread
     import threading
+
     spin_done = threading.Event()
+
     def _spin():
         while not spin_done.is_set():
             executor.spin_once(timeout_sec=0.1)
+
     spin_thread = threading.Thread(target=_spin)
     spin_thread.start()
 
@@ -228,10 +234,13 @@ def test_execute_trajectory_rejected():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     import threading
+
     spin_done = threading.Event()
+
     def _spin():
         while not spin_done.is_set():
             executor.spin_once(timeout_sec=0.1)
+
     spin_thread = threading.Thread(target=_spin)
     spin_thread.start()
     try:
@@ -304,10 +313,13 @@ def test_trajectory_goal_structure():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     import threading
+
     spin_done = threading.Event()
+
     def _spin():
         while not spin_done.is_set():
             executor.spin_once(timeout_sec=0.1)
+
     spin_thread = threading.Thread(target=_spin)
     spin_thread.start()
     try:
@@ -357,10 +369,13 @@ def test_multiple_trajectory_executions():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     import threading
+
     spin_done = threading.Event()
+
     def _spin():
         while not spin_done.is_set():
             executor.spin_once(timeout_sec=0.1)
+
     spin_thread = threading.Thread(target=_spin)
     spin_thread.start()
     try:
@@ -400,6 +415,7 @@ def test_action_client_lifecycle():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     print("=" * 60)

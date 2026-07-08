@@ -376,12 +376,14 @@ class TestSkillExecutorBodyCheck:
         def handler(params):
             return {"done": True}
 
-        reg.register(SkillEntry(
-            name="body_test_skill",
-            description="Test",
-            skill_type="programmed",
-            handler=handler,
-        ))
+        reg.register(
+            SkillEntry(
+                name="body_test_skill",
+                description="Test",
+                skill_type="programmed",
+                handler=handler,
+            )
+        )
 
         def _exploding_resolver(*args, **kwargs):
             raise RuntimeError("resolver exploded")
@@ -404,17 +406,21 @@ class TestSkillExecutorBodyCheck:
         executor = SkillExecutor(bus, reg)
         executor.initialize()
 
-        reg.register(SkillEntry(
-            name="body_test_skill",
-            description="Test",
-            skill_type="programmed",
-        ))
+        reg.register(
+            SkillEntry(
+                name="body_test_skill",
+                description="Test",
+                skill_type="programmed",
+            )
+        )
 
         class _LinkedResolver:
             def is_linked(self):
                 return True
+
             def check_skill_compatibility(self, name, version=None):
                 from rosclaw.body.schema import SkillCompatibilityResult
+
                 return SkillCompatibilityResult(
                     skill_id=name,
                     skill_version=version or "",
@@ -465,14 +471,18 @@ class TestSkillExecutorBodySense:
         executor.initialize()
 
         blocked_events = []
-        bus.subscribe("rosclaw.sense.capability.blocked", lambda e: blocked_events.append(e.payload))
+        bus.subscribe(
+            "rosclaw.sense.capability.blocked", lambda e: blocked_events.append(e.payload)
+        )
 
-        reg.register(SkillEntry(
-            name="kick_ball",
-            description="Kick the ball",
-            skill_type="programmed",
-            metadata={"requires_body_sense": {"battery_percent_min": 40.0}},
-        ))
+        reg.register(
+            SkillEntry(
+                name="kick_ball",
+                description="Kick the ball",
+                skill_type="programmed",
+                metadata={"requires_body_sense": {"battery_percent_min": 40.0}},
+            )
+        )
 
         result = executor.execute("kick_ball")
         assert result["status"] == "blocked"
@@ -492,12 +502,14 @@ class TestSkillExecutorBodySense:
         executor = SkillExecutor(bus, reg, sense_interface=sense_interface_normal)
         executor.initialize()
 
-        reg.register(SkillEntry(
-            name="observe_scene",
-            description="Observe the scene",
-            skill_type="programmed",
-            metadata={"requires_body_sense": {"camera_fps_min": 10.0}},
-        ))
+        reg.register(
+            SkillEntry(
+                name="observe_scene",
+                description="Observe the scene",
+                skill_type="programmed",
+                metadata={"requires_body_sense": {"camera_fps_min": 10.0}},
+            )
+        )
 
         result = executor.execute("observe_scene")
         assert result["status"] in ("success", "dispatched")
@@ -514,12 +526,14 @@ class TestSkillExecutorBodySense:
         executor = SkillExecutor(bus, reg, sense_interface=None)
         executor.initialize()
 
-        reg.register(SkillEntry(
-            name="kick_ball",
-            description="Kick the ball",
-            skill_type="programmed",
-            metadata={"requires_body_sense": {"battery_percent_min": 40.0}},
-        ))
+        reg.register(
+            SkillEntry(
+                name="kick_ball",
+                description="Kick the ball",
+                skill_type="programmed",
+                metadata={"requires_body_sense": {"battery_percent_min": 40.0}},
+            )
+        )
 
         result = executor.execute("kick_ball")
         assert result["status"] == "blocked"

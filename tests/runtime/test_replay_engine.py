@@ -88,7 +88,9 @@ def test_replay_time_range() -> None:
     bus.publish(_event("ev_2", "camera.frame", {}, timestamp=now))
     bus.publish(_event("ev_3", "camera.frame", {}, timestamp=now + timedelta(seconds=10)))
 
-    events = replay.replay_time_range(now - timedelta(seconds=5), now + timedelta(seconds=5), event_type="camera.frame")
+    events = replay.replay_time_range(
+        now - timedelta(seconds=5), now + timedelta(seconds=5), event_type="camera.frame"
+    )
     assert len(events) == 1
     assert events[0].id == "ev_2"
 

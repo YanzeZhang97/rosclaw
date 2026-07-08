@@ -24,6 +24,7 @@ from rosclaw.dashboard.metrics import EpisodeMetric, ProviderMetric, SandboxMetr
 
 # ───────────────────────── DashboardMetrics ─────────────────────────
 
+
 class TestDashboardMetricsInit:
     def test_init_defaults(self):
         m = DashboardMetrics()
@@ -291,6 +292,7 @@ class TestDashboardMetricsDataclasses:
 
 
 # ───────────────────────── DashboardServer ─────────────────────────
+
 
 class TestDashboardServerLifecycle:
     @pytest.mark.asyncio

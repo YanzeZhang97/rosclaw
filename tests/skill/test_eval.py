@@ -17,7 +17,9 @@ def isolated_home(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
 
 
-TEMPLATE_DIR = Path(__file__).parent.parent.parent / "src" / "rosclaw" / "skill" / "templates" / "default"
+TEMPLATE_DIR = (
+    Path(__file__).parent.parent.parent / "src" / "rosclaw" / "skill" / "templates" / "default"
+)
 FIXTURES = Path(__file__).parent / "fixtures" / "practice_sessions"
 
 
@@ -53,6 +55,8 @@ def test_promote_blocked_without_eval(tmp_path: Path):
     context = _init_context("g1_kick_ball", "unitree_g1", "manipulation", "ros-claw")
     _copy_template(TEMPLATE_DIR, dest, context)
     pkg = SkillPackage(dest).try_load()
-    pkg.lineage.candidates.append(type("C", (), {"id": "candidate_0001", "status": "candidate", "eval_report": None})())
+    pkg.lineage.candidates.append(
+        type("C", (), {"id": "candidate_0001", "status": "candidate", "eval_report": None})()
+    )
     with pytest.raises(ValueError, match="No eval report"):
         promote_candidate(pkg, "candidate_0001", "0.1.0")

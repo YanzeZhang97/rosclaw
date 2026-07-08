@@ -17,14 +17,16 @@ def test_praxis_completed_event_published():
     captured = []
     bus.subscribe("praxis.completed", lambda e: captured.append(e))
 
-    bus.publish(Event(
-        topic="skill.execution.complete",
-        payload={
-            "skill_name": "pick_red_cup",
-            "result": {"status": "success", "reward": 1.0},
-            "correlation_id": "prac_001",
-        },
-    ))
+    bus.publish(
+        Event(
+            topic="skill.execution.complete",
+            payload={
+                "skill_name": "pick_red_cup",
+                "result": {"status": "success", "reward": 1.0},
+                "correlation_id": "prac_001",
+            },
+        )
+    )
 
     assert len(captured) == 1
     evt = captured[0]
@@ -45,13 +47,15 @@ def test_praxis_completed_without_eventbus():
     recorder.initialize()
     recorder.start_recording()
 
-    recorder._on_skill_complete(Event(
-        topic="skill.execution.complete",
-        payload={
-            "skill_name": "test",
-            "result": {"status": "success"},
-        },
-    ))
+    recorder._on_skill_complete(
+        Event(
+            topic="skill.execution.complete",
+            payload={
+                "skill_name": "test",
+                "result": {"status": "success"},
+            },
+        )
+    )
 
     recorder.stop()
 
@@ -59,6 +63,7 @@ def test_praxis_completed_without_eventbus():
 def test_praxis_completed_event_priority():
     """praxis.completed uses NORMAL priority."""
     from rosclaw.core.event_bus import EventPriority
+
     bus = EventBus()
     recorder = PracticeRecorder("ur5e_01", joint_dof=6, event_bus=bus)
     recorder.initialize()
@@ -67,14 +72,16 @@ def test_praxis_completed_event_priority():
     captured = []
     bus.subscribe("praxis.completed", lambda e: captured.append(e))
 
-    bus.publish(Event(
-        topic="skill.execution.complete",
-        payload={
-            "skill_name": "test",
-            "result": {"status": "success"},
-            "correlation_id": "prac_002",
-        },
-    ))
+    bus.publish(
+        Event(
+            topic="skill.execution.complete",
+            payload={
+                "skill_name": "test",
+                "result": {"status": "success"},
+                "correlation_id": "prac_002",
+            },
+        )
+    )
 
     assert captured[0].priority == EventPriority.NORMAL
     recorder.stop()
@@ -90,14 +97,16 @@ def test_praxis_completed_payload_structure():
     captured = []
     bus.subscribe("praxis.completed", lambda e: captured.append(e.payload))
 
-    bus.publish(Event(
-        topic="skill.execution.complete",
-        payload={
-            "skill_name": "insert_usb",
-            "result": {"status": "success", "reward": 0.95, "details": {"force": 2.3}},
-            "correlation_id": "prac_003",
-        },
-    ))
+    bus.publish(
+        Event(
+            topic="skill.execution.complete",
+            payload={
+                "skill_name": "insert_usb",
+                "result": {"status": "success", "reward": 0.95, "details": {"force": 2.3}},
+                "correlation_id": "prac_003",
+            },
+        )
+    )
 
     payload = captured[0]
     assert "practice_id" in payload

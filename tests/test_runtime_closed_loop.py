@@ -124,21 +124,25 @@ class TestRuntimeClosedLoop:
         runtime = Runtime(config)
         runtime.initialize()
 
-        runtime.execute({
-            "request_id": "req_003",
-            "skill_name": "pid_move",
-            "instruction": "Move turtlebot 1 meter forward",
-            "capability": "skill.pid_move",
-            "parameters": {"target": 1.0},
-        })
+        runtime.execute(
+            {
+                "request_id": "req_003",
+                "skill_name": "pid_move",
+                "instruction": "Move turtlebot 1 meter forward",
+                "capability": "skill.pid_move",
+                "parameters": {"target": 1.0},
+            }
+        )
 
-        runtime.execute({
-            "request_id": "req_004",
-            "skill_name": "reach",
-            "instruction": "Reach to tabletop object",
-            "capability": "skill.reach",
-            "parameters": {"target_pose": [0.5, 0.0, 0.3, 0.0, 0.0, 0.0]},
-        })
+        runtime.execute(
+            {
+                "request_id": "req_004",
+                "skill_name": "reach",
+                "instruction": "Reach to tabletop object",
+                "capability": "skill.reach",
+                "parameters": {"target_pose": [0.5, 0.0, 0.3, 0.0, 0.0, 0.0]},
+            }
+        )
 
         mem = runtime.memory
         stats = mem.get_statistics()
@@ -146,9 +150,13 @@ class TestRuntimeClosedLoop:
 
         # Query using keywords that match stored instructions
         similar = mem.find_similar_experiences("move forward turtlebot", limit=3)
-        assert len(similar) >= 1, f"Expected >=1 match for 'move forward turtlebot', got {len(similar)}"
+        assert len(similar) >= 1, (
+            f"Expected >=1 match for 'move forward turtlebot', got {len(similar)}"
+        )
 
         similar = mem.find_similar_experiences("reach tabletop object", limit=3)
-        assert len(similar) >= 1, f"Expected >=1 match for 'reach tabletop object', got {len(similar)}"
+        assert len(similar) >= 1, (
+            f"Expected >=1 match for 'reach tabletop object', got {len(similar)}"
+        )
 
         runtime.stop()

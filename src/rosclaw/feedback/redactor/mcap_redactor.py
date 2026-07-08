@@ -6,24 +6,28 @@ from __future__ import annotations
 class McapRedactor:
     """Filter MCAP/rosbag topics according to the configured allow/deny lists."""
 
-    DEFAULT_ALLOW_TOPICS = frozenset([
-        "/joint_states",
-        "/imu",
-        "/odom",
-        "/sandbox/decision",
-        "/rosclaw/runtime/event",
-        "/rosclaw/provider/perf",
-        "/rosclaw/skill/outcome",
-    ])
+    DEFAULT_ALLOW_TOPICS = frozenset(
+        [
+            "/joint_states",
+            "/imu",
+            "/odom",
+            "/sandbox/decision",
+            "/rosclaw/runtime/event",
+            "/rosclaw/provider/perf",
+            "/rosclaw/skill/outcome",
+        ]
+    )
 
-    DEFAULT_DENY_TOPICS = frozenset([
-        "/camera",
-        "/rgb",
-        "/depth",
-        "/audio",
-        "/microphone",
-        "/pointcloud",
-    ])
+    DEFAULT_DENY_TOPICS = frozenset(
+        [
+            "/camera",
+            "/rgb",
+            "/depth",
+            "/audio",
+            "/microphone",
+            "/pointcloud",
+        ]
+    )
 
     def __init__(
         self,

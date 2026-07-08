@@ -54,9 +54,7 @@ class CapabilityRouter:
             ProviderNotFoundError: No provider supports this capability.
             ProviderUnavailableError: All matching providers are unhealthy.
         """
-        candidates = self.registry.find_by_capability(
-            request.capability, healthy_only=False
-        )
+        candidates = self.registry.find_by_capability(request.capability, healthy_only=False)
         if not candidates:
             raise ProviderNotFoundError(
                 f"No provider supports capability '{request.capability}'",

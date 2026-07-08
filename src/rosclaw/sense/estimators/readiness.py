@@ -58,7 +58,11 @@ class ReadinessEvaluator:
         capability_requirements: dict[str, dict[str, Any]] | None = None,
     ):
         self.thresholds = thresholds or {}
-        reqs = capability_requirements if capability_requirements is not None else DEFAULT_CAPABILITY_REQUIREMENTS
+        reqs = (
+            capability_requirements
+            if capability_requirements is not None
+            else DEFAULT_CAPABILITY_REQUIREMENTS
+        )
         self.capability_requirements = reqs if reqs else DEFAULT_CAPABILITY_REQUIREMENTS
 
     def evaluate(
@@ -221,7 +225,8 @@ class ReadinessEvaluator:
         if max_temp is None:
             return
         leg_joints = {
-            name: j for name, j in state.joints.items()
+            name: j
+            for name, j in state.joints.items()
             if "hip" in name or "knee" in name or "ankle" in name
         }
         if not leg_joints:

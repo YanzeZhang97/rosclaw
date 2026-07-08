@@ -95,9 +95,7 @@ def count_knowledge_facts(seekdb_client: Any) -> dict[str, int]:
         capabilities = seekdb_client.count(
             "knowledge_graph", filters={"predicate": "has_capability"}
         )
-        symptoms = seekdb_client.count(
-            "knowledge_graph", filters={"predicate": "has_symptom"}
-        )
+        symptoms = seekdb_client.count("knowledge_graph", filters={"predicate": "has_symptom"})
         return {
             "total": total,
             "capabilities": capabilities,

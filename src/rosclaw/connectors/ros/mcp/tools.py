@@ -68,9 +68,18 @@ def register_ros_tools(mcp, runtime: Any | None = None) -> None:
                 "endpoint": snapshot.endpoint,
                 "ros_version": snapshot.ros_version,
                 "distro": snapshot.distro,
-                "topics": [{"name": t.name, "type": t.msg_type, "risk": t.risk_hint} for t in snapshot.topics],
-                "services": [{"name": s.name, "type": s.srv_type, "risk": s.risk_hint} for s in snapshot.services],
-                "actions": [{"name": a.name, "type": a.action_type, "risk": a.risk_hint} for a in snapshot.actions],
+                "topics": [
+                    {"name": t.name, "type": t.msg_type, "risk": t.risk_hint}
+                    for t in snapshot.topics
+                ],
+                "services": [
+                    {"name": s.name, "type": s.srv_type, "risk": s.risk_hint}
+                    for s in snapshot.services
+                ],
+                "actions": [
+                    {"name": a.name, "type": a.action_type, "risk": a.risk_hint}
+                    for a in snapshot.actions
+                ],
                 "nodes": [n["name"] for n in snapshot.nodes],
                 "params": snapshot.params,
             }
@@ -237,13 +246,16 @@ def register_ros_tools(mcp, runtime: Any | None = None) -> None:
             return {"ok": False, "error": "Runtime not available"}
         try:
             from rosclaw.core.event_bus import Event
+
             event_bus = getattr(runtime, "event_bus", None)
             if event_bus is not None:
-                event_bus.publish(Event(
-                    topic="robot.emergency_stop",
-                    payload={"reason": f"MCP emergency stop for {robot_id}"},
-                    source="ros_mcp_tools",
-                ))
+                event_bus.publish(
+                    Event(
+                        topic="robot.emergency_stop",
+                        payload={"reason": f"MCP emergency stop for {robot_id}"},
+                        source="ros_mcp_tools",
+                    )
+                )
             return {"ok": True, "robot_id": robot_id, "action": "emergency_stop_triggered"}
         except Exception as exc:
             return {"ok": False, "robot_id": robot_id, "error": str(exc)}

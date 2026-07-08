@@ -209,14 +209,11 @@ class VersionSolver:
         if compatibility is None:
             return True
 
-        if compatibility.python and not _satisfies_python_constraint(
-            compatibility.python
-        ):
+        if compatibility.python and not _satisfies_python_constraint(compatibility.python):
             return False
 
         return not (
-            compatibility.rosclaw
-            and not _satisfies_rosclaw_constraint(compatibility.rosclaw)
+            compatibility.rosclaw and not _satisfies_rosclaw_constraint(compatibility.rosclaw)
         )
 
 

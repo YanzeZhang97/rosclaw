@@ -102,10 +102,13 @@ class TestPracticeRecordsMcpArtifacts:
         events = json.loads((session_dir / "episode.json").read_text())
         assert events["outcome"] == "SUCCESS"
 
-        sources = {ev["source"] for ev in [
-            json.loads(line)
-            for line in (session_dir / "raw" / "events.jsonl").read_text().strip().splitlines()
-        ]}
+        sources = {
+            ev["source"]
+            for ev in [
+                json.loads(line)
+                for line in (session_dir / "raw" / "events.jsonl").read_text().strip().splitlines()
+            ]
+        }
         assert "camera" in sources
         assert "sandbox" in sources
         assert "provider" not in sources

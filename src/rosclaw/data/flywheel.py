@@ -48,11 +48,12 @@ logger = logging.getLogger(__name__)
 
 class EventType(Enum):
     """Types of events that trigger data capture."""
-    SUCCESS = auto()      # Task completed successfully
-    FAILURE = auto()      # Task failed (grasp missed, collision, etc.)
-    EMERGENCY = auto()    # Emergency stop triggered
-    USER_MARK = auto()    # User manually marked as interesting
-    MILESTONE = auto()    # Reached milestone in multi-step task
+
+    SUCCESS = auto()  # Task completed successfully
+    FAILURE = auto()  # Task failed (grasp missed, collision, etc.)
+    EMERGENCY = auto()  # Emergency stop triggered
+    USER_MARK = auto()  # User manually marked as interesting
+    MILESTONE = auto()  # Reached milestone in multi-step task
 
 
 @dataclass
@@ -68,11 +69,12 @@ class DataEvent:
         post_event_data: Data after event (typically 5 seconds)
         metadata: Additional context (task description, language instruction, etc.)
     """
+
     event_id: str
     event_type: EventType
     timestamp: float
     robot_id: str
-    pre_event_duration: float = 5.0   # Seconds before event
+    pre_event_duration: float = 5.0  # Seconds before event
     post_event_duration: float = 5.0  # Seconds after event
     metadata: dict[str, Any] = field(default_factory=dict)
     data_paths: dict[str, Path] = field(default_factory=dict)
@@ -112,19 +114,20 @@ class RobotState:
 
     This is the standard state representation used throughout ROSClaw.
     """
+
     timestamp: float
-    joint_positions: np.ndarray     # Shape: (dof,)
-    joint_velocities: np.ndarray    # Shape: (dof,)
-    joint_torques: np.ndarray       # Shape: (dof,)
+    joint_positions: np.ndarray  # Shape: (dof,)
+    joint_velocities: np.ndarray  # Shape: (dof,)
+    joint_torques: np.ndarray  # Shape: (dof,)
     end_effector_pose: np.ndarray | None = None  # Shape: (4, 4) homogeneous matrix
     gripper_state: float | None = None  # 0.0 = open, 1.0 = closed
 
     def validate(self, expected_dof: int) -> bool:
         """Validate state dimensions."""
         return (
-            self.joint_positions.shape == (expected_dof,) and  # noqa: W504
-            self.joint_velocities.shape == (expected_dof,) and  # noqa: W504
-            self.joint_torques.shape == (expected_dof,)
+            self.joint_positions.shape == (expected_dof,)  # noqa: W504
+            and self.joint_velocities.shape == (expected_dof,)  # noqa: W504
+            and self.joint_torques.shape == (expected_dof,)
         )
 
 
@@ -224,11 +227,14 @@ class DataFlywheel:
             return
 
         # Append to buffers (O(1) operation)
-        self._buffers.append({
-            "joint_positions": state.joint_positions,
-            "joint_velocities": state.joint_velocities,
-            "joint_torques": state.joint_torques,
-        }, timestamp=state.timestamp)
+        self._buffers.append(
+            {
+                "joint_positions": state.joint_positions,
+                "joint_velocities": state.joint_velocities,
+                "joint_torques": state.joint_torques,
+            },
+            timestamp=state.timestamp,
+        )
 
         self._cycle_count += 1
 

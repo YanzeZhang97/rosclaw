@@ -83,7 +83,9 @@ def test_compile_manifest_for_turtlesim(transport: RosbridgeTransport):
     manifest = CapabilityManifestCompiler(robot_id=ROBOT_ID).compile(snapshot)
     cap_ids = {cap.id for cap in manifest.capabilities}
     assert _find_velocity_capability(cap_ids), f"No velocity capability in {cap_ids}"
-    assert any(cid.startswith("turtlesim.observe.pose") for cid in cap_ids), f"No pose observation in {cap_ids}"
+    assert any(cid.startswith("turtlesim.observe.pose") for cid in cap_ids), (
+        f"No pose observation in {cap_ids}"
+    )
 
 
 @pytest.mark.skipif(not _is_reachable(), reason="rosbridge turtlesim not reachable")

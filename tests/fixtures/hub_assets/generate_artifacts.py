@@ -91,9 +91,7 @@ def generate_for_valid_dir(asset_dir: Path) -> None:
     # License file stub.
     license_file = manifest["license"].get("license_file")
     if license_file:
-        (asset_dir / license_file).write_text(
-            "PLACEHOLDER LICENSE TEXT\n", encoding="utf-8"
-        )
+        (asset_dir / license_file).write_text("PLACEHOLDER LICENSE TEXT\n", encoding="utf-8")
 
 
 def copy_fixture(src_name: str, dst_name: str) -> Path:
@@ -106,7 +104,9 @@ def copy_fixture(src_name: str, dst_name: str) -> Path:
 
 
 def main() -> None:
-    valid_dirs = sorted(p for p in FIXTURES_DIR.iterdir() if p.is_dir() and p.name.endswith("_valid"))
+    valid_dirs = sorted(
+        p for p in FIXTURES_DIR.iterdir() if p.is_dir() and p.name.endswith("_valid")
+    )
     for asset_dir in valid_dirs:
         print(f"Generating artifacts for {asset_dir.name}")
         generate_for_valid_dir(asset_dir)

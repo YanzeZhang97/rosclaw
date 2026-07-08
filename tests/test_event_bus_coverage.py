@@ -72,10 +72,12 @@ def test_publish_injects_trace_id_from_request_id():
     bus = EventBus()
     received = []
     bus.subscribe("test", lambda e: received.append(e.trace_id))
-    bus.publish(Event(
-        topic="test",
-        payload={"request_id": "req_abc"},
-    ))
+    bus.publish(
+        Event(
+            topic="test",
+            payload={"request_id": "req_abc"},
+        )
+    )
     assert received == ["req_abc"]
 
 
@@ -83,10 +85,12 @@ def test_publish_injects_trace_id_from_correlation_id():
     bus = EventBus()
     received = []
     bus.subscribe("test", lambda e: received.append(e.trace_id))
-    bus.publish(Event(
-        topic="test",
-        payload={"correlation_id": "corr_xyz"},
-    ))
+    bus.publish(
+        Event(
+            topic="test",
+            payload={"correlation_id": "corr_xyz"},
+        )
+    )
     assert received == ["corr_xyz"]
 
 
@@ -94,10 +98,12 @@ def test_publish_injects_trace_id_from_episode_id():
     bus = EventBus()
     received = []
     bus.subscribe("test", lambda e: received.append(e.trace_id))
-    bus.publish(Event(
-        topic="test",
-        payload={"episode_id": "ep_99"},
-    ))
+    bus.publish(
+        Event(
+            topic="test",
+            payload={"episode_id": "ep_99"},
+        )
+    )
     assert received == ["ep_99"]
 
 
@@ -166,8 +172,10 @@ def test_event_bus_no_normalization():
 
 def test_unsubscribe_callback_not_found_is_silent():
     bus = EventBus()
+
     def handler(e):  # noqa: E306
         pass
+
     bus.subscribe("test", handler)
     bus.unsubscribe("test", handler)
     bus.unsubscribe("test", handler)  # second time: not found, should be silent
@@ -179,6 +187,7 @@ def test_unsubscribe_callback_not_found_is_silent():
 
 def test_sync_subscriber_exception_logged(caplog):
     import logging
+
     bus = EventBus()
 
     def bad_handler(e):

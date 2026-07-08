@@ -1,4 +1,5 @@
 """E2E: Full self-evolution loop tests with real runners."""
+
 import shutil
 
 from rosclaw.auto.config import AutoConfig
@@ -19,11 +20,13 @@ class TestE2EFullLoop:
 
         # Create a patch that improves pregrasp_height toward optimum (0.05)
         patch = engine.create_patch(
-            "prop_001", "pick_v1",
+            "prop_001",
+            "pick_v1",
             changes=[{"path": "/skill/pregrasp_height", "old": 0.02, "new": 0.05}],
         )
-        exp = engine.create_experiment("prop_001", patch.id, task.name,
-                                        "pick_v1", "pick_v1_candidate")
+        exp = engine.create_experiment(
+            "prop_001", patch.id, task.name, "pick_v1", "pick_v1_candidate"
+        )
         # Relax collision limit so the improved patch passes sandbox
         exp.safety = {"sandbox_required": True, "max_collision": 2, "max_force": 15}
         # Allow small collision increase for parameter tuning
@@ -48,10 +51,12 @@ class TestE2EFullLoop:
         per_seed = raw_darwin["metrics"].get("per_seed")
 
         # Use relaxed gate to account for mock physics noise
-        engine.promotion_gate = PromotionGate({
-            "min_success_improvement": 0.05,
-            "max_collision_increase": 0.02,
-        })
+        engine.promotion_gate = PromotionGate(
+            {
+                "min_success_improvement": 0.05,
+                "max_collision_increase": 0.02,
+            }
+        )
         eval_res = engine.create_evaluation(
             exp.id, b_metrics, c_metrics, per_seed, sandbox_risk_score=0.0
         )
@@ -59,8 +64,7 @@ class TestE2EFullLoop:
         # With optimal pregrasp_height, candidate should be promoted
         if eval_res.decision.startswith("promote"):
             champ = engine.promote_champion(
-                "pick_v1_sim", task.id, "sim",
-                c_metrics, "pick_v1", patch.id, exp.id
+                "pick_v1_sim", task.id, "sim", c_metrics, "pick_v1", patch.id, exp.id
             )
             assert champ.level == "sim"
 
@@ -108,7 +112,9 @@ class TestE2EFullLoop:
         task = engine.create_task("pick_cube", "panda", "pick_v1")
 
         engine.promote_champion("pick_v1", task.id, "baseline", {}, "", "", "")
-        engine.promote_champion("pick_v1.5", task.id, "sim", {"success_rate": 0.76}, "pick_v1", "p1", "e1")
+        engine.promote_champion(
+            "pick_v1.5", task.id, "sim", {"success_rate": 0.76}, "pick_v1", "p1", "e1"
+        )
 
         rolled = engine.rollback_skill(task.id)
         assert rolled is not None
@@ -136,11 +142,13 @@ class TestE2EFullLoop:
         task = engine.create_task("pick_cube", "panda", "pick_v1")
 
         patch = engine.create_patch(
-            "prop_unsafe", "pick_v1",
+            "prop_unsafe",
+            "pick_v1",
             changes=[{"path": "/skill/max_torque", "old": 5.0, "new": 50.0}],
         )
-        exp = engine.create_experiment("prop_unsafe", patch.id, task.name,
-                                        "pick_v1", "pick_v1_unsafe")
+        exp = engine.create_experiment(
+            "prop_unsafe", patch.id, task.name, "pick_v1", "pick_v1_unsafe"
+        )
         raw = engine.run_experiment(exp, runner="sandbox")
         # High torque should trigger force exceeded or safety violation
         assert raw["success"] is False or len(raw.get("safety_violations", [])) > 0

@@ -26,6 +26,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _rosclaw_cli(*args, timeout=30):
     """Run rosclaw CLI command and return (rc, stdout, stderr)."""
     cmd = [sys.executable, "-m", "rosclaw.cli"] + list(args)
@@ -44,6 +45,7 @@ def _rosclaw_cli(*args, timeout=30):
 # ---------------------------------------------------------------------------
 # A 类：系统发现
 # ---------------------------------------------------------------------------
+
 
 class TestSystemDiscovery:
     """A1-A3: Runtime startup, graceful degradation, MCP discovery."""
@@ -77,6 +79,7 @@ class TestSystemDiscovery:
 # B 类：Provider 能力
 # ---------------------------------------------------------------------------
 
+
 class TestProviderCapability:
     """B1-B3: PID, Arm Reach, Critic providers."""
 
@@ -90,9 +93,12 @@ class TestProviderCapability:
     def test_b2_firewall_check_allow(self):
         """B2/C3: UR5e 合法 reach 通过 Firewall。"""
         rc, out, err = _rosclaw_cli(
-            "firewall", "check",
-            "--robot", "ur5e",
-            "--action", '{"target": [0.3, 0.2, 0.4]}',
+            "firewall",
+            "check",
+            "--robot",
+            "ur5e",
+            "--action",
+            '{"target": [0.3, 0.2, 0.4]}',
         )
         assert rc == 0, f"firewall check failed: {err}"
         assert "ALLOW" in out, f"Expected ALLOW: {out}"
@@ -110,6 +116,7 @@ class TestProviderCapability:
 # C 类：Sandbox / Firewall
 # ---------------------------------------------------------------------------
 
+
 class TestSandboxFirewall:
     """C1-C5: ALLOW, oscillation detection, BLOCK, workspace boundary, sandbox bypass."""
 
@@ -122,10 +129,18 @@ class TestSandboxFirewall:
     def test_c2_pid_oscillation_detected(self):
         """C2: Kp 过大时检测振荡。"""
         rc, out, err = _rosclaw_cli(
-            "demo", "mobile-pid",
-            "--target", "1.0",
-            "--kp", "10.0", "--ki", "0.0", "--kd", "0.0",
-            "--backend", "mock",
+            "demo",
+            "mobile-pid",
+            "--target",
+            "1.0",
+            "--kp",
+            "10.0",
+            "--ki",
+            "0.0",
+            "--kd",
+            "0.0",
+            "--backend",
+            "mock",
         )
         # Expected to fail (oscillation detected)
         assert rc != 0 or "OSCILLATION" in out, f"Expected oscillation detection: {out}"
@@ -134,9 +149,12 @@ class TestSandboxFirewall:
     def test_c4_firewall_block_dangerous(self):
         """C4: UR5e 危险动作 Firewall BLOCK。"""
         rc, out, err = _rosclaw_cli(
-            "firewall", "check",
-            "--robot", "ur5e",
-            "--action", '{"target": [0.5, 0.0, -0.1]}',
+            "firewall",
+            "check",
+            "--robot",
+            "ur5e",
+            "--action",
+            '{"target": [0.5, 0.0, -0.1]}',
         )
         # BLOCK returns rc=1 by design — the check itself ran successfully
         assert "BLOCK" in out, f"Expected BLOCK for z<0: {out}"
@@ -145,9 +163,12 @@ class TestSandboxFirewall:
     def test_c5_workspace_boundary_z(self):
         """C5: workspace_boundary_z 拦截。"""
         rc, out, err = _rosclaw_cli(
-            "firewall", "check",
-            "--robot", "ur5e",
-            "--action", '{"target": [0.3, 0.2, -0.05]}',
+            "firewall",
+            "check",
+            "--robot",
+            "ur5e",
+            "--action",
+            '{"target": [0.3, 0.2, -0.05]}',
         )
         assert "BLOCK" in out, f"Expected BLOCK for boundary violation: {out}"
         assert "workspace_boundary" in out.lower() or "z" in out.lower()
@@ -156,6 +177,7 @@ class TestSandboxFirewall:
 # ---------------------------------------------------------------------------
 # D 类：Practice / Memory / How
 # ---------------------------------------------------------------------------
+
 
 class TestPracticeMemoryHow:
     """D1-D5: Episode recording, failure explanation, recovery, improvement."""
@@ -192,6 +214,7 @@ class TestPracticeMemoryHow:
 # E 类：Forge 扩展
 # ---------------------------------------------------------------------------
 
+
 class TestForgeExtension:
     """E1-E2: SDK-to-MCP bundle generation, safety validation."""
 
@@ -199,16 +222,21 @@ class TestForgeExtension:
         """E1: SDK 文档生成完整 MCP bundle。"""
         output_base = Path("/tmp/test_runtimebench_forge_bundle")
         rc, out, err = _rosclaw_cli(
-            "forge", "sdk-to-mcp",
-            "--name", "test_sensor",
-            "--output", str(output_base),
+            "forge",
+            "sdk-to-mcp",
+            "--name",
+            "test_sensor",
+            "--output",
+            str(output_base),
         )
         assert rc == 0, f"forge sdk-to-mcp failed: {err}"
         # Files are generated in a subdir named after the bundle
         output_dir = output_base / "test_sensor"
         assert (output_dir / "mcp_server.py").exists(), "mcp_server.py not generated"
         assert (output_dir / "skill_manifest.json").exists(), "skill_manifest.json not generated"
-        assert (output_dir / "provider_manifest.json").exists(), "provider_manifest.json not generated"
+        assert (output_dir / "provider_manifest.json").exists(), (
+            "provider_manifest.json not generated"
+        )
         assert (output_dir / "README.md").exists(), "README.md not generated"
 
     def test_e2_forge_validate(self):
@@ -227,6 +255,7 @@ class TestForgeExtension:
 # ---------------------------------------------------------------------------
 # F 类：跨本体迁移
 # ---------------------------------------------------------------------------
+
 
 class TestCrossEmbodiment:
     """F1-F2: Same task on different robots, capability-aware degradation."""
@@ -249,6 +278,7 @@ class TestCrossEmbodiment:
 # ---------------------------------------------------------------------------
 # Benchmark Summary
 # ---------------------------------------------------------------------------
+
 
 def test_runtimebench_summary():
     """Print RuntimeBench-v1 summary with rigorous metric definitions."""

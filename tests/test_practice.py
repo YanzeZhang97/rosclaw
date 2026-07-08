@@ -42,7 +42,5 @@ def test_practice_record_praxis_event_not_recording():
     rec = PracticeRecorder("test_bot", joint_dof=6)
     rec.initialize()
     # Not started recording
-    event_id = rec.record_praxis_event(
-        event_id="evt2", event_type="milestone", instruction="test"
-    )
+    event_id = rec.record_praxis_event(event_id="evt2", event_type="milestone", instruction="test")
     assert event_id == ""

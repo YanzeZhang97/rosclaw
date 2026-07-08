@@ -1,6 +1,5 @@
 """Tests for ActionGuard."""
 
-
 from rosclaw.provider.core.request import ProviderRequest
 from rosclaw.provider.core.response import ProviderResponse
 from rosclaw.provider.guard.action_guard import ActionGuard
@@ -10,7 +9,9 @@ class TestActionGuard:
     def test_pass_no_actions(self):
         guard = ActionGuard()
         req = ProviderRequest(request_id="r1", capability="skill.grasp", inputs={})
-        resp = ProviderResponse(request_id="r1", provider="p", capability="skill.grasp", result={}, status="ok")
+        resp = ProviderResponse(
+            request_id="r1", provider="p", capability="skill.grasp", result={}, status="ok"
+        )
         result = guard.check(req, resp)
         assert result["pass"] is True
         assert result["checks"] == []

@@ -15,7 +15,7 @@ import pytest
 
 # Import MemoryInterface directly to avoid triggering rosclaw.__init__
 # which imports all modules (including MCPHub which has unrelated issues)
-sys.path.insert(0, '/home/ubuntu/rosclaw/rosclaw_memory/powermem/src')
+sys.path.insert(0, "/home/ubuntu/rosclaw/rosclaw_memory/powermem/src")
 from rosclaw.memory.interface import MemoryInterface  # noqa: E402
 
 
@@ -25,6 +25,7 @@ def reload_memory_interface():
     import importlib
 
     import rosclaw.memory.interface
+
     importlib.reload(rosclaw.memory.interface)
 
 
@@ -75,6 +76,7 @@ def test_protocol_import_without_powermem(monkeypatch):
     """Verify fallback to Any when powermem is not available."""
     # Simulate powermem not being installed
     import builtins
+
     original_import = builtins.__import__
 
     def mock_import(name, *args, **kwargs):
@@ -88,9 +90,11 @@ def test_protocol_import_without_powermem(monkeypatch):
     import importlib
 
     import rosclaw.memory.interface
+
     importlib.reload(rosclaw.memory.interface)
 
     from rosclaw.memory.interface import _HAS_POWERMEM_PROTOCOLS
+
     assert _HAS_POWERMEM_PROTOCOLS is False
 
     # Restore original import and reload module to restore original state
@@ -207,9 +211,7 @@ def test_proxy_methods_with_embodied_memory():
     # Test sync_scene_objects
     mock_detections = [MagicMock()]
     mem.sync_scene_objects("scene_1", mock_detections, timestamp_sec=123.0, occlusion_radius=0.5)
-    mock_embodied.sync_scene_objects.assert_called_once_with(
-        "scene_1", mock_detections, 123.0, 0.5
-    )
+    mock_embodied.sync_scene_objects.assert_called_once_with("scene_1", mock_detections, 123.0, 0.5)
 
     # Test record_trajectory
     mock_waypoints = [(MagicMock(), 1.0), (MagicMock(), 2.0)]
@@ -219,9 +221,7 @@ def test_proxy_methods_with_embodied_memory():
 
     # Test search_similar_trajectories
     mem.search_similar_trajectories(mock_waypoints, top_k=5, max_dtw_distance=0.5)
-    mock_embodied.search_similar_trajectories.assert_called_once_with(
-        mock_waypoints, 5, 0.5
-    )
+    mock_embodied.search_similar_trajectories.assert_called_once_with(mock_waypoints, 5, 0.5)
 
     # Test cognitive_search
     mock_center = MagicMock()

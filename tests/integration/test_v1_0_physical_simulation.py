@@ -6,7 +6,6 @@ Full pipeline with actual physics:
     → Provider routing → physics execution → Memory recording
 """
 
-
 import pytest
 
 
@@ -136,7 +135,9 @@ class TestV10PhysicalSimulation:
         assert abs(final_pos[0]) > 0.01 or abs(final_pos[1]) > 0.01
         assert len(positions_recorded) == duration_steps
         assert data.time > 0
-        print(f"Trajectory: {len(positions_recorded)} steps, final: [{final_pos[0]:.3f}, {final_pos[1]:.3f}], time: {data.time:.3f}s")
+        print(
+            f"Trajectory: {len(positions_recorded)} steps, final: [{final_pos[0]:.3f}, {final_pos[1]:.3f}], time: {data.time:.3f}s"
+        )
 
     def test_03_sandbox_collision_detection(self):
         """Test collision detection in MuJoCo physics."""
@@ -225,14 +226,16 @@ class TestV10PhysicalSimulation:
                     status="ok",
                 )
 
-        manifest = ProviderManifest.from_dict({
-            "name": "physics_skill",
-            "version": "0.1.0",
-            "type": "skill",
-            "capabilities": ["skill.pick_and_place"],
-            "embodiment": {"supported_robots": ["ur5e"]},
-            "safety": {"executable": True, "requires_guard": True},
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "physics_skill",
+                "version": "0.1.0",
+                "type": "skill",
+                "capabilities": ["skill.pick_and_place"],
+                "embodiment": {"supported_robots": ["ur5e"]},
+                "safety": {"executable": True, "requires_guard": True},
+            }
+        )
         provider_reg._providers["physics_skill"] = PhysicsSkillProvider(manifest)
         provider_reg._health["physics_skill"] = {"ok": True}
         provider_reg._manifests["physics_skill"] = manifest
@@ -277,35 +280,47 @@ class TestV10PhysicalSimulation:
         ET.SubElement(mujoco_root, "compiler", {"angle": "radian"})
         ET.SubElement(mujoco_root, "option", {"timestep": "0.002"})
         worldbody = ET.SubElement(mujoco_root, "worldbody")
-        ET.SubElement(worldbody, "geom", {
-            "type": "plane", "size": "1 1 0.1", "rgba": "0.9 0.9 0.9 1"
-        })
+        ET.SubElement(
+            worldbody, "geom", {"type": "plane", "size": "1 1 0.1", "rgba": "0.9 0.9 0.9 1"}
+        )
 
         actuator = ET.SubElement(mujoco_root, "actuator")
         parent_body = worldbody
 
         for i, joint in enumerate(profile.embodiment.joints):
-            body = ET.SubElement(parent_body, "body", {
-                "name": joint["name"], "pos": f"0 0 {0.1 + i * 0.05}"
-            })
+            body = ET.SubElement(
+                parent_body, "body", {"name": joint["name"], "pos": f"0 0 {0.1 + i * 0.05}"}
+            )
             limits = joint.get("limits", {})
-            ET.SubElement(body, "joint", {
-                "name": joint["name"],
-                "type": "hinge",
-                "axis": "0 0 1" if i == 0 else "0 1 0",
-                "range": f"{limits.get('lower', -6.28)} {limits.get('upper', 6.28)}",
-                "damping": "0.5",
-            })
-            ET.SubElement(body, "geom", {
-                "type": "capsule",
-                "fromto": f"0 0 0 0 0 {0.1 + i * 0.02}",
-                "size": str(0.04 - i * 0.003),
-                "rgba": "0.8 0.3 0.2 1",
-            })
-            ET.SubElement(actuator, "motor", {
-                "joint": joint["name"],
-                "gear": str(100 - i * 10),
-            })
+            ET.SubElement(
+                body,
+                "joint",
+                {
+                    "name": joint["name"],
+                    "type": "hinge",
+                    "axis": "0 0 1" if i == 0 else "0 1 0",
+                    "range": f"{limits.get('lower', -6.28)} {limits.get('upper', 6.28)}",
+                    "damping": "0.5",
+                },
+            )
+            ET.SubElement(
+                body,
+                "geom",
+                {
+                    "type": "capsule",
+                    "fromto": f"0 0 0 0 0 {0.1 + i * 0.02}",
+                    "size": str(0.04 - i * 0.003),
+                    "rgba": "0.8 0.3 0.2 1",
+                },
+            )
+            ET.SubElement(
+                actuator,
+                "motor",
+                {
+                    "joint": joint["name"],
+                    "gear": str(100 - i * 10),
+                },
+            )
             parent_body = body
 
         xml_str = ET.tostring(mujoco_root, encoding="unicode")
@@ -318,4 +333,6 @@ class TestV10PhysicalSimulation:
         for _ in range(100):
             mujoco.mj_step(model, data)
 
-        print(f"e-URDF→MuJoCo: {profile.embodiment.dof} DOF, {len(profile.embodiment.joints)} joints")
+        print(
+            f"e-URDF→MuJoCo: {profile.embodiment.dof} DOF, {len(profile.embodiment.joints)} joints"
+        )

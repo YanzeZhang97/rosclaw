@@ -70,15 +70,12 @@ class ManiSkillAdapter:
             import gymnasium as gym
             import mani_skill.envs  # noqa: F401 — register envs
         except ImportError as exc:
-            raise ImportError(
-                "ManiSkill not installed. Run: pip install mani-skill"
-            ) from exc
+            raise ImportError("ManiSkill not installed. Run: pip install mani-skill") from exc
 
         env_id = self._SUPPORTED_TASKS.get(self.task)
         if env_id is None:
             raise ValueError(
-                f"Unknown task: {self.task}. "
-                f"Supported: {list(self._SUPPORTED_TASKS.keys())}"
+                f"Unknown task: {self.task}. Supported: {list(self._SUPPORTED_TASKS.keys())}"
             )
 
         self._env = gym.make(
@@ -132,11 +129,7 @@ class ManiSkillAdapter:
             "robot": self.robot,
             "steps": len(self._episode_steps),
             "total_reward": self._episode_reward,
-            "success": (
-                self._episode_steps[-1]["success"]
-                if self._episode_steps
-                else False
-            ),
+            "success": (self._episode_steps[-1]["success"] if self._episode_steps else False),
         }
 
     def record_episode(self, success: bool | None = None) -> dict[str, Any]:

@@ -134,9 +134,7 @@ class RiskEstimator:
 
     def _thermal_risk(self, state: BodyState) -> tuple[str, list[BodyEvent]]:
         temps = {
-            name: j.temperature_c
-            for name, j in state.joints.items()
-            if j.temperature_c is not None
+            name: j.temperature_c for name, j in state.joints.items() if j.temperature_c is not None
         }
         if not temps:
             return "unknown", []

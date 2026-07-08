@@ -35,6 +35,7 @@ from rosclaw.memory.types import FailureMemory
 # Benchmark harness
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class BenchMetrics:
     name: str
@@ -74,25 +75,59 @@ def fmt_ms(v: float) -> str:
 # ---------------------------------------------------------------------------
 
 SKILL_NAMES = [
-    "pick_up", "place_on", "grasp_cup", "pour_water", "open_door",
-    "push_button", "rotate_valve", "insert_peg", "screw_cap", "cut_object",
-    "wipe_surface", "scan_qr", "navigate_to", "dock_charger", "emergency_stop",
+    "pick_up",
+    "place_on",
+    "grasp_cup",
+    "pour_water",
+    "open_door",
+    "push_button",
+    "rotate_valve",
+    "insert_peg",
+    "screw_cap",
+    "cut_object",
+    "wipe_surface",
+    "scan_qr",
+    "navigate_to",
+    "dock_charger",
+    "emergency_stop",
 ]
 
 OBJECTS = [
-    "red_cup", "blue_mug", "wooden_block", "metal_plate", "plastic_bottle",
-    "ceramic_vase", "glass_jar", "paper_box", "rubber_ball", "fabric_cloth",
+    "red_cup",
+    "blue_mug",
+    "wooden_block",
+    "metal_plate",
+    "plastic_bottle",
+    "ceramic_vase",
+    "glass_jar",
+    "paper_box",
+    "rubber_ball",
+    "fabric_cloth",
 ]
 
 LOCATIONS = [
-    "kitchen_counter", "dining_table", "shelf_A1", "shelf_B2", "fridge_top",
-    "sink_area", "stove_left", "cabinet_upper", "floor_center", "doorway",
+    "kitchen_counter",
+    "dining_table",
+    "shelf_A1",
+    "shelf_B2",
+    "fridge_top",
+    "sink_area",
+    "stove_left",
+    "cabinet_upper",
+    "floor_center",
+    "doorway",
 ]
 
 FAILURE_TYPES = [
-    "gripper_slip", "collision_detected", "joint_limit_exceeded",
-    "object_not_found", "path_planning_failed", "force_limit_exceeded",
-    "vision_occlusion", "ik_solver_failed", "timeout_exceeded",
+    "gripper_slip",
+    "collision_detected",
+    "joint_limit_exceeded",
+    "object_not_found",
+    "path_planning_failed",
+    "force_limit_exceeded",
+    "vision_occlusion",
+    "ik_solver_failed",
+    "timeout_exceeded",
 ]
 
 BODY_STATES = [
@@ -105,9 +140,11 @@ BODY_STATES = [
 def random_trajectory(n_waypoints: int = 10) -> list[list[float]]:
     """Generate a random 3D trajectory."""
     return [
-        [round(random.uniform(-1.0, 1.0), 3),
-         round(random.uniform(-1.0, 1.0), 3),
-         round(random.uniform(0.0, 2.0), 3)]
+        [
+            round(random.uniform(-1.0, 1.0), 3),
+            round(random.uniform(-1.0, 1.0), 3),
+            round(random.uniform(0.0, 2.0), 3),
+        ]
         for _ in range(n_waypoints)
     ]
 
@@ -128,6 +165,7 @@ def random_instruction() -> str:
 # ---------------------------------------------------------------------------
 # Phase 1 — Write Benchmark
 # ---------------------------------------------------------------------------
+
 
 def bench_write(mem: MemoryInterface, n: int = 1000) -> dict[str, BenchMetrics]:
     print(f"\n[Phase 1] Write Benchmark — {n} records per type")
@@ -169,33 +207,42 @@ def bench_write(mem: MemoryInterface, n: int = 1000) -> dict[str, BenchMetrics]:
     # 1c — Skills (skill_metadata table via SeekDB)
     for i in range(min(n, len(SKILL_NAMES) * 3)):
         t0 = timing()
-        mem.seekdb_client.insert("skill_metadata", {
-            "skill_id": f"skill_{i:05d}",
-            "name": random.choice(SKILL_NAMES),
-            "description": random_instruction(),
-            "category": random.choice(["manipulation", "navigation", "perception"]),
-            "source": "benchmark",
-            "success_count": random.randint(0, 100),
-            "failure_count": random.randint(0, 20),
-            "avg_duration_sec": round(random.uniform(1.0, 15.0), 2),
-            "last_used": time.time(),
-            "prerequisites": json.dumps(["vision_on", "gripper_calibrated"]),
-        })
+        mem.seekdb_client.insert(
+            "skill_metadata",
+            {
+                "skill_id": f"skill_{i:05d}",
+                "name": random.choice(SKILL_NAMES),
+                "description": random_instruction(),
+                "category": random.choice(["manipulation", "navigation", "perception"]),
+                "source": "benchmark",
+                "success_count": random.randint(0, 100),
+                "failure_count": random.randint(0, 20),
+                "avg_duration_sec": round(random.uniform(1.0, 15.0), 2),
+                "last_used": time.time(),
+                "prerequisites": json.dumps(["vision_on", "gripper_calibrated"]),
+            },
+        )
         metrics["skill"].latencies_ms.append(timing() - t0)
 
     # 1d — Failures (failures table)
     for i in range(n):
         t0 = timing()
-        mem.write_failure_memory(FailureMemory(
-            failure_id=f"fail_{i:05d}",
-            robot_id=mem._robot_id,
-            failure_type=random.choice(FAILURE_TYPES),
-            root_cause=random.choice(["friction_low", "lighting_change", "obstacle_moved", "sensor_drift"]),
-            recovery_hint=random.choice(["increase_force", "replan_path", "recalibrate_sensor", "call_human"]),
-            sandbox_intervened=random.random() > 0.7,
-            category="control",
-            metadata={"attempt_number": random.randint(1, 5)},
-        ))
+        mem.write_failure_memory(
+            FailureMemory(
+                failure_id=f"fail_{i:05d}",
+                robot_id=mem._robot_id,
+                failure_type=random.choice(FAILURE_TYPES),
+                root_cause=random.choice(
+                    ["friction_low", "lighting_change", "obstacle_moved", "sensor_drift"]
+                ),
+                recovery_hint=random.choice(
+                    ["increase_force", "replan_path", "recalibrate_sensor", "call_human"]
+                ),
+                sandbox_intervened=random.random() > 0.7,
+                category="control",
+                metadata={"attempt_number": random.randint(1, 5)},
+            )
+        )
         metrics["failure"].latencies_ms.append(timing() - t0)
 
     # 1e — Body-state snapshots
@@ -224,6 +271,7 @@ def bench_write(mem: MemoryInterface, n: int = 1000) -> dict[str, BenchMetrics]:
 # ---------------------------------------------------------------------------
 # Phase 2 — Retrieve Benchmark
 # ---------------------------------------------------------------------------
+
 
 def bench_retrieve(mem: MemoryInterface) -> dict[str, BenchMetrics]:
     print("\n[Phase 2] Retrieve Benchmark")
@@ -301,6 +349,7 @@ def bench_retrieve(mem: MemoryInterface) -> dict[str, BenchMetrics]:
 # Phase 3 — Update Benchmark
 # ---------------------------------------------------------------------------
 
+
 def bench_update(mem: MemoryInterface, n: int = 200) -> BenchMetrics:
     print(f"\n[Phase 3] Update Benchmark — {n} operations")
     m = BenchMetrics("update")
@@ -308,25 +357,33 @@ def bench_update(mem: MemoryInterface, n: int = 200) -> BenchMetrics:
     # 3a — Object move (simulate pose update via metadata)
     for i in range(n):
         t0 = timing()
-        mem._client.update("experience_graph", f"evt_{i:05d}", {
-            "metadata": {
-                "updated_pose": {
-                    "x": round(random.uniform(-0.5, 0.5), 4),
-                    "y": round(random.uniform(-0.5, 0.5), 4),
-                    "z": round(random.uniform(0.1, 1.0), 4),
-                },
-                "update_count": i,
-            }
-        })
+        mem._client.update(
+            "experience_graph",
+            f"evt_{i:05d}",
+            {
+                "metadata": {
+                    "updated_pose": {
+                        "x": round(random.uniform(-0.5, 0.5), 4),
+                        "y": round(random.uniform(-0.5, 0.5), 4),
+                        "z": round(random.uniform(0.1, 1.0), 4),
+                    },
+                    "update_count": i,
+                }
+            },
+        )
         m.latencies_ms.append(timing() - t0)
 
     # 3b — State override (outcome flip)
     for i in range(n, n * 2):
         t0 = timing()
-        mem._client.update("experience_graph", f"evt_{i % 1000:05d}", {
-            "outcome": "emergency",
-            "error_details": "Overridden by benchmark",
-        })
+        mem._client.update(
+            "experience_graph",
+            f"evt_{i % 1000:05d}",
+            {
+                "outcome": "emergency",
+                "error_details": "Overridden by benchmark",
+            },
+        )
         m.latencies_ms.append(timing() - t0)
 
     # 3c — Conflict resolution (insert same ID -> REPLACE)
@@ -346,6 +403,7 @@ def bench_update(mem: MemoryInterface, n: int = 200) -> BenchMetrics:
 # ---------------------------------------------------------------------------
 # Phase 4 — Compress Benchmark (episode -> summary)
 # ---------------------------------------------------------------------------
+
 
 def bench_compress(mem: MemoryInterface) -> BenchMetrics:
     print("\n[Phase 4] Compress Benchmark — episode aggregation")
@@ -389,13 +447,20 @@ def bench_compress(mem: MemoryInterface) -> BenchMetrics:
 # Phase 5 — DB & Index Size
 # ---------------------------------------------------------------------------
 
+
 def measure_db_size(mem: MemoryInterface) -> dict[str, Any]:
     print("\n[Phase 5] DB Size Analysis")
     client = mem._client
     tables = [
-        "experience_graph", "skill_metadata", "knowledge_graph",
-        "heuristic_rules", "praxis_events", "failures",
-        "success_patterns", "artifacts", "retries",
+        "experience_graph",
+        "skill_metadata",
+        "knowledge_graph",
+        "heuristic_rules",
+        "praxis_events",
+        "failures",
+        "success_patterns",
+        "artifacts",
+        "retries",
     ]
     sizes = {}
     total_records = 0
@@ -422,6 +487,7 @@ def measure_db_size(mem: MemoryInterface) -> dict[str, Any]:
 # Phase 6 — Benefit Comparison
 # ---------------------------------------------------------------------------
 
+
 def bench_benefit(mem: MemoryInterface) -> dict[str, Any]:
     print("\n[Phase 6] Benefit Comparison")
 
@@ -437,10 +503,7 @@ def bench_benefit(mem: MemoryInterface) -> dict[str, Any]:
     t0 = timing()
     all_exp = mem._client.query("experience_graph", limit=10000)
     keywords = {"gripper", "slip", "cup"}
-    flat_matches = [
-        e for e in all_exp
-        if keywords & set(e.get("instruction", "").lower().split())
-    ]
+    flat_matches = [e for e in all_exp if keywords & set(e.get("instruction", "").lower().split())]
     flat_rag_ms = timing() - t0
 
     # 6c — ROSClaw-Memory: structured semantic + causal
@@ -468,6 +531,7 @@ def bench_benefit(mem: MemoryInterface) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Main runner
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     print("=" * 70)
@@ -508,19 +572,27 @@ def main() -> None:
 
     print("\n[Write Latency]")
     for name, m in write_metrics.items():
-        print(f"  {name:12s}  p50={fmt_ms(m.p50_ms)}  p99={fmt_ms(m.p99_ms)}  "
-              f"throughput={m.throughput_hz:.1f} hz")
+        print(
+            f"  {name:12s}  p50={fmt_ms(m.p50_ms)}  p99={fmt_ms(m.p99_ms)}  "
+            f"throughput={m.throughput_hz:.1f} hz"
+        )
 
     print("\n[Retrieve Latency]")
     for name, m in retrieve_metrics.items():
-        print(f"  {name:12s}  p50={fmt_ms(m.p50_ms)}  p99={fmt_ms(m.p99_ms)}  "
-              f"throughput={m.throughput_hz:.1f} hz")
+        print(
+            f"  {name:12s}  p50={fmt_ms(m.p50_ms)}  p99={fmt_ms(m.p99_ms)}  "
+            f"throughput={m.throughput_hz:.1f} hz"
+        )
 
-    print(f"\n[Update Latency]  p50={fmt_ms(update_metric.p50_ms)}  "
-          f"p99={fmt_ms(update_metric.p99_ms)}")
+    print(
+        f"\n[Update Latency]  p50={fmt_ms(update_metric.p50_ms)}  "
+        f"p99={fmt_ms(update_metric.p99_ms)}"
+    )
 
-    print(f"\n[Compress Latency]  p50={fmt_ms(compress_metric.p50_ms)}  "
-          f"p99={fmt_ms(compress_metric.p99_ms)}")
+    print(
+        f"\n[Compress Latency]  p50={fmt_ms(compress_metric.p50_ms)}  "
+        f"p99={fmt_ms(compress_metric.p99_ms)}"
+    )
 
     print("\n[DB Size]")
     for table, cnt in size_info["table_counts"].items():
@@ -531,9 +603,13 @@ def main() -> None:
     print("\n[Benefit Comparison]")
     print(f"  Scenario: {benefit['scenario']}")
     print(f"  No Memory:        {benefit['no_memory_latency_ms']:.3f} ms (random guess)")
-    print(f"  Flat RAG:         {benefit['flat_rag_latency_ms']:.3f} ms ({benefit['flat_rag_matches']} matches)")
-    print(f"  ROSClaw-Memory:   {benefit['rosclaw_memory_latency_ms']:.3f} ms "
-          f"(semantic={benefit['rosclaw_semantic_matches']}, causal={benefit['rosclaw_causal_matches']})")
+    print(
+        f"  Flat RAG:         {benefit['flat_rag_latency_ms']:.3f} ms ({benefit['flat_rag_matches']} matches)"
+    )
+    print(
+        f"  ROSClaw-Memory:   {benefit['rosclaw_memory_latency_ms']:.3f} ms "
+        f"(semantic={benefit['rosclaw_semantic_matches']}, causal={benefit['rosclaw_causal_matches']})"
+    )
     print(f"  Speedup vs Flat:  {benefit['speedup_vs_flat_rag']}x")
 
     print("\n" + "=" * 70)

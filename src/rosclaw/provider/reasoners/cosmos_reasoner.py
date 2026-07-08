@@ -37,6 +37,7 @@ class CosmosReasoner(PhysicalReasoner):
         if image is not None:
             if isinstance(image, bytes):
                 import base64
+
                 image = base64.b64encode(image).decode("utf-8")
             payload["image"] = image
             payload["image_mime"] = image_mime
@@ -92,9 +93,7 @@ class CosmosReasoner(PhysicalReasoner):
             errors=errors,
         )
 
-    def _call_http(
-        self, payload: dict[str, Any], capability: str
-    ) -> tuple[str, str, list[str]]:
+    def _call_http(self, payload: dict[str, Any], capability: str) -> tuple[str, str, list[str]]:
         """POST JSON to the reasoning endpoint and return (raw_text, status, errors)."""
         url = self.endpoint.rstrip("/") + "/infer"
         data = json.dumps(payload).encode("utf-8")

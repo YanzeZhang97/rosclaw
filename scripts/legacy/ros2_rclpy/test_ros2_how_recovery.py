@@ -50,6 +50,7 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
@@ -70,27 +71,33 @@ def next_name(base: str) -> str:
 # Tests
 # ------------------------------------------------------------------
 
+
 @test("HeuristicEngine suggests recovery for limit violation")
 def test_how_suggests_recovery():
     """HOW suggests a recovery action when trajectory violates limits."""
+
     # Create a mock seekdb_client for HeuristicEngine
     class MockSeekDB:
         def query(self, table, filters=None, order_by=None, limit=None):
             cond = filters.get("condition") if filters else None
             if cond and "outside limits" in cond.lower():
-                return [{
-                    "rule_id": "rule-001",
-                    "condition": cond,
-                    "action": "Move joints to safe position [0,0,0,0,0,0]",
-                    "priority": 1,
-                }]
+                return [
+                    {
+                        "rule_id": "rule-001",
+                        "condition": cond,
+                        "action": "Move joints to safe position [0,0,0,0,0,0]",
+                        "priority": 1,
+                    }
+                ]
             return []
+
     how = HeuristicEngine(seekdb_client=MockSeekDB())
 
     error_log = "shoulder_pan_joint position 10.0000 outside limits [-3.1415, 3.1415]"
     context = {"request_id": "test-001"}
 
     import asyncio
+
     async def _run():
         return await how.suggest_recovery(error_log, context=context)
 
@@ -109,24 +116,29 @@ def test_how_suggests_recovery():
 @test("HeuristicEngine suggests recovery for collision")
 def test_how_suggests_collision_recovery():
     """HOW suggests recovery when collision is detected."""
+
     # Create a mock seekdb_client for HeuristicEngine
     class MockSeekDB:
         def query(self, table, filters=None, order_by=None, limit=None):
             cond = filters.get("condition") if filters else None
             if cond and "collision" in cond.lower():
-                return [{
-                    "rule_id": "rule-002",
-                    "condition": cond,
-                    "action": "Retreat to previous safe position",
-                    "priority": 1,
-                }]
+                return [
+                    {
+                        "rule_id": "rule-002",
+                        "condition": cond,
+                        "action": "Retreat to previous safe position",
+                        "priority": 1,
+                    }
+                ]
             return []
+
     how = HeuristicEngine(seekdb_client=MockSeekDB())
 
     error_log = "self-collision detected between link_3 and link_5"
     context = {"request_id": "test-002"}
 
     import asyncio
+
     async def _run():
         return await how.suggest_recovery(error_log, context=context)
 
@@ -155,14 +167,16 @@ def test_runtime_how_firewall_recovery():
     runtime.initialize()
 
     # Publish a firewall blocked event
-    runtime.event_bus.publish(Event(
-        topic="firewall.action_blocked",
-        payload={
-            "request_id": "test-003",
-            "violations": [{"description": "elbow_joint limit exceeded"}],
-        },
-        source="firewall",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="firewall.action_blocked",
+            payload={
+                "request_id": "test-003",
+                "violations": [{"description": "elbow_joint limit exceeded"}],
+            },
+            source="firewall",
+        )
+    )
     time.sleep(0.3)
 
     # Runtime should process the event (HOW recovery may or may not be triggered
@@ -190,24 +204,29 @@ def test_recovery_applied_to_driver():
 @test("HOW recovery for emergency stop scenario")
 def test_how_emergency_recovery():
     """HOW suggests recovery after emergency stop."""
+
     # Create a mock seekdb_client for HeuristicEngine
     class MockSeekDB:
         def query(self, table, filters=None, order_by=None, limit=None):
             cond = filters.get("condition") if filters else None
             if cond and "emergency" in cond.lower():
-                return [{
-                    "rule_id": "rule-003",
-                    "condition": cond,
-                    "action": "Reset and re-home all joints",
-                    "priority": 1,
-                }]
+                return [
+                    {
+                        "rule_id": "rule-003",
+                        "condition": cond,
+                        "action": "Reset and re-home all joints",
+                        "priority": 1,
+                    }
+                ]
             return []
+
     how = HeuristicEngine(seekdb_client=MockSeekDB())
 
     error_log = "Emergency stop triggered: joint limit exceeded during execution"
     context = {"request_id": "test-emerg"}
 
     import asyncio
+
     async def _run():
         return await how.suggest_recovery(error_log, context=context)
 
@@ -224,6 +243,7 @@ def test_how_emergency_recovery():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     if not rclpy.ok():

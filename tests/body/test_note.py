@@ -18,13 +18,22 @@ def linked_body(tmp_path, monkeypatch):
 
 
 def test_note_appends_jsonl(linked_body):
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "note",
-        "Camera disconnected during navigation test.",
-        "--type", "incident",
-        "--severity", "warning",
-        "--affects", "head_camera,visual_navigation",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "note",
+            "Camera disconnected during navigation test.",
+            "--type",
+            "incident",
+            "--severity",
+            "warning",
+            "--affects",
+            "head_camera,visual_navigation",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     resolver = BodyResolver()

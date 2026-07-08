@@ -1,4 +1,5 @@
 """PatchValidator — safety validation for all patches."""
+
 import ast
 import logging
 from typing import Any
@@ -34,10 +35,19 @@ class PatchValidator:
 
     # Dangerous AST node types / names for code_patch
     DANGEROUS_NAMES = {
-        "exec", "eval", "compile", "__import__",
-        "subprocess", "os.system", "os.popen", "os.spawn",
-        "socket", "urllib", "http", "ftplib",
-        "open"  # file open in code context is suspicious
+        "exec",
+        "eval",
+        "compile",
+        "__import__",
+        "subprocess",
+        "os.system",
+        "os.popen",
+        "os.spawn",
+        "socket",
+        "urllib",
+        "http",
+        "ftplib",
+        "open",  # file open in code context is suspicious
     }
 
     def __init__(self, robot_profile: dict | None = None):
@@ -46,6 +56,7 @@ class PatchValidator:
     def _normalize_path(self, path: str) -> str:
         """Normalize path to prevent ../ bypass attacks."""
         import os
+
         # Remove redundant separators and resolve . and ..
         normalized = os.path.normpath(path)
         # Ensure it starts with /

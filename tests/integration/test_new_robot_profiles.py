@@ -1,6 +1,5 @@
 """Tests for new e-URDF-Zoo robot profiles: Franka Panda, Unitree Go2, Fetch."""
 
-
 from rosclaw.eurdf_zoo.profiles import (
     FETCH_ROBOT_PROFILE,
     FRANKA_PANDA_PROFILE,

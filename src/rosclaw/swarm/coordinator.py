@@ -11,6 +11,7 @@ from rosclaw.core.event_bus import Event, EventBus, EventPriority
 @dataclass
 class TaskAllocation:
     """Result of allocating a task to agents."""
+
     task_id: str
     assignments: list[dict[str, Any]] = field(default_factory=list)
     feasible: bool = True
@@ -20,6 +21,7 @@ class TaskAllocation:
 @dataclass
 class AgentBid:
     """Bid from an agent for a task."""
+
     agent_id: str
     task_id: str
     cost: float  # lower is better
@@ -44,7 +46,9 @@ class SwarmCoordinator:
 
     # ── Agent management ──
 
-    def register_agent(self, agent_id: str, capabilities: list[str], position: tuple[float, ...] | None = None) -> None:
+    def register_agent(
+        self, agent_id: str, capabilities: list[str], position: tuple[float, ...] | None = None
+    ) -> None:
         """Register an agent with the coordinator."""
         self._agents[agent_id] = {
             "id": agent_id,
@@ -109,18 +113,21 @@ class SwarmCoordinator:
             cost = 1.0
             if agent.get("position") and task.get("target_position"):
                 import math
+
                 pos = agent["position"]
                 target = task["target_position"]
                 dist = math.sqrt(sum((a - b) ** 2 for a, b in zip(pos, target, strict=False)))
                 cost += dist
 
-            bids.append(AgentBid(
-                agent_id=agent_id,
-                task_id=task.get("id", "unknown"),
-                cost=cost,
-                capabilities=agent["capabilities"],
-                estimated_duration_sec=task.get("estimated_duration_sec", 10.0),
-            ))
+            bids.append(
+                AgentBid(
+                    agent_id=agent_id,
+                    task_id=task.get("id", "unknown"),
+                    cost=cost,
+                    capabilities=agent["capabilities"],
+                    estimated_duration_sec=task.get("estimated_duration_sec", 10.0),
+                )
+            )
 
         return bids
 
@@ -144,25 +151,29 @@ class SwarmCoordinator:
             agent["status"] = "busy"
             agent["current_task"] = subtask.get("id")
 
-            allocation.assignments.append({
-                "subtask_id": subtask.get("id"),
-                "agent_id": winner.agent_id,
-                "cost": winner.cost,
-                "estimated_duration_sec": winner.estimated_duration_sec,
-            })
+            allocation.assignments.append(
+                {
+                    "subtask_id": subtask.get("id"),
+                    "agent_id": winner.agent_id,
+                    "cost": winner.cost,
+                    "estimated_duration_sec": winner.estimated_duration_sec,
+                }
+            )
 
             if self.event_bus:
-                self.event_bus.publish(Event(
-                    topic="swarm.task_allocated",
-                    payload={
-                        "task_id": task_id,
-                        "subtask_id": subtask.get("id"),
-                        "agent_id": winner.agent_id,
-                        "cost": winner.cost,
-                    },
-                    source="coordinator",
-                    priority=EventPriority.HIGH,
-                ))
+                self.event_bus.publish(
+                    Event(
+                        topic="swarm.task_allocated",
+                        payload={
+                            "task_id": task_id,
+                            "subtask_id": subtask.get("id"),
+                            "agent_id": winner.agent_id,
+                            "cost": winner.cost,
+                        },
+                        source="coordinator",
+                        priority=EventPriority.HIGH,
+                    )
+                )
 
         self._tasks[task_id] = {
             "id": task_id,
@@ -191,12 +202,14 @@ class SwarmCoordinator:
             self._consensus_state[key]["agreed_at"] = timestamp
 
             if self.event_bus:
-                self.event_bus.publish(Event(
-                    topic="swarm.consensus_reached",
-                    payload={"key": key, "value": latest["value"]},
-                    source="coordinator",
-                    priority=EventPriority.HIGH,
-                ))
+                self.event_bus.publish(
+                    Event(
+                        topic="swarm.consensus_reached",
+                        payload={"key": key, "value": latest["value"]},
+                        source="coordinator",
+                        priority=EventPriority.HIGH,
+                    )
+                )
 
     def get_consensus(self, key: str) -> Any | None:
         """Get agreed consensus value for a key."""

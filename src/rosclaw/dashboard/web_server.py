@@ -174,15 +174,17 @@ def _list_episodes(data_root: Path) -> list[dict[str, Any]]:
             episode = json.loads(episode_path.read_text(encoding="utf-8"))
         except Exception:
             continue
-        episodes.append({
-            "practice_id": episode.get("practice_id", session_dir.name),
-            "robot_id": episode.get("robot_id"),
-            "robot_type": episode.get("robot_type"),
-            "outcome": episode.get("outcome", "UNKNOWN"),
-            "event_count": episode.get("event_count", 0),
-            "start_time": episode.get("start_time"),
-            "session_dir": str(session_dir),
-        })
+        episodes.append(
+            {
+                "practice_id": episode.get("practice_id", session_dir.name),
+                "robot_id": episode.get("robot_id"),
+                "robot_type": episode.get("robot_type"),
+                "outcome": episode.get("outcome", "UNKNOWN"),
+                "event_count": episode.get("event_count", 0),
+                "start_time": episode.get("start_time"),
+                "session_dir": str(session_dir),
+            }
+        )
 
     episodes.sort(key=lambda e: e.get("start_time") or "", reverse=True)
     return episodes
@@ -231,7 +233,9 @@ async def _latest_frame_info(
             payload = ev.payload or {}
             rgb_ref = payload.get("rgb_ref")
             if rgb_ref:
-                episode_id = ev.metadata.get("trace_id") or ev.metadata.get("episode_id") or "unknown"
+                episode_id = (
+                    ev.metadata.get("trace_id") or ev.metadata.get("episode_id") or "unknown"
+                )
                 return {
                     "found": True,
                     "practice_id": episode_id,
@@ -282,17 +286,19 @@ def _list_realsense_frames(
                 continue
             episode_id = ev.metadata.get("trace_id") or ev.metadata.get("episode_id") or "unknown"
             depth_ref = payload.get("depth_ref")
-            frames.append({
-                "practice_id": episode_id,
-                "event_id": ev.id,
-                "timestamp_utc": ev.timestamp.isoformat().replace("+00:00", "Z"),
-                "rgb_ref": rgb_ref,
-                "depth_ref": depth_ref,
-                "width": payload.get("width"),
-                "height": payload.get("height"),
-                "rgb_url": f"/api/artifacts/{episode_id}/{rgb_ref}",
-                "depth_url": f"/api/artifacts/{episode_id}/{depth_ref}" if depth_ref else None,
-            })
+            frames.append(
+                {
+                    "practice_id": episode_id,
+                    "event_id": ev.id,
+                    "timestamp_utc": ev.timestamp.isoformat().replace("+00:00", "Z"),
+                    "rgb_ref": rgb_ref,
+                    "depth_ref": depth_ref,
+                    "width": payload.get("width"),
+                    "height": payload.get("height"),
+                    "rgb_url": f"/api/artifacts/{episode_id}/{rgb_ref}",
+                    "depth_url": f"/api/artifacts/{episode_id}/{depth_ref}" if depth_ref else None,
+                }
+            )
         if frames:
             return {"found": True, "count": len(frames), "frames": frames}
 
@@ -307,17 +313,21 @@ def _list_realsense_frames(
                 if not rgb_ref:
                     continue
                 depth_ref = payload.get("depth_ref")
-                frames.append({
-                    "practice_id": ep["practice_id"],
-                    "event_id": ev.get("event_id"),
-                    "timestamp_utc": ev.get("timestamp_utc"),
-                    "rgb_ref": rgb_ref,
-                    "depth_ref": depth_ref,
-                    "width": payload.get("width"),
-                    "height": payload.get("height"),
-                    "rgb_url": f"/api/artifacts/{ep['practice_id']}/{rgb_ref}",
-                    "depth_url": f"/api/artifacts/{ep['practice_id']}/{depth_ref}" if depth_ref else None,
-                })
+                frames.append(
+                    {
+                        "practice_id": ep["practice_id"],
+                        "event_id": ev.get("event_id"),
+                        "timestamp_utc": ev.get("timestamp_utc"),
+                        "rgb_ref": rgb_ref,
+                        "depth_ref": depth_ref,
+                        "width": payload.get("width"),
+                        "height": payload.get("height"),
+                        "rgb_url": f"/api/artifacts/{ep['practice_id']}/{rgb_ref}",
+                        "depth_url": f"/api/artifacts/{ep['practice_id']}/{depth_ref}"
+                        if depth_ref
+                        else None,
+                    }
+                )
                 if len(frames) >= limit:
                     break
         if len(frames) >= limit:
@@ -345,7 +355,9 @@ def _list_realsense_streams(
             payload = ev.payload or {}
             rgb_ref = payload.get("rgb_ref")
             if rgb_ref:
-                episode_id = ev.metadata.get("trace_id") or ev.metadata.get("episode_id") or "unknown"
+                episode_id = (
+                    ev.metadata.get("trace_id") or ev.metadata.get("episode_id") or "unknown"
+                )
                 depth_ref = payload.get("depth_ref")
                 streams = [
                     {
@@ -357,13 +369,15 @@ def _list_realsense_streams(
                     }
                 ]
                 if depth_ref:
-                    streams.append({
-                        "name": "depth",
-                        "type": "depth",
-                        "encoding": payload.get("depth_encoding", "png16"),
-                        "ref": depth_ref,
-                        "url": f"/api/artifacts/{episode_id}/{depth_ref}",
-                    })
+                    streams.append(
+                        {
+                            "name": "depth",
+                            "type": "depth",
+                            "encoding": payload.get("depth_encoding", "png16"),
+                            "ref": depth_ref,
+                            "url": f"/api/artifacts/{episode_id}/{depth_ref}",
+                        }
+                    )
                 return {
                     "found": True,
                     "practice_id": episode_id,
@@ -390,13 +404,15 @@ def _list_realsense_streams(
                     }
                 ]
                 if depth_ref:
-                    streams.append({
-                        "name": "depth",
-                        "type": "depth",
-                        "encoding": payload.get("depth_encoding", "png16"),
-                        "ref": depth_ref,
-                        "url": f"/api/artifacts/{ep['practice_id']}/{depth_ref}",
-                    })
+                    streams.append(
+                        {
+                            "name": "depth",
+                            "type": "depth",
+                            "encoding": payload.get("depth_encoding", "png16"),
+                            "ref": depth_ref,
+                            "url": f"/api/artifacts/{ep['practice_id']}/{depth_ref}",
+                        }
+                    )
                 return {
                     "found": True,
                     "practice_id": ep["practice_id"],
@@ -504,6 +520,7 @@ class DashboardWebServer:
         @self.app.get("/body")
         async def body_page() -> Any:
             from fastapi.responses import HTMLResponse
+
             return HTMLResponse(_BODY_PAGE_HTML)
 
         @self.app.get("/api/firstboot")
@@ -526,6 +543,7 @@ class DashboardWebServer:
         @self.app.get("/firstboot")
         async def firstboot_page() -> Any:
             from fastapi.responses import HTMLResponse
+
             return HTMLResponse(FIRSTBOOT_PAGE_HTML)
 
         @self.app.get("/events/counts")
@@ -597,23 +615,31 @@ class DashboardWebServer:
             }
 
         @self.app.get("/api/practice/episodes/{episode_id}")
-        async def api_practice_episode(episode_id: str, data_root: str | None = None) -> dict[str, Any]:
+        async def api_practice_episode(
+            episode_id: str, data_root: str | None = None
+        ) -> dict[str, Any]:
             root = _practice_data_root(data_root)
             session_dir = _episode_dir(root, episode_id)
             episode_path = session_dir / "episode.json"
             if not episode_path.exists():
-                raise HTTPException(status_code=404, detail=f"episode.json not found for {episode_id}")
+                raise HTTPException(
+                    status_code=404, detail=f"episode.json not found for {episode_id}"
+                )
             try:
                 episode = json.loads(episode_path.read_text(encoding="utf-8"))
             except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"Failed to read episode.json: {exc}") from exc
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to read episode.json: {exc}"
+                ) from exc
             return {
                 "episode": episode,
                 "session_dir": str(session_dir),
             }
 
         @self.app.get("/api/practice/episodes/{episode_id}/timeline")
-        async def api_practice_timeline(episode_id: str, data_root: str | None = None) -> dict[str, Any]:
+        async def api_practice_timeline(
+            episode_id: str, data_root: str | None = None
+        ) -> dict[str, Any]:
             root = _practice_data_root(data_root)
             session_dir = _episode_dir(root, episode_id)
             layout = PracticeLayout(root)
@@ -621,7 +647,9 @@ class DashboardWebServer:
             return {"practice_id": session_dir.name, "count": len(timeline), "timeline": timeline}
 
         @self.app.get("/api/practice/episodes/{episode_id}/artifacts")
-        async def api_practice_artifacts(episode_id: str, data_root: str | None = None) -> dict[str, Any]:
+        async def api_practice_artifacts(
+            episode_id: str, data_root: str | None = None
+        ) -> dict[str, Any]:
             root = _practice_data_root(data_root)
             session_dir = _episode_dir(root, episode_id)
             files: list[str] = []
@@ -633,7 +661,9 @@ class DashboardWebServer:
             return {"practice_id": session_dir.name, "count": len(files), "artifacts": files}
 
         @self.app.get("/api/practice/episodes/{episode_id}/provider")
-        async def api_practice_provider(episode_id: str, data_root: str | None = None) -> dict[str, Any]:
+        async def api_practice_provider(
+            episode_id: str, data_root: str | None = None
+        ) -> dict[str, Any]:
             root = _practice_data_root(data_root)
             session_dir = _episode_dir(root, episode_id)
             provider_files = sorted(
@@ -646,11 +676,15 @@ class DashboardWebServer:
             try:
                 provider_data = json.loads(provider_path.read_text(encoding="utf-8"))
             except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"Failed to read provider result: {exc}") from exc
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to read provider result: {exc}"
+                ) from exc
             return {"practice_id": session_dir.name, "provider": provider_data}
 
         @self.app.get("/api/practice/episodes/{episode_id}/sandbox")
-        async def api_practice_sandbox(episode_id: str, data_root: str | None = None) -> dict[str, Any]:
+        async def api_practice_sandbox(
+            episode_id: str, data_root: str | None = None
+        ) -> dict[str, Any]:
             root = _practice_data_root(data_root)
             session_dir = _episode_dir(root, episode_id)
             layout = PracticeLayout(root)

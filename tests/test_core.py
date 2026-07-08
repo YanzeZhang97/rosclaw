@@ -1,6 +1,5 @@
 """Tests for Core modules."""
 
-
 import pytest
 
 from rosclaw.core.event_bus import Event, EventBus, EventPriority
@@ -104,6 +103,7 @@ def test_runtime_status():
 def test_runtime_status_property():
     """Runtime.status property should mirror get_status()."""
     from rosclaw.core.runtime import Runtime
+
     runtime = Runtime()
     runtime.initialize()
     status = runtime.status
@@ -115,6 +115,7 @@ def test_runtime_status_property():
 
 
 # --- Lifecycle coverage: is_running, error_message, pause/resume, exceptions ---
+
 
 class TestLifecycleCoverage:
     def test_is_running(self):

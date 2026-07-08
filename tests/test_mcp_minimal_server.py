@@ -69,13 +69,19 @@ def _mock_mcp_modules():
 def mock_mcp():
     """Mock MCP library imports."""
     mcp = _mock_mcp_modules()
-    with patch.dict(sys.modules, {
-        "mcp": mcp,
-        "mcp.server": mcp.server,
-        "mcp.server.models": mcp.server.models,
-        "mcp.server.stdio": mcp.server.stdio,
-        "mcp.types": mcp.types,
-    }), patch("rosclaw.agent_runtime.mcp_hub.MCPHub", FakeMCPHub):
+    with (
+        patch.dict(
+            sys.modules,
+            {
+                "mcp": mcp,
+                "mcp.server": mcp.server,
+                "mcp.server.models": mcp.server.models,
+                "mcp.server.stdio": mcp.server.stdio,
+                "mcp.types": mcp.types,
+            },
+        ),
+        patch("rosclaw.agent_runtime.mcp_hub.MCPHub", FakeMCPHub),
+    ):
         yield mcp
 
 
@@ -151,7 +157,9 @@ class TestSystemToolHandlers:
         from rosclaw.mcp.minimal_server import ROSClawMinimalMCPServer
 
         server = ROSClawMinimalMCPServer()
-        with patch("rosclaw.provider.core.registry.ProviderRegistry", side_effect=Exception("boom")):
+        with patch(
+            "rosclaw.provider.core.registry.ProviderRegistry", side_effect=Exception("boom")
+        ):
             result = await server._handle_system_tool("system.list_providers", {})
             assert result["count"] == 0
             assert "error" in result
@@ -180,10 +188,12 @@ class TestRunSandboxTask:
 
         with patch("rosclaw.sandbox.firewall.gate.FirewallGate") as mock_gate:
             mock_gate.return_value.check.return_value = fake_decision
-            result = await server._handle_run_sandbox_task({
-                "robot_id": "ur5e",
-                "task": "reach",
-            })
+            result = await server._handle_run_sandbox_task(
+                {
+                    "robot_id": "ur5e",
+                    "task": "reach",
+                }
+            )
             assert result["status"] == "BLOCKED"
             assert result["risk_score"] == 0.8
 
@@ -200,11 +210,13 @@ class TestRunSandboxTask:
         with patch("rosclaw.sandbox.firewall.gate.FirewallGate") as mock_gate:
             mock_gate.return_value.check.return_value = fake_decision
             with patch("rosclaw.practice.episode_recorder.EpisodeRecorder"):
-                result = await server._handle_run_sandbox_task({
-                    "robot_id": "ur5e",
-                    "task": "pid_move",
-                    "parameters": {"target": 0.5},
-                })
+                result = await server._handle_run_sandbox_task(
+                    {
+                        "robot_id": "ur5e",
+                        "task": "pid_move",
+                        "parameters": {"target": 0.5},
+                    }
+                )
                 assert result["status"] == "SUCCESS"
                 assert result["result"]["final_position"] == 0.5
 
@@ -221,11 +233,13 @@ class TestRunSandboxTask:
         with patch("rosclaw.sandbox.firewall.gate.FirewallGate") as mock_gate:
             mock_gate.return_value.check.return_value = fake_decision
             with patch("rosclaw.practice.episode_recorder.EpisodeRecorder"):
-                result = await server._handle_run_sandbox_task({
-                    "robot_id": "ur5e",
-                    "task": "reach",
-                    "parameters": {"target_pose": [0.5, 0.0, 0.3]},
-                })
+                result = await server._handle_run_sandbox_task(
+                    {
+                        "robot_id": "ur5e",
+                        "task": "reach",
+                        "parameters": {"target_pose": [0.5, 0.0, 0.3]},
+                    }
+                )
                 assert result["status"] == "SUCCESS"
                 assert result["result"]["success"] is True
 
@@ -242,11 +256,13 @@ class TestRunSandboxTask:
         with patch("rosclaw.sandbox.firewall.gate.FirewallGate") as mock_gate:
             mock_gate.return_value.check.return_value = fake_decision
             with patch("rosclaw.practice.episode_recorder.EpisodeRecorder"):
-                result = await server._handle_run_sandbox_task({
-                    "robot_id": "g1",
-                    "task": "g1_walk",
-                    "parameters": {"distance": 5.0},
-                })
+                result = await server._handle_run_sandbox_task(
+                    {
+                        "robot_id": "g1",
+                        "task": "g1_walk",
+                        "parameters": {"distance": 5.0},
+                    }
+                )
                 assert result["status"] == "SUCCESS"
                 assert result["result"]["distance"] == 5.0
 
@@ -263,10 +279,12 @@ class TestRunSandboxTask:
         with patch("rosclaw.sandbox.firewall.gate.FirewallGate") as mock_gate:
             mock_gate.return_value.check.return_value = fake_decision
             with patch("rosclaw.practice.episode_recorder.EpisodeRecorder"):
-                result = await server._handle_run_sandbox_task({
-                    "robot_id": "ur5e",
-                    "task": "custom_task",
-                })
+                result = await server._handle_run_sandbox_task(
+                    {
+                        "robot_id": "ur5e",
+                        "task": "custom_task",
+                    }
+                )
                 assert result["status"] == "SUCCESS"
                 assert "Mock execution" in result["result"]["message"]
 
@@ -276,11 +294,16 @@ class TestRunSandboxTask:
 
         server = ROSClawMinimalMCPServer()
 
-        with patch("rosclaw.sandbox.firewall.gate.FirewallGate", side_effect=Exception("firewall init failed")):
-            result = await server._handle_run_sandbox_task({
-                "robot_id": "ur5e",
-                "task": "reach",
-            })
+        with patch(
+            "rosclaw.sandbox.firewall.gate.FirewallGate",
+            side_effect=Exception("firewall init failed"),
+        ):
+            result = await server._handle_run_sandbox_task(
+                {
+                    "robot_id": "ur5e",
+                    "task": "reach",
+                }
+            )
             assert result["status"] == "error"
             assert result["phase"] == "firewall"
 
@@ -295,11 +318,13 @@ class TestQueryMemory:
             mock_mem.return_value.find_similar_experiences.return_value = [
                 {"id": "exp1", "instruction": "pick up the cup"}
             ]
-            result = await server._handle_query_memory({
-                "query": "pick up cup",
-                "query_type": "similar",
-                "limit": 3,
-            })
+            result = await server._handle_query_memory(
+                {
+                    "query": "pick up cup",
+                    "query_type": "similar",
+                    "limit": 3,
+                }
+            )
             assert result["type"] == "similar"
             assert result["count"] == 1
 
@@ -310,10 +335,12 @@ class TestQueryMemory:
         server = ROSClawMinimalMCPServer()
         with patch("rosclaw.memory.interface.MemoryInterface") as mock_mem:
             mock_mem.return_value.explain_last_failure.return_value = {"failure_type": "collision"}
-            result = await server._handle_query_memory({
-                "query": "last failure",
-                "query_type": "failure",
-            })
+            result = await server._handle_query_memory(
+                {
+                    "query": "last failure",
+                    "query_type": "failure",
+                }
+            )
             assert result["type"] == "failure"
             assert "result" in result
 
@@ -324,10 +351,12 @@ class TestQueryMemory:
         server = ROSClawMinimalMCPServer()
         with patch("rosclaw.memory.interface.MemoryInterface") as mock_mem:
             mock_mem.return_value.get_statistics.return_value = {"total": 5}
-            result = await server._handle_query_memory({
-                "query": "stats",
-                "query_type": "experience",
-            })
+            result = await server._handle_query_memory(
+                {
+                    "query": "stats",
+                    "query_type": "experience",
+                }
+            )
             assert result["type"] == "experience"
             assert "statistics" in result
 
@@ -393,10 +422,12 @@ class TestCompileAssetBundle:
 
         with patch("rosclaw.forge.bundle_compiler.BundleCompiler") as mock_compiler:
             mock_compiler.return_value.compile.return_value = fake_bundle
-            result = await server._handle_compile_asset_bundle({
-                "sdk_doc": "test sdk",
-                "bundle_name": "test_bundle",
-            })
+            result = await server._handle_compile_asset_bundle(
+                {
+                    "sdk_doc": "test sdk",
+                    "bundle_name": "test_bundle",
+                }
+            )
             assert result["status"] == "generated"
             assert result["bundle_name"] == "test_bundle"
             assert result["staging_ready"] is True
@@ -406,11 +437,15 @@ class TestCompileAssetBundle:
         from rosclaw.mcp.minimal_server import ROSClawMinimalMCPServer
 
         server = ROSClawMinimalMCPServer()
-        with patch("rosclaw.forge.bundle_compiler.BundleCompiler", side_effect=Exception("compile failed")):
-            result = await server._handle_compile_asset_bundle({
-                "sdk_doc": "test",
-                "bundle_name": "bad",
-            })
+        with patch(
+            "rosclaw.forge.bundle_compiler.BundleCompiler", side_effect=Exception("compile failed")
+        ):
+            result = await server._handle_compile_asset_bundle(
+                {
+                    "sdk_doc": "test",
+                    "bundle_name": "bad",
+                }
+            )
             assert result["status"] == "error"
 
 
@@ -443,7 +478,13 @@ class TestMainShutdown:
     def test_main_keyboard_interrupt(self, mock_mcp):
         from rosclaw.mcp.minimal_server import main
 
-        with patch.object(sys, "stderr", MagicMock()), patch("rosclaw.mcp.minimal_server.ROSClawMinimalMCPServer") as mock_cls, patch("asyncio.run", side_effect=lambda coro: (_ for _ in ()).throw(KeyboardInterrupt())):
+        with (
+            patch.object(sys, "stderr", MagicMock()),
+            patch("rosclaw.mcp.minimal_server.ROSClawMinimalMCPServer") as mock_cls,
+            patch(
+                "asyncio.run", side_effect=lambda coro: (_ for _ in ()).throw(KeyboardInterrupt())
+            ),
+        ):
             mock_server = MagicMock()
             mock_cls.return_value = mock_server
             mock_server.hub = MagicMock()

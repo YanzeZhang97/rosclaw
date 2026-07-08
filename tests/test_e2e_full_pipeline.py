@@ -106,27 +106,32 @@ class TestFullPipeline:
     def test_practice_records_episode(self, runtime):
         """EpisodeRecorder must capture events via EventBus."""
         # Publish events to trigger recording
-        runtime.event_bus.publish(Event(
-            topic="skill.execution.start",
-            payload={
-                "episode_id": "ep_e2e_001",
-                "skill": "reach",
-                "robot_id": "ur5e",
-            },
-            source="test",
-        ))
-        runtime.event_bus.publish(Event(
-            topic="praxis.completed",
-            payload={
-                "episode_id": "ep_e2e_001",
-                "robot_id": "ur5e",
-                "success": True,
-                "duration_sec": 1.5,
-            },
-            source="test",
-        ))
+        runtime.event_bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={
+                    "episode_id": "ep_e2e_001",
+                    "skill": "reach",
+                    "robot_id": "ur5e",
+                },
+                source="test",
+            )
+        )
+        runtime.event_bus.publish(
+            Event(
+                topic="praxis.completed",
+                payload={
+                    "episode_id": "ep_e2e_001",
+                    "robot_id": "ur5e",
+                    "success": True,
+                    "duration_sec": 1.5,
+                },
+                source="test",
+            )
+        )
         # Allow async processing
         import time
+
         time.sleep(0.1)
         # Episode should have been recorded
         runtime._practice.list_episodes() if hasattr(runtime._practice, "list_episodes") else []
@@ -138,11 +143,14 @@ class TestFullPipeline:
         if runtime._memory is None:
             pytest.skip("Memory not available")
 
-        record_id = runtime._memory.write("test_key", {
-            "event_type": "test",
-            "instruction": "reach test",
-            "outcome": "success",
-        })
+        record_id = runtime._memory.write(
+            "test_key",
+            {
+                "event_type": "test",
+                "instruction": "reach test",
+                "outcome": "success",
+            },
+        )
         assert record_id is not None, "Memory write should return record ID"
 
         results = runtime._memory.search("reach test")
@@ -151,6 +159,7 @@ class TestFullPipeline:
     def test_how_generates_hint(self, runtime):
         """HeuristicEngine must generate recovery hints."""
         import asyncio
+
         if runtime._how is None:
             pytest.skip("How not available")
 
@@ -187,7 +196,9 @@ class TestFullPipeline:
     @pytest.mark.asyncio
     async def test_dashboard_episode_metrics(self, dashboard):
         """Dashboard must record episode metrics."""
-        dashboard.metrics.record_episode("ep_test", "ur5e", "success", reward=0.95, duration_sec=1.5)
+        dashboard.metrics.record_episode(
+            "ep_test", "ur5e", "success", reward=0.95, duration_sec=1.5
+        )
         stats = dashboard.metrics.get_episode_stats()
         assert stats["total"] >= 1
         assert stats["success_rate"] >= 0.0

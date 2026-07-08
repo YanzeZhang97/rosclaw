@@ -62,5 +62,13 @@ class MCPError(Exception):
         self.message = message
         self.details = details or {}
 
-    def to_envelope(self, trace_id: str | None = None, runtime_profile: str | None = None) -> dict[str, Any]:
-        return make_error(self.code, self.message, trace_id=trace_id, details=self.details, runtime_profile=runtime_profile)
+    def to_envelope(
+        self, trace_id: str | None = None, runtime_profile: str | None = None
+    ) -> dict[str, Any]:
+        return make_error(
+            self.code,
+            self.message,
+            trace_id=trace_id,
+            details=self.details,
+            runtime_profile=runtime_profile,
+        )

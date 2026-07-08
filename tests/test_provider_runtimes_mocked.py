@@ -64,6 +64,7 @@ class TestHTTPRuntimeMocked:
         sys.modules["aiohttp"] = mock_aiohttp
         await rt.start()
         from rosclaw.provider.core.errors import RuntimeAdapterError
+
         with pytest.raises(RuntimeAdapterError, match="HTTP 500"):
             await rt.invoke({"x": 1})
         await rt.stop()
@@ -78,11 +79,15 @@ class TestHTTPRuntimeMocked:
         good_resp.status = 200
         good_resp.json = AsyncMock(return_value={"result": "ok"})
         call_count = 0
+
         def fake_post(*args, **kwargs):  # noqa: E306
             nonlocal call_count
             call_count += 1
             resp = good_resp if call_count > 1 else bad_resp
-            return MagicMock(__aenter__=AsyncMock(return_value=resp), __aexit__=AsyncMock(return_value=False))
+            return MagicMock(
+                __aenter__=AsyncMock(return_value=resp), __aexit__=AsyncMock(return_value=False)
+            )
+
         mock_session = MagicMock()
         mock_session.post = fake_post
         mock_session.close = AsyncMock()

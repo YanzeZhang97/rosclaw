@@ -124,13 +124,15 @@ class PracticeQuery:
             failure_ids = {i.get("failure_id") for i in interventions if i.get("failure_id")}
             failures: dict[str, dict[str, Any]] = {}
             for fid in failure_ids:
+                if not isinstance(fid, str):
+                    continue
                 rows = self._client.query("failures", filters={"id": fid}, limit=1)
                 if rows:
                     failures[fid] = rows[0]
             interventions = [
                 i
                 for i in interventions
-                if failures.get(i.get("failure_id"), {}).get("failure_type") == failure_type
+                if failures.get(i.get("failure_id") or "", {}).get("failure_type") == failure_type
             ]
         return interventions
 

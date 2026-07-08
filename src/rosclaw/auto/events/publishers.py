@@ -1,4 +1,5 @@
 """Auto event publishers — emit rosclaw-auto events to Event Bus."""
+
 import logging
 from typing import Any
 
@@ -45,8 +46,9 @@ class AutoPublisher:
         except Exception as exc:
             logger.warning("Event publish failed: %s", exc)
 
-    def proposal_created(self, proposal_id: str, task_id: str,
-                         target_skill_id: str, hypothesis_statement: str) -> None:
+    def proposal_created(
+        self, proposal_id: str, task_id: str, target_skill_id: str, hypothesis_statement: str
+    ) -> None:
         event = AutoProposalCreatedEvent(
             event_id=f"evt_prop_{proposal_id}",
             proposal_id=proposal_id,
@@ -56,8 +58,9 @@ class AutoPublisher:
         )
         self._publish(event)
 
-    def champion_promoted(self, champion_id: str, skill_id: str,
-                          task_id: str, level: str, metrics: dict) -> None:
+    def champion_promoted(
+        self, champion_id: str, skill_id: str, task_id: str, level: str, metrics: dict
+    ) -> None:
         event = ChampionPromotedEvent(
             event_id=f"evt_champ_{champion_id}",
             champion_id=champion_id,
@@ -68,8 +71,9 @@ class AutoPublisher:
         )
         self._publish(event)
 
-    def deadend_registered(self, deadend_id: str, task_id: str,
-                           direction: str, rejection_reason: str) -> None:
+    def deadend_registered(
+        self, deadend_id: str, task_id: str, direction: str, rejection_reason: str
+    ) -> None:
         event = DeadEndRegisteredEvent(
             event_id=f"evt_de_{deadend_id}",
             deadend_id=deadend_id,

@@ -36,11 +36,19 @@ def test_resolver_uri_resolution(linked_body):
 
 def test_capability_derivation_with_disabled_camera(linked_body):
     resolver = BodyResolver()
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "installed_components.sensors.head_camera.status=unavailable",
-        "--reason", "test",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "update-state",
+            "--set",
+            "installed_components.sensors.head_camera.status=unavailable",
+            "--reason",
+            "test",
+        ],
+    ):
         assert rosclaw_main() == 0
     effective = resolver.get_effective_body()
     assert "visual_navigation" in effective.capabilities["blocked"]

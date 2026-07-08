@@ -237,9 +237,7 @@ class RuntimeBus:
     # ------------------------------------------------------------------
     # Query / replay
     # ------------------------------------------------------------------
-    def get_history(
-        self, event_type: str | None = None, limit: int = 100
-    ) -> list[RuntimeEvent]:
+    def get_history(self, event_type: str | None = None, limit: int = 100) -> list[RuntimeEvent]:
         """Return recent in-memory history as RuntimeEvents."""
         topic = self._topic(event_type) if event_type else None
         events = self._bus.get_history(topic=topic, limit=limit)

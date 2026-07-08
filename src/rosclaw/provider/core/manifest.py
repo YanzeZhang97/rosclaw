@@ -17,10 +17,10 @@ from rosclaw.provider.core.errors import ManifestValidationError
 class RuntimeSpec:
     """Runtime configuration from manifest."""
 
-    backend: str = ""          # python, http, grpc, ros2, ollama, vllm, triton, onnx, tensorrt, isaac
-    protocol: str = ""         # http, grpc, action, service, topic
-    endpoint: str = ""         # e.g., http://localhost:11434/api/generate
-    device: str = "cpu"        # cpu, cuda, cuda:0, auto
+    backend: str = ""  # python, http, grpc, ros2, ollama, vllm, triton, onnx, tensorrt, isaac
+    protocol: str = ""  # http, grpc, action, service, topic
+    endpoint: str = ""  # e.g., http://localhost:11434/api/generate
+    device: str = "cpu"  # cpu, cuda, cuda:0, auto
     min_vram_gb: float = 0.0
     env: dict[str, str] = field(default_factory=dict)
 
@@ -41,8 +41,8 @@ class ModelSpec:
     """Model configuration from manifest."""
 
     name: str = ""
-    source: str = ""           # hf, local, url
-    model_id: str = ""         # e.g., openvla/openvla-7b
+    source: str = ""  # hf, local, url
+    model_id: str = ""  # e.g., openvla/openvla-7b
     precision: str = ""
     quantization: str = ""
 
@@ -82,12 +82,12 @@ class EmbodimentSpec:
 class SafetySpec:
     """Safety declarations from manifest."""
 
-    executable: bool = False           # If true, output can directly drive runtime
-    requires_guard: bool = True        # Must pass guard before execution
+    executable: bool = False  # If true, output can directly drive runtime
+    requires_guard: bool = True  # Must pass guard before execution
     requires_collision_check: bool = False
     requires_workspace_check: bool = False
     max_action_norm: float = 0.0
-    fallback_provider: str = ""        # Name of fallback provider if this fails
+    fallback_provider: str = ""  # Name of fallback provider if this fails
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "SafetySpec":
@@ -107,7 +107,7 @@ class ObservabilitySpec:
 
     log_inputs: bool = False
     log_outputs: bool = True
-    trace_level: str = "standard"      # minimal, standard, detailed
+    trace_level: str = "standard"  # minimal, standard, detailed
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "ObservabilitySpec":
@@ -131,7 +131,7 @@ class ProviderManifest:
 
     name: str
     version: str
-    type: str                          # llm, vlm, vla, vln, world, skill, critic, embedding
+    type: str  # llm, vlm, vla, vln, world, skill, critic, embedding
     description: str = ""
     capabilities: list[str] = field(default_factory=list)
     modalities: dict[str, list[str]] = field(default_factory=dict)
@@ -150,7 +150,9 @@ class ProviderManifest:
         with open(p, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         if not isinstance(data, dict):
-            raise ManifestValidationError(f"Invalid YAML in {p}: expected dict, got {type(data).__name__}")
+            raise ManifestValidationError(
+                f"Invalid YAML in {p}: expected dict, got {type(data).__name__}"
+            )
         return cls.from_dict(data)
 
     @classmethod
@@ -172,10 +174,24 @@ class ProviderManifest:
             embodiment=EmbodimentSpec.from_dict(d.get("embodiment", {})),
             safety=SafetySpec.from_dict(d.get("safety", {})),
             observability=ObservabilitySpec.from_dict(d.get("observability", {})),
-            extra={k: v for k, v in d.items() if k not in {
-                "name", "version", "type", "description", "capabilities",
-                "modalities", "runtime", "model", "embodiment", "safety", "observability",
-            }},
+            extra={
+                k: v
+                for k, v in d.items()
+                if k
+                not in {
+                    "name",
+                    "version",
+                    "type",
+                    "description",
+                    "capabilities",
+                    "modalities",
+                    "runtime",
+                    "model",
+                    "embodiment",
+                    "safety",
+                    "observability",
+                }
+            },
         )
 
     def supports_capability(self, capability: str) -> bool:

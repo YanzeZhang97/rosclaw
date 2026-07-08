@@ -117,9 +117,7 @@ def test_list_failures_by_body_and_type():
         ]
         _, query = _ingest_and_query(tmp, events)
 
-        failures = query.list_failures(
-            body_id="body_rh56_left", failure_type="over_contact"
-        )
+        failures = query.list_failures(body_id="body_rh56_left", failure_type="over_contact")
         assert len(failures) == 1
         assert failures[0]["failure_type"] == "over_contact"
         query.close()

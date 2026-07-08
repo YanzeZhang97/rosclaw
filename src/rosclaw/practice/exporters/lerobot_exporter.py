@@ -92,9 +92,7 @@ class LeRobotExporter:
                 payload = ev.get("payload") or {}
                 state_vec = self._build_vector(payload, dofs, "observation")
                 action_vec = self._build_vector(payload, dofs, "action")
-                timestamp_s = (
-                    ev.get("timestamp_ns") / 1e9 if ev.get("timestamp_ns") else None
-                )
+                timestamp_s = ts / 1e9 if (ts := ev.get("timestamp_ns")) else None
                 frames.append(
                     {
                         "timestamp": timestamp_s,
@@ -244,7 +242,15 @@ class LeRobotExporter:
         """Infer session metadata from the first event that carries it."""
         meta: dict[str, Any] = {}
         for ev in events:
-            for key in ("session_id", "episode_id", "robot_id", "body_id", "skill_id", "task_id", "task_name"):
+            for key in (
+                "session_id",
+                "episode_id",
+                "robot_id",
+                "body_id",
+                "skill_id",
+                "task_id",
+                "task_name",
+            ):
                 if key not in meta and ev.get(key):
                     meta[key] = ev[key]
             payload = ev.get("payload") or {}

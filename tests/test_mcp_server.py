@@ -331,6 +331,7 @@ class TestServerInitialization:
             def decorator(f):
                 mcp.tools.append(f)
                 return f
+
             return decorator
 
         mcp.tool = mock_tool

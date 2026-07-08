@@ -2,6 +2,7 @@
 
 Prevents dead links and missing examples from shipping in a release.
 """
+
 import re
 from pathlib import Path
 

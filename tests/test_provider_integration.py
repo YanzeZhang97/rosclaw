@@ -58,14 +58,13 @@ class AsyncLoadProvider(Provider):
 # Sync context registration
 # ---------------------------------------------------------------------------
 
+
 class TestSyncContextRegistration:
     @pytest.mark.asyncio
     async def test_register_sync_context_auto_load(self):
         """register() from sync context with auto_load=True should work."""
         reg = ProviderRegistry()
-        manifest = ProviderManifest(
-            name="sync_provider", version="1.0", type="llm"
-        )
+        manifest = ProviderManifest(name="sync_provider", version="1.0", type="llm")
         p = reg.register(manifest, lambda m: DummyProvider(m), auto_load=True)
         # Allow deferred load coroutine to complete
         await asyncio.sleep(0.01)
@@ -75,9 +74,7 @@ class TestSyncContextRegistration:
     def test_register_sync_context_no_auto_load(self):
         """register() from sync context with auto_load=False should not load."""
         reg = ProviderRegistry()
-        manifest = ProviderManifest(
-            name="no_load", version="1.0", type="llm"
-        )
+        manifest = ProviderManifest(name="no_load", version="1.0", type="llm")
         p = reg.register(manifest, lambda m: DummyProvider(m), auto_load=False)
         assert p._healthy is False  # not loaded
         assert reg.is_healthy("no_load") is False
@@ -98,14 +95,13 @@ class TestSyncContextRegistration:
 # Async context registration
 # ---------------------------------------------------------------------------
 
+
 class TestAsyncContextRegistration:
     @pytest.mark.asyncio
     async def test_register_async_context_auto_load(self):
         """register() from async context with auto_load=True should not crash."""
         reg = ProviderRegistry()
-        manifest = ProviderManifest(
-            name="async_provider", version="1.0", type="llm"
-        )
+        manifest = ProviderManifest(name="async_provider", version="1.0", type="llm")
         p = reg.register(manifest, lambda m: DummyProvider(m), auto_load=True)
         # Deferred load is scheduled; wait for it
         await asyncio.sleep(0.05)
@@ -116,9 +112,7 @@ class TestAsyncContextRegistration:
     async def test_register_async_context_with_async_load(self):
         """register() with a provider that does real async work in load()."""
         reg = ProviderRegistry()
-        manifest = ProviderManifest(
-            name="async_load_provider", version="1.0", type="llm"
-        )
+        manifest = ProviderManifest(name="async_load_provider", version="1.0", type="llm")
         p = reg.register(manifest, lambda m: AsyncLoadProvider(m), auto_load=True)
         # Deferred load includes asyncio.sleep(0.01)
         await asyncio.sleep(0.05)
@@ -137,6 +131,7 @@ class TestAsyncContextRegistration:
 # ---------------------------------------------------------------------------
 # ProviderRegistry.set_provider_health
 # ---------------------------------------------------------------------------
+
 
 class TestSetProviderHealth:
     def test_set_health_public_api(self):
@@ -166,6 +161,7 @@ class TestSetProviderHealth:
 # CapabilityRouter integration
 # ---------------------------------------------------------------------------
 
+
 class TestCapabilityRouterIntegration:
     @pytest.fixture
     def router(self) -> CapabilityRouter:
@@ -182,9 +178,7 @@ class TestCapabilityRouterIntegration:
 
     @pytest.mark.asyncio
     async def test_invoke_through_router(self, router: CapabilityRouter):
-        req = ProviderRequest(
-            request_id="r1", capability="llm.chat", inputs={"text": "hi"}
-        )
+        req = ProviderRequest(request_id="r1", capability="llm.chat", inputs={"text": "hi"})
         resp = await router.invoke(req)
         assert resp.is_ok
         assert resp.provider == "llm_provider"
@@ -192,9 +186,7 @@ class TestCapabilityRouterIntegration:
 
     @pytest.mark.asyncio
     async def test_route_decision(self, router: CapabilityRouter):
-        req = ProviderRequest(
-            request_id="r1", capability="llm.chat", inputs={"text": "hi"}
-        )
+        req = ProviderRequest(request_id="r1", capability="llm.chat", inputs={"text": "hi"})
         decision = await router.route(req)
         assert decision.selected_provider == "llm_provider"
         assert decision.score > 0
@@ -203,6 +195,7 @@ class TestCapabilityRouterIntegration:
 # ---------------------------------------------------------------------------
 # End-to-end: Runtime with providers
 # ---------------------------------------------------------------------------
+
 
 class TestRuntimeWithProviders:
     @pytest.mark.asyncio
@@ -253,18 +246,14 @@ class TestRuntimeWithProviders:
             type="llm",
             capabilities=["llm.chat"],
         )
-        runtime.provider_registry.register(
-            manifest, lambda m: DummyProvider(m), auto_load=False
-        )
+        runtime.provider_registry.register(manifest, lambda m: DummyProvider(m), auto_load=False)
         runtime.provider_registry.set_provider_health("custom_llm", ok=True)
 
         # Ensure deepseek does not steal the route when env key is present
         if "deepseek" in runtime.provider_registry.list_providers():
             runtime.provider_registry.set_provider_health("deepseek", ok=False)
 
-        req = ProviderRequest(
-            request_id="r1", capability="llm.chat", inputs={"text": "hi"}
-        )
+        req = ProviderRequest(request_id="r1", capability="llm.chat", inputs={"text": "hi"})
         resp = await runtime.capability_router.invoke(req)
         assert resp.is_ok
         assert resp.provider == "custom_llm"

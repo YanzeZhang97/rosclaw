@@ -10,6 +10,7 @@ from dataclasses import dataclass
 @dataclass
 class PIDGains:
     """PID controller gains."""
+
     kp: float = 1.0
     ki: float = 0.0
     kd: float = 0.1

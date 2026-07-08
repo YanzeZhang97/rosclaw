@@ -176,8 +176,6 @@ def test_recorder_mcap_matches_jsonl_event_count():
         layout = PracticeLayout(tmp)
         jsonl_path = layout.events_jsonl_path("prac_count")
         mcap_path = layout.mcap_path("prac_count")
-        jsonl_count = len(
-            jsonl_path.read_text(encoding="utf-8").strip().splitlines()
-        )
+        jsonl_count = len(jsonl_path.read_text(encoding="utf-8").strip().splitlines())
         mcap_count = _read_message_count(mcap_path)
         assert jsonl_count == mcap_count == 5

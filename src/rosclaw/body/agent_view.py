@@ -76,7 +76,9 @@ class BodyAgentViewRenderer:
         effective = effective or self.resolver.get_effective_body()
         body = body or self.resolver.get_current_body_yaml()
         calibration = calibration or self.resolver.get_calibration()
-        maintenance = maintenance if maintenance is not None else self.resolver.get_maintenance_events()
+        maintenance = (
+            maintenance if maintenance is not None else self.resolver.get_maintenance_events()
+        )
         if report is None:
             report = self.resolver.get_skill_compatibility()
 
@@ -89,7 +91,9 @@ class BodyAgentViewRenderer:
         generator = BodySummaryGenerator(
             workspace=self.resolver.workspace, body_id=self.resolver.body_id
         )
-        summaries = generator.generate_all(effective, body, calibration, report, maintenance, write=True)
+        summaries = generator.generate_all(
+            effective, body, calibration, report, maintenance, write=True
+        )
 
         # Record render event unless explicitly disabled.
         if reason != "no_event":
@@ -125,7 +129,8 @@ class BodyAgentViewRenderer:
         rendered = self._renderer.render(
             effective_body,
             body_yaml,
-            compatibility_report or SkillCompatibilityReport(
+            compatibility_report
+            or SkillCompatibilityReport(
                 body_instance_id=effective_body.body_instance_id,
                 effective_body_hash=effective_body.effective_body_hash,
             ),
@@ -228,7 +233,9 @@ class BodyAgentView:
                 item.get("id", item.get("capability", "unknown"))
                 for item in (effective.forbidden_capabilities or body.forbidden_capabilities or [])
             ],
-            "open_faults": [f.get("id", "unknown") for f in effective.known_faults if f.get("status") == "open"],
+            "open_faults": [
+                f.get("id", "unknown") for f in effective.known_faults if f.get("status") == "open"
+            ],
             "runtime_overlay": body.runtime_state or {},
             "agent_policy": {
                 "physical_execution_requires_sandbox": True,

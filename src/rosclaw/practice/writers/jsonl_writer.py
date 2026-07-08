@@ -14,7 +14,7 @@ import os
 import tempfile
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 logger = logging.getLogger("rosclaw.practice.jsonl_writer")
 
@@ -31,7 +31,7 @@ class JsonlWriter:
         self._rotate_bytes = int(rotate_mb * 1024 * 1024) if rotate_mb else None
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
-        self._file = None
+        self._file: TextIO | None = None
         self._open()
 
     def _open(self) -> None:
@@ -46,6 +46,9 @@ class JsonlWriter:
             return
 
         with self._lock:
+            if self._file is None:
+                self._open()
+            assert self._file is not None
             self._file.write(line + "\n")
             self._file.flush()
 
@@ -53,6 +56,7 @@ class JsonlWriter:
                 self._rotate()
 
     def _rotate(self) -> None:
+        assert self._file is not None
         self._file.close()
         suffix = 1
         while True:

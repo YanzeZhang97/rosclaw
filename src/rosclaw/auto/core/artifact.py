@@ -1,4 +1,5 @@
 """Artifact — 进化报告和冠军卡片."""
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -18,16 +19,26 @@ class EvolutionReport:
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_dict(self) -> dict:
-        return {"id": self.id, "task_id": self.task_id, "summary": self.summary,
-                "proposals_created": self.proposals_created, "experiments_run": self.experiments_run,
-                "champions_promoted": self.champions_promoted, "deadends_registered": self.deadends_registered,
-                "baseline_metrics": self.baseline_metrics, "best_candidate_metrics": self.best_candidate_metrics,
-                "improvement_delta": self.improvement_delta, "created_at": self.created_at}
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "summary": self.summary,
+            "proposals_created": self.proposals_created,
+            "experiments_run": self.experiments_run,
+            "champions_promoted": self.champions_promoted,
+            "deadends_registered": self.deadends_registered,
+            "baseline_metrics": self.baseline_metrics,
+            "best_candidate_metrics": self.best_candidate_metrics,
+            "improvement_delta": self.improvement_delta,
+            "created_at": self.created_at,
+        }
 
     @classmethod
     def from_dict(cls, d: dict) -> "EvolutionReport":
         return cls(
-            id=d["id"], task_id=d["task_id"], summary=d.get("summary", ""),
+            id=d["id"],
+            task_id=d["task_id"],
+            summary=d.get("summary", ""),
             proposals_created=d.get("proposals_created", 0),
             experiments_run=d.get("experiments_run", 0),
             champions_promoted=d.get("champions_promoted", 0),
@@ -52,24 +63,39 @@ class ChampionCard:
 
     def to_dict(self) -> dict:
         return {
-            "skill_id": self.skill_id, "previous_champion": self.previous_champion,
-            "promotion_date": self.promotion_date, "improvement": self.improvement,
-            "accepted_changes": self.accepted_changes, "validated_on": self.validated_on,
-            "known_limitations": self.known_limitations, "rollback_to": self.rollback_to,
+            "skill_id": self.skill_id,
+            "previous_champion": self.previous_champion,
+            "promotion_date": self.promotion_date,
+            "improvement": self.improvement,
+            "accepted_changes": self.accepted_changes,
+            "validated_on": self.validated_on,
+            "known_limitations": self.known_limitations,
+            "rollback_to": self.rollback_to,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "ChampionCard":
         return cls(
-            skill_id=d["skill_id"], previous_champion=d.get("previous_champion", ""),
-            promotion_date=d.get("promotion_date", ""), improvement=d.get("improvement", {}),
-            accepted_changes=d.get("accepted_changes", []), validated_on=d.get("validated_on", []),
-            known_limitations=d.get("known_limitations", []), rollback_to=d.get("rollback_to", ""),
+            skill_id=d["skill_id"],
+            previous_champion=d.get("previous_champion", ""),
+            promotion_date=d.get("promotion_date", ""),
+            improvement=d.get("improvement", {}),
+            accepted_changes=d.get("accepted_changes", []),
+            validated_on=d.get("validated_on", []),
+            known_limitations=d.get("known_limitations", []),
+            rollback_to=d.get("rollback_to", ""),
         )
 
     def to_markdown(self) -> str:
-        lines = ["# Champion Skill Card", "", f"Skill: {self.skill_id}",
-                 f"Previous Champion: {self.previous_champion}", f"Promotion Date: {self.promotion_date}", "", "## Improvement"]
+        lines = [
+            "# Champion Skill Card",
+            "",
+            f"Skill: {self.skill_id}",
+            f"Previous Champion: {self.previous_champion}",
+            f"Promotion Date: {self.promotion_date}",
+            "",
+            "## Improvement",
+        ]
         for k, v in self.improvement.items():
             lines.append(f"- {k}: {v}")
         lines.extend(["", "## Accepted Changes"])

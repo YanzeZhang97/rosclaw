@@ -44,11 +44,19 @@ def test_diff_reports_affected_ids_for_sensor_status_change(linked_body_with_ski
     resolver = BodyResolver()
     old = resolver.get_effective_body()
 
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "installed_components.sensors.head_camera.status=unavailable",
-        "--reason", "test",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "update-state",
+            "--set",
+            "installed_components.sensors.head_camera.status=unavailable",
+            "--reason",
+            "test",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     new = resolver.get_effective_body()
@@ -62,15 +70,26 @@ def test_incremental_recheck_only_rechecks_affected_skills(linked_body_with_skil
     resolver = BodyResolver()
     calls = []
 
-    with patch.object(
-        SkillCompatibilityChecker,
-        "check_one",
-        side_effect=_tracking_check(calls),
-    ), patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "installed_components.sensors.head_camera.status=unavailable",
-        "--reason", "test",
-    ]):
+    with (
+        patch.object(
+            SkillCompatibilityChecker,
+            "check_one",
+            side_effect=_tracking_check(calls),
+        ),
+        patch.object(
+            sys,
+            "argv",
+            [
+                "rosclaw",
+                "body",
+                "update-state",
+                "--set",
+                "installed_components.sensors.head_camera.status=unavailable",
+                "--reason",
+                "test",
+            ],
+        ),
+    ):
         assert rosclaw_main() == 0
 
     # Only camera_nav depends on head_camera / visual_navigation.
@@ -90,15 +109,26 @@ def test_incremental_recheck_preserves_unaffected_results(linked_body_with_skill
     old_report = resolver.get_skill_compatibility()
     calls = []
 
-    with patch.object(
-        SkillCompatibilityChecker,
-        "check_one",
-        side_effect=_tracking_check(calls),
-    ), patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "installed_components.actuators.right_arm.status=unavailable",
-        "--reason", "test",
-    ]):
+    with (
+        patch.object(
+            SkillCompatibilityChecker,
+            "check_one",
+            side_effect=_tracking_check(calls),
+        ),
+        patch.object(
+            sys,
+            "argv",
+            [
+                "rosclaw",
+                "body",
+                "update-state",
+                "--set",
+                "installed_components.actuators.right_arm.status=unavailable",
+                "--reason",
+                "test",
+            ],
+        ),
+    ):
         assert rosclaw_main() == 0
 
     assert len(calls) == 1
@@ -111,22 +141,36 @@ def test_incremental_recheck_preserves_unaffected_results(linked_body_with_skill
     # camera_nav depends on visual_navigation which is already degraded; the status is copied.
     assert report.skills["camera_nav@1.0.0"].status == old_report.skills["camera_nav@1.0.0"].status
     # The copied result is still stamped with the new effective body hash.
-    assert report.skills["walk_forward@1.0.0"].checked_against["body_hash"] == report.effective_body_hash
+    assert (
+        report.skills["walk_forward@1.0.0"].checked_against["body_hash"]
+        == report.effective_body_hash
+    )
 
 
 def test_note_incremental_recheck_uses_affects_list(linked_body_with_skills):
     calls = []
 
-    with patch.object(
-        SkillCompatibilityChecker,
-        "check_one",
-        side_effect=_tracking_check(calls),
-    ), patch.object(sys, "argv", [
-        "rosclaw", "body", "note",
-        "Camera lens replaced.",
-        "--type", "maintenance",
-        "--affects", "head_camera",
-    ]):
+    with (
+        patch.object(
+            SkillCompatibilityChecker,
+            "check_one",
+            side_effect=_tracking_check(calls),
+        ),
+        patch.object(
+            sys,
+            "argv",
+            [
+                "rosclaw",
+                "body",
+                "note",
+                "Camera lens replaced.",
+                "--type",
+                "maintenance",
+                "--affects",
+                "head_camera",
+            ],
+        ),
+    ):
         assert rosclaw_main() == 0
 
     # Maintenance note does not change body.yaml, but the recheck path is still triggered

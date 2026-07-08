@@ -56,25 +56,31 @@ class SwarmRuntimeManager(LifecycleMixin):
         task = payload.get("task", {})
         agent_id = self.allocate_task(task)
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="swarm.allocate_result",
-                payload={"task": task, "agent_id": agent_id},
-                source="swarm",
-                priority=EventPriority.HIGH,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="swarm.allocate_result",
+                    payload={"task": task, "agent_id": agent_id},
+                    source="swarm",
+                    priority=EventPriority.HIGH,
+                )
+            )
 
     def _on_status_request(self, event: Event) -> None:
         """Handle status query via EventBus."""
         payload = event.payload if isinstance(event.payload, dict) else {}
         agent_id = payload.get("agent_id")
-        status = self.get_agent_status(agent_id) if agent_id else {"agents": list(self._agents.keys())}
+        status = (
+            self.get_agent_status(agent_id) if agent_id else {"agents": list(self._agents.keys())}
+        )
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="swarm.status_result",
-                payload={"agent_id": agent_id, "status": status},
-                source="swarm",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="swarm.status_result",
+                    payload={"agent_id": agent_id, "status": status},
+                    source="swarm",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
     def register_agent(self, agent_id: str, capabilities: list[str]) -> None:
         """Register a robot agent with the swarm."""
@@ -85,12 +91,14 @@ class SwarmRuntimeManager(LifecycleMixin):
         }
         logger.info("Agent registered: %s (%s)", agent_id, capabilities)
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="swarm.agent_registered",
-                payload={"agent_id": agent_id, "capabilities": capabilities},
-                source="swarm",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="swarm.agent_registered",
+                    payload={"agent_id": agent_id, "capabilities": capabilities},
+                    source="swarm",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
     def allocate_task(self, task: dict) -> str | None:
         """Allocate a task to an available agent."""

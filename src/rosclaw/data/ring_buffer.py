@@ -25,15 +25,17 @@ import numpy as np
 
 class BufferFullStrategy(Enum):
     """Strategy when buffer reaches capacity."""
+
     OVERWRITE = auto()  # Overwrite oldest data (circular)
-    EXPAND = auto()     # Expand buffer (not recommended for real-time)
-    DROP = auto()       # Drop new data (lossy)
+    EXPAND = auto()  # Expand buffer (not recommended for real-time)
+    DROP = auto()  # Drop new data (lossy)
 
 
 @dataclass
 class RingBufferConfig:
     """Configuration for RingBuffer."""
-    capacity: int           # Maximum number of samples
+
+    capacity: int  # Maximum number of samples
     shape: tuple[int, ...]  # Shape of each sample (e.g., (6,) for 6 joints)
     dtype: np.dtype = np.float64
     strategy: BufferFullStrategy = BufferFullStrategy.OVERWRITE
@@ -253,7 +255,9 @@ class MultiChannelRingBuffer:
             if self._capacity is None:
                 self._capacity = capacity
             elif capacity != self._capacity:
-                raise ValueError(f"All channels must have same capacity, got {capacity} vs {self._capacity}")
+                raise ValueError(
+                    f"All channels must have same capacity, got {capacity} vs {self._capacity}"
+                )
 
             self.channels[name] = RingBuffer(capacity=capacity, shape=shape)
 
@@ -274,10 +278,7 @@ class MultiChannelRingBuffer:
 
     def get_last_n(self, n: int) -> dict[str, tuple[np.ndarray, np.ndarray]]:
         """Get last n samples from all channels."""
-        return {
-            name: buffer.get_last_n(n)
-            for name, buffer in self.channels.items()
-        }
+        return {name: buffer.get_last_n(n) for name, buffer in self.channels.items()}
 
     def get_range(
         self,
@@ -286,8 +287,7 @@ class MultiChannelRingBuffer:
     ) -> dict[str, tuple[np.ndarray, np.ndarray]]:
         """Get samples within time range from all channels."""
         return {
-            name: buffer.get_range(start_time, end_time)
-            for name, buffer in self.channels.items()
+            name: buffer.get_range(start_time, end_time) for name, buffer in self.channels.items()
         }
 
     def clear(self) -> None:
