@@ -11,8 +11,10 @@ record without touching disk.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import logging
+import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -132,11 +134,13 @@ class ArtifactStore:
         path = self._artifact_path(
             artifact_id, artifact_type, ".jsonl", session_id, episode_id
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            for record in records:
-                f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
-        return self._register(path, artifact_id, artifact_type, session_id, episode_id, metadata)
+        data = "".join(
+            json.dumps(record, ensure_ascii=False, default=str) + "\n"
+            for record in records
+        ).encode("utf-8")
+        return self._write_and_register(
+            path, artifact_id, artifact_type, data, session_id, episode_id, metadata
+        )
 
     def write_yaml(
         self,
@@ -152,10 +156,10 @@ class ArtifactStore:
         path = self._artifact_path(
             artifact_id, artifact_type, ".yaml", session_id, episode_id
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
-        return self._register(path, artifact_id, artifact_type, session_id, episode_id, metadata)
+        payload = yaml.safe_dump(data, sort_keys=False, allow_unicode=True).encode("utf-8")
+        return self._write_and_register(
+            path, artifact_id, artifact_type, payload, session_id, episode_id, metadata
+        )
 
     def write_parquet(
         self,
@@ -182,7 +186,6 @@ class ArtifactStore:
         path = self._artifact_path(
             artifact_id, artifact_type, ".parquet", session_id, episode_id
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
 
         if isinstance(table_or_records, pa.Table):
             table = table_or_records
@@ -193,12 +196,67 @@ class ArtifactStore:
                 f"Expected pyarrow.Table or list[dict], got {type(table_or_records)}"
             )
 
-        pq.write_table(table, path)
-        return self._register(path, artifact_id, artifact_type, session_id, episode_id, metadata)
+        buf = io.BytesIO()
+        pq.write_table(table, buf)
+        data = buf.getvalue()
+        return self._write_and_register(
+            path, artifact_id, artifact_type, data, session_id, episode_id, metadata
+        )
 
     # ------------------------------------------------------------------
     # Registration / manifest
     # ------------------------------------------------------------------
+
+    def _write_and_register(
+        self,
+        path: Path,
+        artifact_id: str,
+        artifact_type: str,
+        data: bytes,
+        session_id: str,
+        episode_id: str | None,
+        metadata: dict[str, Any] | None,
+    ) -> ArtifactRecord:
+        """Atomically write *data* to *path* if its checksum is new, then register."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        sha256 = hashlib.sha256(data).hexdigest()
+        existing = self._lookup_existing(artifact_id, sha256, session_id, episode_id)
+        if existing:
+            logger.debug(
+                "Artifact %s unchanged (sha256=%s...), skipping write",
+                artifact_id,
+                sha256[:8],
+            )
+            return existing
+        self._atomic_write(path, data)
+        return self._register(
+            path, artifact_id, artifact_type, session_id, episode_id, metadata,
+            sha256=sha256, size_bytes=len(data),
+        )
+
+    @staticmethod
+    def _atomic_write(path: Path, data: bytes) -> None:
+        """Write *data* to a temp file and atomically replace *path*."""
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        with open(tmp, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+
+    def _lookup_existing(
+        self,
+        artifact_id: str,
+        sha256: str,
+        session_id: str,
+        episode_id: str | None,
+    ) -> ArtifactRecord | None:
+        """Return the existing artifact record if its checksum matches."""
+        manifest = self._load_manifest(session_id, episode_id)
+        existing = self._find_in_manifest(manifest, artifact_id)
+        if existing and existing.get("sha256") == sha256:
+            return ArtifactRecord(**existing)
+        return None
 
     def _register(
         self,
@@ -208,10 +266,12 @@ class ArtifactStore:
         session_id: str,
         episode_id: str | None,
         metadata: dict[str, Any] | None,
+        sha256: str | None = None,
+        size_bytes: int | None = None,
     ) -> ArtifactRecord:
         """Compute checksum, update manifest, and return the artifact record."""
-        sha256 = self._compute_sha256(path)
-        size_bytes = path.stat().st_size
+        sha256 = sha256 or self._compute_sha256(path)
+        size_bytes = size_bytes or path.stat().st_size
         manifest = self._load_manifest(session_id, episode_id)
 
         existing = self._find_in_manifest(manifest, artifact_id)

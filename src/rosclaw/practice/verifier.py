@@ -189,12 +189,18 @@ class PracticeVerifier:
                     report.add("warning", "how_intervention", "how_intervention_event missing episode_id")
 
             catalog_count = catalog.count_source_events(practice_id)
+            jsonl_count = 0
             with open(events_path, encoding="utf-8") as f:
-                jsonl_count = sum(
-                    1
-                    for line in f
-                    if line.strip() and json.loads(line).get("event_type") not in {"runtime.start", "runtime.stop"}
-                )
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        ev = json.loads(line)
+                    except json.JSONDecodeError as e:
+                        report.add("error", "events_jsonl", f"invalid JSON line while counting events: {e}")
+                        continue
+                    if ev.get("event_type") not in {"runtime.start", "runtime.stop"}:
+                        jsonl_count += 1
             report.checked.append("event_count")
             if catalog_count != jsonl_count:
                 report.add(

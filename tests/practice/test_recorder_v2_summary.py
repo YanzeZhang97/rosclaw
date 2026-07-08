@@ -74,7 +74,9 @@ def test_recorder_writes_v2_episode_summary_on_stop():
         episode = catalog.get_episode(practice["episode_id"])
         assert episode is not None
         assert episode["session_id"] == practice["session_id"]
-        assert episode["outcome"] == summary.outcome
+        # Catalog v2 stores the canonical lowercase outcome; the coordinator summary
+        # keeps the original uppercase token for backward compatibility.
+        assert episode["outcome"] == summary.outcome.lower()
 
         # Summary YAML artifact exists under session_id directory
         summary_path = (

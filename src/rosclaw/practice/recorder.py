@@ -56,6 +56,21 @@ _ALLOWED_SOURCES = {
 }
 
 
+def _normalize_outcome(outcome: str | None) -> str:
+    """Return a lowercase outcome string for canonical storage.
+
+    Unknown or empty values are preserved as ``unknown``.
+    """
+    if not outcome:
+        return "unknown"
+    upper = outcome.upper()
+    if upper in {"SUCCESS", "FAILED", "PARTIAL"}:
+        return upper.lower()
+    if upper == "UNKNOWN":
+        return "unknown"
+    return outcome.lower()
+
+
 class PracticeRecorder(RuntimeConsumer):
     """Records runtime events and preserves the legacy EventBus/DataFlywheel API.
 
@@ -275,6 +290,8 @@ class PracticeRecorder(RuntimeConsumer):
         )
         if event.body_id:
             self._session.metadata["body_id"] = event.body_id
+        self._session.metadata["sources"] = payload.get("sources", {})
+        self._session.metadata["seekdb_enabled"] = payload.get("seekdb_enabled", False)
 
         self._event_count = 0
         self._source_event_count = 0
@@ -372,7 +389,7 @@ class PracticeRecorder(RuntimeConsumer):
         self._summary = PracticeSummary(
             practice_id=self._session.practice_id,
             robot_id=self._session.robot_id,
-            outcome=outcome,
+            outcome=_normalize_outcome(outcome),
             reward=reward,
             duration_ms=duration_ms,
             event_count=event_count,
@@ -450,7 +467,7 @@ class PracticeRecorder(RuntimeConsumer):
             body_id=self._session.metadata.get("body_id"),
             skill_id=self._session.skill_id,
             policy_id=self._session.metadata.get("policy_id"),
-            outcome=outcome.lower() if outcome in {"SUCCESS", "FAILED", "PARTIAL"} else "unknown",
+            outcome=_normalize_outcome(outcome),
             success=outcome == "SUCCESS",
             failure_labels=labels,
             event_count=event_count,
@@ -498,7 +515,7 @@ class PracticeRecorder(RuntimeConsumer):
                     "started_at": started_at,
                     "ended_at": ended_at,
                     "status": "closed",
-                    "outcome": outcome,
+                    "outcome": summary_payload.outcome,
                     "event_count": event_count,
                     "artifact_count": len(self._artifact_store.list_artifacts(session_id, episode_id)),
                     "metadata": dict(self._session.metadata),
@@ -517,8 +534,8 @@ class PracticeRecorder(RuntimeConsumer):
                     "policy_id": self._session.metadata.get("policy_id"),
                     "started_at": started_at,
                     "ended_at": ended_at,
-                    "outcome": outcome,
-                    "success": outcome == "SUCCESS",
+                    "outcome": summary_payload.outcome,
+                    "success": summary_payload.success,
                     "failure_labels": labels,
                     "metrics": summary_payload.metrics,
                 }

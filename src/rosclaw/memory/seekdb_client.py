@@ -10,7 +10,6 @@ Sprint 5 of DESIGN_SPRINT3_5.
 import contextlib
 import json
 import logging
-import time
 import uuid
 from abc import ABC, abstractmethod
 from typing import Any
@@ -684,7 +683,7 @@ class SeekDBSQLiteClient(SeekDBClient):
         # The id column is required (PRIMARY KEY). Assign a deterministic fallback
         # before building the INSERT so the column list always includes it.
         if "id" not in serialized:
-            serialized["id"] = str(int(time.time() * 1000))
+            serialized["id"] = str(uuid.uuid4())
         cols = ", ".join(serialized.keys())
         placeholders = ", ".join("?" for _ in serialized)
         values = list(serialized.values())

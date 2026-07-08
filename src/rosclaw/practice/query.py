@@ -122,22 +122,16 @@ class PracticeQuery:
 
         if failure_type:
             failure_ids = {i.get("failure_id") for i in interventions if i.get("failure_id")}
-            if failure_ids:
-                failures = {
-                    f["id"]: f
-                    for f in self._client.query(
-                        "failures",
-                        filters=None,
-                        order_by="-timestamp",
-                        limit=max(1000, limit * 5),
-                    )
-                    if f.get("id") in failure_ids
-                }
-                interventions = [
-                    i
-                    for i in interventions
-                    if failures.get(i.get("failure_id"), {}).get("failure_type") == failure_type
-                ]
+            failures: dict[str, dict[str, Any]] = {}
+            for fid in failure_ids:
+                rows = self._client.query("failures", filters={"id": fid}, limit=1)
+                if rows:
+                    failures[fid] = rows[0]
+            interventions = [
+                i
+                for i in interventions
+                if failures.get(i.get("failure_id"), {}).get("failure_type") == failure_type
+            ]
         return interventions
 
     def list_body_cognition(

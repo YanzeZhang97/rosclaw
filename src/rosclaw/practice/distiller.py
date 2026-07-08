@@ -135,18 +135,23 @@ class PracticeDistiller:
                 )
 
             elif event_type == "failure_event":
+                payload.setdefault("timestamp", ev.get("timestamp_utc"))
                 result.failures.append(payload)
 
             elif event_type == "how_intervention_event":
+                payload.setdefault("timestamp", ev.get("timestamp_utc"))
                 result.how_interventions.append(payload)
 
             elif event_type == "candidate_policy_event":
+                payload.setdefault("timestamp", ev.get("timestamp_utc"))
                 result.candidates.append(payload)
 
             elif event_type == "promotion_result_event":
+                payload.setdefault("timestamp", ev.get("timestamp_utc"))
                 result.promotion_results.append(payload)
 
             elif event_type == "sim2real_delta_event":
+                payload.setdefault("timestamp", ev.get("timestamp_utc"))
                 result.sim2real_deltas.append(payload)
 
         result.body_cognition = self._build_body_cognition(
