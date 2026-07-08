@@ -13,14 +13,19 @@ if [[ -x ".venv-codex/bin/python" ]]; then
   RUFF="${RUFF:-.venv-codex/bin/ruff}"
   MYPY="${MYPY:-.venv-codex/bin/mypy}"
   PYTEST="${PYTEST:-.venv-codex/bin/pytest}"
-  ROSCLAW="${ROSCLAW:-.venv-codex/bin/rosclaw}"
 else
   PYTHON="${PYTHON:-python}"
   PIP="${PIP:-pip}"
   RUFF="${RUFF:-ruff}"
   MYPY="${MYPY:-mypy}"
   PYTEST="${PYTEST:-pytest}"
-  ROSCLAW="${ROSCLAW:-rosclaw}"
+fi
+
+export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
+if [[ -n "${ROSCLAW:-}" ]]; then
+  ROSCLAW_CMD=("$ROSCLAW")
+else
+  ROSCLAW_CMD=("$PYTHON" -m rosclaw.cli)
 fi
 
 failures=0
@@ -51,16 +56,34 @@ run_required "$RUFF" check .
 run_required "$RUFF" format --check .
 run_optional "$MYPY" src/rosclaw
 run_required "$PYTEST" -q
+run_required "$PYTEST" -q tests/integration/test_physical_ai_agent_acceptance.py
 
-run_required "$ROSCLAW" --help
+run_required "${ROSCLAW_CMD[@]}" --help
 for cmd in doctor firstboot body provider sandbox practice memory know how auto darwin skill hub mcp; do
-  if "$ROSCLAW" "$cmd" --help > "$REPORT_DIR/cli_${cmd}.txt" 2>&1; then
+  if "${ROSCLAW_CMD[@]}" "$cmd" --help > "$REPORT_DIR/cli_${cmd}.txt" 2>&1; then
     echo "CLI OK: $cmd" | tee -a "$REPORT_DIR/cli.log"
   else
     echo "CLI MISSING/FAILED: $cmd" | tee -a "$REPORT_DIR/cli.log"
     failures=$((failures + 1))
   fi
 done
+
+run_required "${ROSCLAW_CMD[@]}" provider health --json
+run_required "${ROSCLAW_CMD[@]}" provider route --capability vlm.scene_graph --json
+run_required "${ROSCLAW_CMD[@]}" provider benchmark --dry-run --json
+run_required "${ROSCLAW_CMD[@]}" sandbox verify \
+  --case ur5e-joint-preview \
+  --steps 8 \
+  --json
+
+AGENT_ROOT="$(mktemp -d /tmp/rosclaw-codex-agent.XXXXXX)"
+run_required "${ROSCLAW_CMD[@]}" agent install universal \
+  --project-root "$AGENT_ROOT" \
+  --skip-secrets
+run_required "${ROSCLAW_CMD[@]}" agent test universal \
+  --project-root "$AGENT_ROOT" \
+  --quick \
+  --mcp-probe
 
 run_required "$PYTHON" - <<'PY'
 import socket
@@ -88,13 +111,31 @@ for name, port in [
 sys.exit(1 if failures else 0)
 PY
 
+for endpoint in ws://127.0.0.1:9090 ws://127.0.0.1:9091 ws://127.0.0.1:32887; do
+  run_optional "${ROSCLAW_CMD[@]}" ros ping --endpoint "$endpoint" --json
+  run_optional "${ROSCLAW_CMD[@]}" ros discover --endpoint "$endpoint" --json
+done
+
 run_required "$PYTHON" - <<'PY'
 from pathlib import Path
 import sys
 
 bad = []
 for path in Path(".").rglob("*"):
-    if ".venv" in path.parts or ".git" in path.parts:
+    if any(
+        part.startswith(".venv")
+        or part
+        in {
+            ".git",
+            ".mypy_cache",
+            ".pytest_cache",
+            ".ruff_cache",
+            "__pycache__",
+            "build",
+            "dist",
+        }
+        for part in path.parts
+    ):
         continue
     if path.is_file() and path.suffix in {".py", ".md", ".yaml", ".yml", ".json", ".toml"}:
         text = path.read_text(errors="ignore")
@@ -117,55 +158,98 @@ PARQUET_OUT="$PRACTICE_ROOT/export/parquet/rh56_minimal_loop.parquet"
 LEROBOT_OUT="$PRACTICE_ROOT/export/lerobot/rh56_minimal_loop"
 mkdir -p "$PRACTICE_HOME"
 
-run_required env ROSCLAW_HOME="$PRACTICE_HOME" "$ROSCLAW" practice record \
+run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice record \
   --fixture tests/fixtures/practice/rh56_minimal_loop.json \
   --out "$PRACTICE_DATA" \
   --json
-run_required env ROSCLAW_HOME="$PRACTICE_HOME" "$ROSCLAW" practice verify \
+run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice verify \
   practice_rh56_minimal_loop \
   --data-root "$PRACTICE_DATA" \
   --strict \
   --json
-run_required env ROSCLAW_HOME="$PRACTICE_HOME" "$ROSCLAW" practice distill \
+run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice distill \
   practice_rh56_minimal_loop \
   --data-root "$PRACTICE_DATA" \
   --json
-run_required env ROSCLAW_HOME="$PRACTICE_HOME" "$ROSCLAW" practice ingest-seekdb \
+run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice ingest-seekdb \
   practice_rh56_minimal_loop \
   --data-root "$PRACTICE_DATA" \
   --seekdb-path "$SEEKDB_PATH" \
   --json
-run_required env ROSCLAW_HOME="$PRACTICE_HOME" "$ROSCLAW" practice query failures \
+run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice query failures \
   --robot-id rh56 \
   --data-root "$PRACTICE_DATA" \
   --seekdb-path "$SEEKDB_PATH" \
   --json
-run_required env ROSCLAW_HOME="$PRACTICE_HOME" "$ROSCLAW" practice query body-cognition \
+run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice query body-cognition \
   --body-id body_rh56_left \
   --data-root "$PRACTICE_DATA" \
   --seekdb-path "$SEEKDB_PATH" \
   --json
-run_required env ROSCLAW_HOME="$PRACTICE_HOME" "$ROSCLAW" practice query sim2real \
+run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice query sim2real \
   --body-id body_rh56_left \
   --data-root "$PRACTICE_DATA" \
   --seekdb-path "$SEEKDB_PATH" \
   --json
-run_required env ROSCLAW_HOME="$PRACTICE_HOME" "$ROSCLAW" practice query candidates \
+run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice query candidates \
   --skill-id skill_ok_contact \
   --data-root "$PRACTICE_DATA" \
   --seekdb-path "$SEEKDB_PATH" \
   --json
-run_required env ROSCLAW_HOME="$PRACTICE_HOME" "$ROSCLAW" practice query interventions \
+run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice query interventions \
   --failure-id fail_rh56_over_contact_1 \
   --data-root "$PRACTICE_DATA" \
   --seekdb-path "$SEEKDB_PATH" \
   --json
-run_required env ROSCLAW_HOME="$PRACTICE_HOME" "$ROSCLAW" practice export \
+
+if [[ -n "${ROSCLAW_VALIDATE_SEEKDB_DSN:-}" ]]; then
+  run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice ingest-seekdb \
+    practice_rh56_minimal_loop \
+    --data-root "$PRACTICE_DATA" \
+    --seekdb-url "$ROSCLAW_VALIDATE_SEEKDB_DSN" \
+    --json
+  run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice ingest-seekdb \
+    practice_rh56_minimal_loop \
+    --data-root "$PRACTICE_DATA" \
+    --seekdb-url "$ROSCLAW_VALIDATE_SEEKDB_DSN" \
+    --json
+  run_required env SEEKDB_DSN="$ROSCLAW_VALIDATE_SEEKDB_DSN" "$PYTHON" - <<'PY'
+import os
+import sys
+
+from rosclaw.memory.seekdb_client import SeekDBMySQLClient
+
+client = SeekDBMySQLClient(os.environ["SEEKDB_DSN"])
+client.connect()
+counts = {
+    table: client.count(table)
+    for table in [
+        "episodes",
+        "failures",
+        "how_interventions",
+        "body_cognition",
+        "sim2real_deltas",
+        "skill_candidates",
+        "promotion_results",
+    ]
+}
+client.disconnect()
+print(f"REAL SEEKDB COUNTS: {counts}")
+sys.exit(0 if set(counts.values()) == {1} else 1)
+PY
+  run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice query failures \
+    --robot-id rh56 \
+    --data-root "$PRACTICE_DATA" \
+    --seekdb-url "$ROSCLAW_VALIDATE_SEEKDB_DSN" \
+    --json
+fi
+
+run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice export \
   practice_rh56_minimal_loop \
   --format parquet \
   --data-root "$PRACTICE_DATA" \
   --output "$PARQUET_OUT"
-run_required env ROSCLAW_HOME="$PRACTICE_HOME" "$ROSCLAW" practice export \
+run_required env ROSCLAW_HOME="$PRACTICE_HOME" "${ROSCLAW_CMD[@]}" practice export \
   practice_rh56_minimal_loop \
   --format lerobot \
   --data-root "$PRACTICE_DATA" \

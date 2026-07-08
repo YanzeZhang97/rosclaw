@@ -515,7 +515,9 @@ def dispatch_mcp_health(args: argparse.Namespace) -> int:
                     )
                 else:
                     print("[ROSClaw MCP] No installed Hardware MCP servers.")
-                    print("Install one with `rosclaw mcp install <alias>` or inspect options with `rosclaw mcp list`.")
+                    print(
+                        "Install one with `rosclaw mcp install <alias>` or inspect options with `rosclaw mcp list`."
+                    )
                 return 0
             reports = [_check_server(r.server_name) for r in installed]
     except Exception as exc:  # noqa: BLE001
