@@ -67,7 +67,9 @@ class FleetCompatibilityCache:
         canonical = json.dumps(data, sort_keys=True, default=str)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
-    def _current_state(self, skill_manifests: list[SkillManifest] | None = None) -> tuple[frozenset[str], dict[str, str], str]:
+    def _current_state(
+        self, skill_manifests: list[SkillManifest] | None = None
+    ) -> tuple[frozenset[str], dict[str, str], str]:
         from rosclaw.body.registry import BodyRegistryManager
 
         manager = BodyRegistryManager(self.workspace)

@@ -81,7 +81,9 @@ class RuntimeSkillPlugin:
             for module_name in ("rosclaw.runtime.handlers", "rosclaw.runtime.handlers.camera"):
                 try:
                     importlib.import_module(module_name)
-                    logger.debug("Loaded runtime handler module via fallback import: %s", module_name)
+                    logger.debug(
+                        "Loaded runtime handler module via fallback import: %s", module_name
+                    )
                 except Exception as exc:
                     logger.debug("Fallback handler import %s failed: %s", module_name, exc)
 

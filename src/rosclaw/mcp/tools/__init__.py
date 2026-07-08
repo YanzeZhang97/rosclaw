@@ -173,6 +173,7 @@ def _tool_wrapper(name: str, coro_factory: Callable[..., Any]) -> ToolFunc:
 # P0 tool implementations
 # ---------------------------------------------------------------------------
 
+
 async def _get_robot_state() -> dict[str, Any]:
     """Return current body state, readiness, and risk summary."""
     return await _client().get_robot_state()
@@ -183,12 +184,16 @@ async def _list_skills(skill_type: str | None = None, full_ids: bool = False) ->
     return await _client().list_skills(skill_type=skill_type, full_ids=full_ids)
 
 
-async def _query_memory(instruction: str, limit: int = 5, outcome_filter: str | None = None) -> dict[str, Any]:
+async def _query_memory(
+    instruction: str, limit: int = 5, outcome_filter: str | None = None
+) -> dict[str, Any]:
     """Query past experiences similar to the given instruction."""
     return await _client().query_memory(instruction, limit=limit, outcome_filter=outcome_filter)
 
 
-async def _validate_trajectory(trajectory: list[list[float]], safety_level: str = "MODERATE") -> dict[str, Any]:
+async def _validate_trajectory(
+    trajectory: list[list[float]], safety_level: str = "MODERATE"
+) -> dict[str, Any]:
     """Validate a trajectory through the firewall gate and sandbox simulation."""
     return await _client().validate_trajectory(trajectory, safety_level=safety_level)
 
@@ -211,6 +216,7 @@ async def _emergency_stop(reason: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # P0 body tools (e-URDF / Body Runtime)
 # ---------------------------------------------------------------------------
+
 
 async def _get_body_profile() -> dict[str, Any]:
     """Return a static profile summary of the current body."""
@@ -249,6 +255,7 @@ async def _get_calibration_status(component: str | None = None) -> dict[str, Any
 # ---------------------------------------------------------------------------
 # Body registry tools (P2 / body scope, not part of P0_TOOLS)
 # ---------------------------------------------------------------------------
+
 
 async def _list_bodies() -> dict[str, Any]:
     """List all registered bodies in the workspace."""

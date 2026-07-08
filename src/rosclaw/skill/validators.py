@@ -46,7 +46,9 @@ def validate_providers_yaml(path: Path) -> ValidationReport:
         # Cross-check required capabilities map to providers.
         for cap, route in model.required_capabilities.items():
             if route.primary not in model.providers:
-                report.add_warning(f"Capability {cap} primary provider {route.primary!r} not declared")
+                report.add_warning(
+                    f"Capability {cap} primary provider {route.primary!r} not declared"
+                )
             for fb in route.fallback:
                 if fb not in model.providers:
                     report.add_warning(f"Capability {cap} fallback provider {fb!r} not declared")
@@ -84,7 +86,10 @@ def validate_safety_yaml(path: Path) -> ValidationReport:
         raw_flat = yaml.safe_dump(raw).lower()
         if "disable_sandbox" in raw_flat:
             report.add_error("safety.yaml must not contain disable_sandbox")
-        if model.robot.require_estop_ready is False and "real_robot_guarded" in model.runtime_mode.allowed:
+        if (
+            model.robot.require_estop_ready is False
+            and "real_robot_guarded" in model.runtime_mode.allowed
+        ):
             report.add_warning("real_robot_guarded allowed but robot.require_estop_ready is false")
         if not model.sandbox.required_checks:
             report.add_warning("safety.yaml sandbox.required_checks is empty")

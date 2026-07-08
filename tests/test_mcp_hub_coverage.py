@@ -12,6 +12,7 @@ from rosclaw.core.event_bus import Event, EventBus
 # AgentContext
 # ------------------------------------------------------------------
 
+
 class TestAgentContext:
     def test_to_mcp_context(self):
         ctx = AgentContext(
@@ -38,12 +39,17 @@ class TestAgentContext:
 # Lifecycle & initialization
 # ------------------------------------------------------------------
 
+
 class TestMCPHubLifecycle:
     def test_initialize_import_error_falls_back(self, caplog):
         import logging
+
         bus = EventBus()
         hub = MCPHub(event_bus=bus)
-        with patch("mcp.server.Server", side_effect=ImportError("no mcp")), caplog.at_level(logging.WARNING, logger="rosclaw.agent_runtime.mcp_hub"):
+        with (
+            patch("mcp.server.Server", side_effect=ImportError("no mcp")),
+            caplog.at_level(logging.WARNING, logger="rosclaw.agent_runtime.mcp_hub"),
+        ):
             hub.initialize()
         assert "mock mode" in caplog.text
         assert hub._server is None
@@ -79,6 +85,7 @@ class TestMCPHubLifecycle:
 
     def test_do_start_logs(self, caplog):
         import logging
+
         bus = EventBus()
         hub = MCPHub(event_bus=bus)
         hub.initialize()
@@ -91,6 +98,7 @@ class TestMCPHubLifecycle:
 # ------------------------------------------------------------------
 # Event handlers
 # ------------------------------------------------------------------
+
 
 class TestMCPHubEventHandlers:
     def test_on_joint_states(self):
@@ -125,11 +133,13 @@ class TestMCPHubEventHandlers:
         loop = asyncio.new_event_loop()
         fut = loop.create_future()
         hub._pending_requests["abc123"] = fut
-        bus.publish(Event(
-            topic="agent.response",
-            payload={"result": {"status": "ok"}},
-            metadata={"request_id": "abc123"},
-        ))
+        bus.publish(
+            Event(
+                topic="agent.response",
+                payload={"result": {"status": "ok"}},
+                metadata={"request_id": "abc123"},
+            )
+        )
         assert fut.done()
         assert fut.result() == {"status": "ok"}
         loop.close()
@@ -139,6 +149,7 @@ class TestMCPHubEventHandlers:
 # ------------------------------------------------------------------
 # handle_tool_call — low-level tools without runtime
 # ------------------------------------------------------------------
+
 
 class TestHandleToolCallNoRuntime:
     @pytest.mark.asyncio
@@ -209,11 +220,13 @@ class TestHandleToolCallNoRuntime:
 
         def responder(event):
             req_id = event.metadata.get("request_id")
-            bus.publish(Event(
-                topic="agent.response",
-                payload={"status": "ok", "moved": True},
-                metadata={"request_id": req_id},
-            ))
+            bus.publish(
+                Event(
+                    topic="agent.response",
+                    payload={"status": "ok", "moved": True},
+                    metadata={"request_id": req_id},
+                )
+            )
 
         bus.subscribe("agent.command", responder)
         result = await hub.handle_tool_call("move_joints", {"joint_positions": [0.1, 0.2]})
@@ -228,11 +241,13 @@ class TestHandleToolCallNoRuntime:
 
         def responder(event):
             req_id = event.metadata.get("request_id")
-            bus.publish(Event(
-                topic="agent.response",
-                payload={"status": "ok", "closed": True},
-                metadata={"request_id": req_id},
-            ))
+            bus.publish(
+                Event(
+                    topic="agent.response",
+                    payload={"status": "ok", "closed": True},
+                    metadata={"request_id": req_id},
+                )
+            )
 
         bus.subscribe("agent.command", responder)
         result = await hub.handle_tool_call("grasp", {"action": "close"})
@@ -247,11 +262,13 @@ class TestHandleToolCallNoRuntime:
 
         def responder(event):
             req_id = event.metadata.get("request_id")
-            bus.publish(Event(
-                topic="agent.response",
-                payload={"status": "ok", "valid": True},
-                metadata={"request_id": req_id},
-            ))
+            bus.publish(
+                Event(
+                    topic="agent.response",
+                    payload={"status": "ok", "valid": True},
+                    metadata={"request_id": req_id},
+                )
+            )
 
         bus.subscribe("agent.command", responder)
         result = await hub.handle_tool_call("validate_trajectory", {"waypoints": [[0.0] * 6]})
@@ -292,7 +309,9 @@ class TestHandleToolCallNoRuntime:
         bus = EventBus()
         hub = MCPHub(event_bus=bus, runtime=mock_rt)
         hub.initialize()
-        result = await hub.handle_tool_call("query_knowledge", {"query_type": "capability", "query": "ur5e"})
+        result = await hub.handle_tool_call(
+            "query_knowledge", {"query_type": "capability", "query": "ur5e"}
+        )
         assert result["status"] == "ok"
         hub.stop()
 
@@ -300,6 +319,7 @@ class TestHandleToolCallNoRuntime:
 # ------------------------------------------------------------------
 # _route_capability edge cases
 # ------------------------------------------------------------------
+
 
 class TestRouteCapability:
     @pytest.mark.asyncio
@@ -332,10 +352,12 @@ class TestRouteCapability:
         # Subscribe to capability request and respond
         def responder(event):
             req_id = event.payload.get("request_id")
-            bus.publish(Event(
-                topic="agent.capability.response",
-                payload={"request_id": req_id, "result": {"found": True}},
-            ))
+            bus.publish(
+                Event(
+                    topic="agent.capability.response",
+                    payload={"request_id": req_id, "result": {"found": True}},
+                )
+            )
 
         bus.subscribe("agent.capability.request", responder)
         result = await hub._route_capability("vlm.scene_understanding", {"query": "cup"})
@@ -346,6 +368,7 @@ class TestRouteCapability:
 # ------------------------------------------------------------------
 # _route_capability_direct (with mocked Runtime)
 # ------------------------------------------------------------------
+
 
 class TestRouteCapabilityDirect:
     @pytest.mark.asyncio
@@ -381,6 +404,7 @@ class TestRouteCapabilityDirect:
 
         async def _invoke_ok(req):
             return mock_resp
+
         mock_router = MagicMock()
         mock_router.invoke = _invoke_ok
 
@@ -399,6 +423,7 @@ class TestRouteCapabilityDirect:
     async def test_direct_router_exception(self):
         async def _invoke_err(req):
             raise RuntimeError("boom")
+
         mock_router = MagicMock()
         mock_router.invoke = _invoke_err
 
@@ -421,6 +446,7 @@ class TestRouteCapabilityDirect:
 
         async def _invoke_guard(req):
             return mock_resp
+
         mock_router = MagicMock()
         mock_router.invoke = _invoke_guard
 
@@ -442,6 +468,7 @@ class TestRouteCapabilityDirect:
 # ------------------------------------------------------------------
 # Semantic handlers with mocked Runtime
 # ------------------------------------------------------------------
+
 
 class TestSemanticHandlers:
     @pytest.mark.asyncio
@@ -488,6 +515,7 @@ class TestSemanticHandlers:
 # ------------------------------------------------------------------
 # _handle_query_knowledge
 # ------------------------------------------------------------------
+
 
 class TestHandleQueryKnowledge:
     def test_no_runtime(self):
@@ -552,6 +580,7 @@ class TestHandleQueryKnowledge:
 # ------------------------------------------------------------------
 # _handle_get_recovery_strategy
 # ------------------------------------------------------------------
+
 
 class TestHandleGetRecoveryStrategy:
     @pytest.mark.asyncio
@@ -643,6 +672,7 @@ class TestHandleGetRecoveryStrategy:
 # _handle_get_safety_heuristic
 # ------------------------------------------------------------------
 
+
 class TestHandleGetSafetyHeuristic:
     def test_no_runtime(self):
         hub = MCPHub(event_bus=EventBus(), runtime=None)
@@ -687,6 +717,7 @@ class TestHandleGetSafetyHeuristic:
 # ------------------------------------------------------------------
 # Physical world handlers (with mocked Runtime)
 # ------------------------------------------------------------------
+
 
 class TestPhysicalWorldHandlers:
     def test_query_world_objects_event_bus_path(self):
@@ -773,6 +804,7 @@ class TestPhysicalWorldHandlers:
 # Static helper methods
 # ------------------------------------------------------------------
 
+
 class TestStaticHelpers:
     def test_world_object_to_dict_with_to_dict(self):
         obj = MagicMock()
@@ -819,6 +851,7 @@ class TestStaticHelpers:
 # ------------------------------------------------------------------
 # handle_tool_call with provider layer (semantic tools)
 # ------------------------------------------------------------------
+
 
 class TestHandleToolCallWithProviderLayer:
     @pytest.fixture
@@ -874,6 +907,8 @@ class TestHandleToolCallWithProviderLayer:
     async def test_handle_get_safety_heuristic(self, provider_hub):
         hub = provider_hub
         hub.runtime.knowledge = None
-        result = await hub.handle_tool_call("get_safety_heuristic", {"condition": "torque_overflow"})
+        result = await hub.handle_tool_call(
+            "get_safety_heuristic", {"condition": "torque_overflow"}
+        )
         assert result["status"] == "error"
         hub.stop()

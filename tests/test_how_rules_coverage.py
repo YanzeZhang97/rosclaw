@@ -29,9 +29,7 @@ class TestRuleManagerUpdate:
         mgr = RuleManager(seekdb)
         result = mgr.update_rule("rule_1", condition="c", forbidden="x")
         assert result is True
-        seekdb.update.assert_called_once_with(
-            "heuristic_rules", "rule_1", {"condition": "c"}
-        )
+        seekdb.update.assert_called_once_with("heuristic_rules", "rule_1", {"condition": "c"})
 
     def test_update_rule_exception_returns_false(self):
         seekdb = MagicMock()
@@ -48,9 +46,7 @@ class TestRuleManagerDelete:
         mgr = RuleManager(seekdb)
         result = mgr.delete_rule("rule_1")
         assert result is True
-        seekdb.update.assert_called_once_with(
-            "heuristic_rules", "rule_1", {"priority": -999}
-        )
+        seekdb.update.assert_called_once_with("heuristic_rules", "rule_1", {"priority": -999})
 
     def test_delete_rule_exception_returns_false(self):
         seekdb = MagicMock()

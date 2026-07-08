@@ -14,6 +14,7 @@ from rosclaw.practice.adapters.mock_agent_adapter import MockAgentAdapter
 from rosclaw.practice.adapters.mock_runtime_adapter import MockRuntimeAdapter
 from rosclaw.practice.adapters.sense_adapter import SenseAdapter
 from rosclaw.practice.config import PracticeConfig, PracticeSession, PracticeSummary
+from rosclaw.practice.ids import generate_episode_id, generate_session_id
 from rosclaw.practice.schemas import PracticeEventEnvelope
 from rosclaw.practice.storage.catalog import PracticeCatalog
 from rosclaw.practice.storage.layout import PracticeLayout, generate_practice_id
@@ -85,7 +86,9 @@ class PracticeCoordinator(LifecycleMixin):
         if self.config.mock:
             if sources.agent:
                 self._adapters.append(
-                    MockAgentAdapter(self.config.robot_id, task=self.config.task_name or "mock task")
+                    MockAgentAdapter(
+                        self.config.robot_id, task=self.config.task_name or "mock task"
+                    )
                 )
             if sources.runtime:
                 self._adapters.append(MockRuntimeAdapter(self.config.robot_id))
@@ -118,6 +121,8 @@ class PracticeCoordinator(LifecycleMixin):
 
     def _start_session(self) -> None:
         practice_id = generate_practice_id()
+        session_id = generate_session_id()
+        episode_id = generate_episode_id()
         session_dir = self.layout.create_session_dirs(practice_id)
         start_ns = time.monotonic_ns()
         from datetime import UTC, datetime
@@ -125,6 +130,8 @@ class PracticeCoordinator(LifecycleMixin):
         start_utc = datetime.now(UTC).isoformat().replace("+00:00", "Z")
         self._session = PracticeSession(
             practice_id=practice_id,
+            session_id=session_id,
+            episode_id=episode_id,
             robot_id=self.config.robot_id,
             robot_type=self.config.robot_type,
             task_id=self.config.task_id,
@@ -140,11 +147,15 @@ class PracticeCoordinator(LifecycleMixin):
         if self._recorder is None:
             self._writer = JsonlWriter(
                 self.layout.events_jsonl_path(practice_id),
-                rotate_mb=self.config.recorder.jsonl_rotate_mb if self.config.recorder.jsonl_rotate_mb > 0 else None,
+                rotate_mb=self.config.recorder.jsonl_rotate_mb
+                if self.config.recorder.jsonl_rotate_mb > 0
+                else None,
             )
             self.catalog.insert_practice(
                 {
                     "practice_id": practice_id,
+                    "session_id": session_id,
+                    "episode_id": episode_id,
                     "robot_id": self.config.robot_id,
                     "robot_type": self.config.robot_type,
                     "task_id": self.config.task_id,
@@ -174,7 +185,8 @@ class PracticeCoordinator(LifecycleMixin):
                         "task_id": self.config.task_id,
                         "task_name": self.config.task_name,
                         "skill_id": self.config.skill_id,
-                        "session_id": practice_id,
+                        "session_id": session_id,
+                        "episode_id": episode_id,
                         "session_dir": str(session_dir),
                         "sources": self._sources_dict(),
                         "seekdb_enabled": bool(self.config.seekdb.url),
@@ -250,7 +262,11 @@ class PracticeCoordinator(LifecycleMixin):
                     source="runtime",
                     event_type="runtime.stop",
                     trace_id=self._session.practice_id,
-                    payload={"phase": "stop", "event_count": self._event_count, "duration_ms": duration_ms},
+                    payload={
+                        "phase": "stop",
+                        "event_count": self._event_count,
+                        "duration_ms": duration_ms,
+                    },
                     tags=["runtime", "stop"],
                 )
             )
@@ -259,9 +275,7 @@ class PracticeCoordinator(LifecycleMixin):
         # considered successful. Runtime lifecycle events alone are not enough
         # when real data sources were requested.
         requested_sources = self._sources_dict()
-        requested_non_runtime = {
-            k: v for k, v in requested_sources.items() if k != "runtime" and v
-        }
+        requested_non_runtime = {k: v for k, v in requested_sources.items() if k != "runtime" and v}
 
         if self._event_count == 0:
             outcome = "FAILED"
@@ -371,7 +385,10 @@ class PracticeCoordinator(LifecycleMixin):
                     )
                 )
 
-        logger.info("Practice session stopped: %s", self._session.practice_id if self._session else "unknown")
+        logger.info(
+            "Practice session stopped: %s",
+            self._session.practice_id if self._session else "unknown",
+        )
 
     # ------------------------------------------------------------------
     # Event loop
@@ -406,6 +423,11 @@ class PracticeCoordinator(LifecycleMixin):
                     self._failure_labels.append(label)
 
     def _emit(self, event: PracticeEventEnvelope) -> None:
+        if self._session is not None:
+            if event.session_id is None:
+                event.session_id = self._session.session_id
+            if event.episode_id is None:
+                event.episode_id = self._session.episode_id
         with self._lock:
             self._event_count += 1
             event.sequence_id = self._event_count
@@ -461,6 +483,7 @@ class PracticeCoordinator(LifecycleMixin):
                         type=event.event_type,
                         source=event.source,
                         robot=event.robot_id,
+                        body_id=event.body_id,
                         payload=event.model_dump(mode="json"),
                         metadata={
                             "trace_id": event.trace_id or event.practice_id,
@@ -503,8 +526,6 @@ class PracticeCoordinator(LifecycleMixin):
     @property
     def summary(self) -> PracticeSummary | None:
         return self._summary
-
-
 
 
 def _utc_now_iso() -> str:

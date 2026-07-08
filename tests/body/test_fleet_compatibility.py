@@ -44,9 +44,7 @@ def _write_skill(workspace: Path, skill_id: str, requires: dict) -> None:
         "skill_version": "1.0.0",
         "requires": requires,
     }
-    (skills_dir / f"{skill_id}.skill.yaml").write_text(
-        yaml.safe_dump(manifest), encoding="utf-8"
-    )
+    (skills_dir / f"{skill_id}.skill.yaml").write_text(yaml.safe_dump(manifest), encoding="utf-8")
 
 
 def test_fleet_aggregator_per_body_reports(tmp_path: Path) -> None:
@@ -109,7 +107,9 @@ def test_fleet_compat_cli_json_output(tmp_path: Path) -> None:
     """rosclaw body fleet-compat --json returns a valid report."""
     ws = tmp_path / "ws"
     ws.mkdir()
-    assert _run("body", "create", "--robot", "unitree-g1", "--name", "g1", "--workspace", str(ws)) == 0
+    assert (
+        _run("body", "create", "--robot", "unitree-g1", "--name", "g1", "--workspace", str(ws)) == 0
+    )
     assert _run("body", "create", "--robot", "ur5e", "--name", "arm", "--workspace", str(ws)) == 0
 
     _write_skill(ws, "needs_head_camera", {"sensors": {"all_of": [{"id": "head_camera"}]}})
@@ -127,7 +127,9 @@ def test_fleet_status_cli_json_output(tmp_path: Path) -> None:
     """rosclaw fleet status --json lists all bodies."""
     ws = tmp_path / "ws"
     ws.mkdir()
-    assert _run("body", "create", "--robot", "unitree-g1", "--name", "g1", "--workspace", str(ws)) == 0
+    assert (
+        _run("body", "create", "--robot", "unitree-g1", "--name", "g1", "--workspace", str(ws)) == 0
+    )
     assert _run("body", "create", "--robot", "ur5e", "--name", "arm", "--workspace", str(ws)) == 0
 
     captured = _run_with_capture("fleet", "status", "--workspace", str(ws), "--json")
@@ -141,7 +143,9 @@ def test_fleet_stop_cli_broadcasts_events(tmp_path: Path) -> None:
     """rosclaw fleet stop succeeds and reports an event per body."""
     ws = tmp_path / "ws"
     ws.mkdir()
-    assert _run("body", "create", "--robot", "unitree-g1", "--name", "g1", "--workspace", str(ws)) == 0
+    assert (
+        _run("body", "create", "--robot", "unitree-g1", "--name", "g1", "--workspace", str(ws)) == 0
+    )
     assert _run("body", "create", "--robot", "ur5e", "--name", "arm", "--workspace", str(ws)) == 0
 
     captured = _run_with_capture("fleet", "stop", "--workspace", str(ws), "--reason", "test")

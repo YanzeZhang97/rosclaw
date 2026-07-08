@@ -43,7 +43,17 @@ def test_maintenance_log_is_valid_jsonl(linked_body: Path):
     for event in events:
         assert event.event_id
         assert event.time
-        assert event.type in {"init", "note", "maintenance", "incident", "repair", "render", "fault", "calibration", "capability_update"}
+        assert event.type in {
+            "init",
+            "note",
+            "maintenance",
+            "incident",
+            "repair",
+            "render",
+            "fault",
+            "calibration",
+            "capability_update",
+        }
 
 
 def test_invalid_maintenance_log_is_handled_gracefully(tmp_path: Path):

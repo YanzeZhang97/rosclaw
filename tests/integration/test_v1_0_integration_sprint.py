@@ -54,7 +54,9 @@ class TestV10IntegrationSprint:
         assert "result" in result
 
     def test_05_plan_action(self, rt):
-        perception = {"result": {"objects": [{"label": "red_cup", "bbox_2d": [100, 100, 200, 200]}]}}
+        perception = {
+            "result": {"objects": [{"label": "red_cup", "bbox_2d": [100, 100, 200, 200]}]}
+        }
         plan = rt.plan_action("pick red cup", perception)
         assert plan["status"] == "ok"
         assert "action" in plan
@@ -78,13 +80,15 @@ class TestV10IntegrationSprint:
         )
 
     def test_09_memory_write_praxis_event(self, rt):
-        record_id = rt.memory.write_praxis_event({
-            "event_id": "test_evt_002",
-            "event_type": "praxis",
-            "instruction": "place red cup",
-            "outcome": "success",
-            "duration_sec": 2.0,
-        })
+        record_id = rt.memory.write_praxis_event(
+            {
+                "event_id": "test_evt_002",
+                "event_type": "praxis",
+                "instruction": "place red cup",
+                "outcome": "success",
+                "duration_sec": 2.0,
+            }
+        )
         assert isinstance(record_id, str)
 
     def test_10_how_generate_recovery_hint(self, rt):
@@ -93,13 +97,15 @@ class TestV10IntegrationSprint:
         assert "hint" in hint
 
     def test_11_memory_write_failure_memory(self, rt):
-        record_id = rt.memory.write_failure_memory({
-            "failure_id": "fail_001",
-            "instruction": "pick red cup",
-            "failure_type": "collision",
-            "reason": "obstacle in path",
-            "duration_sec": 1.0,
-        })
+        record_id = rt.memory.write_failure_memory(
+            {
+                "failure_id": "fail_001",
+                "instruction": "pick red cup",
+                "failure_type": "collision",
+                "reason": "obstacle in path",
+                "duration_sec": 1.0,
+            }
+        )
         assert isinstance(record_id, str)
 
     def test_12_full_closed_loop(self, rt):
@@ -124,12 +130,14 @@ class TestV10IntegrationSprint:
             # 5. Record practice
             rt.practice.record(instruction="pick red cup", duration_sec=1.0)
             # 6. Write memory
-            rt.memory.write_praxis_event({
-                "event_id": "loop_evt_001",
-                "instruction": "pick red cup",
-                "outcome": "success",
-                "duration_sec": 1.0,
-            })
+            rt.memory.write_praxis_event(
+                {
+                    "event_id": "loop_evt_001",
+                    "instruction": "pick red cup",
+                    "outcome": "success",
+                    "duration_sec": 1.0,
+                }
+            )
         else:
             # 7. Recovery hint
             hint = rt.how.generate_recovery_hint(check["reason"])

@@ -217,9 +217,7 @@ class TestSafetyLevels:
             np.array([10.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
         ]
 
-        result = firewall.validate_trajectory(
-            trajectory, safety_level=SafetyLevel.STRICT
-        )
+        result = firewall.validate_trajectory(trajectory, safety_level=SafetyLevel.STRICT)
 
         assert result.is_safe is False
 
@@ -230,9 +228,7 @@ class TestSafetyLevels:
             np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
         ]
 
-        result = firewall.validate_trajectory(
-            trajectory, safety_level=SafetyLevel.MODERATE
-        )
+        result = firewall.validate_trajectory(trajectory, safety_level=SafetyLevel.MODERATE)
 
         # Should not crash, MODERATE mode is valid
         assert result.is_safe is True
@@ -243,6 +239,7 @@ class TestDecorator:
 
     def test_decorator_passes_valid_trajectory(self):
         """Test decorator allows valid trajectories."""
+
         @mujoco_firewall(
             model_path=str(MODEL_PATH),
             joint_limits=JOINT_LIMITS,
@@ -251,15 +248,18 @@ class TestDecorator:
         def move_robot(joint_positions):
             return {"status": "success", "positions": joint_positions}
 
-        result = move_robot([
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
-        ])
+        result = move_robot(
+            [
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+            ]
+        )
 
         assert result["status"] == "success"
 
     def test_decorator_blocks_invalid_trajectory(self):
         """Test decorator raises SafetyViolationError for invalid trajectories."""
+
         @mujoco_firewall(
             model_path=str(MODEL_PATH),
             joint_limits=JOINT_LIMITS,
@@ -269,10 +269,12 @@ class TestDecorator:
             return {"status": "success"}
 
         with pytest.raises(SafetyViolationError) as exc_info:
-            move_robot([
-                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                [10.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            ])
+            move_robot(
+                [
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    [10.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                ]
+            )
 
         assert "failed safety validation" in str(exc_info.value)
         assert exc_info.value.result is not None
@@ -280,15 +282,18 @@ class TestDecorator:
 
     def test_decorator_with_no_limits(self):
         """Test decorator without explicit limits."""
+
         @mujoco_firewall(model_path=str(MODEL_PATH))
         def move_robot(joint_positions):
             return {"status": "success"}
 
         # Without limits, should still work for valid positions
-        result = move_robot([
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
-        ])
+        result = move_robot(
+            [
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+            ]
+        )
 
         assert result["status"] == "success"
 
@@ -298,13 +303,18 @@ class TestValidationResult:
 
     def test_result_to_dict(self):
         """Test ValidationResult can be converted to dict."""
-        result = DigitalTwinFirewall.validate_trajectory(
-            DigitalTwinFirewall(model_path=str(MODEL_PATH), joint_limits=JOINT_LIMITS),
-            [np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])]
-        ) if False else None  # Placeholder, create manually
+        result = (
+            DigitalTwinFirewall.validate_trajectory(
+                DigitalTwinFirewall(model_path=str(MODEL_PATH), joint_limits=JOINT_LIMITS),
+                [np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])],
+            )
+            if False
+            else None
+        )  # Placeholder, create manually
 
         # Create result directly
         from rosclaw.firewall.decorator import ValidationResult
+
         result = ValidationResult(
             is_safe=True,
             collision_detected=False,
@@ -344,10 +354,12 @@ class TestEdgeCases:
 
     def test_numpy_array_trajectory(self, firewall):
         """Test trajectory as numpy array."""
-        trajectory = np.array([
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
-        ])
+        trajectory = np.array(
+            [
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+            ]
+        )
 
         result = firewall.validate_trajectory(trajectory)
 

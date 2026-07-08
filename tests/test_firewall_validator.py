@@ -17,12 +17,18 @@ def _make_test_robot():
     """Create a simple 2-DOF robot model for testing."""
     model = RobotModel(name="test_robot")
     model.joints["j1"] = JointSpec(
-        name="j1", joint_type="revolute", parent="base", child="link1",
-        limits={"lower": -1.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0}
+        name="j1",
+        joint_type="revolute",
+        parent="base",
+        child="link1",
+        limits={"lower": -1.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0},
     )
     model.joints["j2"] = JointSpec(
-        name="j2", joint_type="revolute", parent="link1", child="link2",
-        limits={"lower": -0.5, "upper": 0.5, "velocity": 1.0, "effort": 5.0}
+        name="j2",
+        joint_type="revolute",
+        parent="link1",
+        child="link2",
+        limits={"lower": -0.5, "upper": 0.5, "velocity": 1.0, "effort": 5.0},
     )
     return model
 
@@ -107,16 +113,18 @@ def test_eventbus_safe_command():
     responses = []
     bus.subscribe("agent.response", lambda e: responses.append(e.payload))
 
-    bus.publish(Event(
-        topic="agent.command",
-        payload={
-            "action": "move_joints",
-            "trajectory": [[0.0, 0.0], [0.5, 0.3]],
-            "robot_id": "test",
-        },
-        source="test",
-        metadata={"request_id": "req3"},
-    ))
+    bus.publish(
+        Event(
+            topic="agent.command",
+            payload={
+                "action": "move_joints",
+                "trajectory": [[0.0, 0.0], [0.5, 0.3]],
+                "robot_id": "test",
+            },
+            source="test",
+            metadata={"request_id": "req3"},
+        )
+    )
 
     assert len(responses) == 1
     assert responses[0]["is_safe"] is True
@@ -140,16 +148,18 @@ def test_eventbus_unsafe_command():
     bus.subscribe("agent.response", lambda e: responses.append(e.payload))
     bus.subscribe("safety.violation", lambda e: violations.append(e.payload))
 
-    bus.publish(Event(
-        topic="agent.command",
-        payload={
-            "action": "move_joints",
-            "trajectory": [[0.0, 0.0], [0.99, 0.0]],  # Violates j1 limit
-            "robot_id": "test",
-        },
-        source="test",
-        metadata={"request_id": "req4"},
-    ))
+    bus.publish(
+        Event(
+            topic="agent.command",
+            payload={
+                "action": "move_joints",
+                "trajectory": [[0.0, 0.0], [0.99, 0.0]],  # Violates j1 limit
+                "robot_id": "test",
+            },
+            source="test",
+            metadata={"request_id": "req4"},
+        )
+    )
 
     assert len(responses) == 1
     assert responses[0]["is_safe"] is False
@@ -172,12 +182,14 @@ def test_non_movement_command_ignored():
     responses = []
     bus.subscribe("agent.response", lambda e: responses.append(e.payload))
 
-    bus.publish(Event(
-        topic="agent.command",
-        payload={"action": "grasp", "grasp_action": "close"},
-        source="test",
-        metadata={"request_id": "req5"},
-    ))
+    bus.publish(
+        Event(
+            topic="agent.command",
+            payload={"action": "grasp", "grasp_action": "close"},
+            source="test",
+            metadata={"request_id": "req5"},
+        )
+    )
 
     assert len(responses) == 0  # Not validated, no response
     validator.stop()
@@ -233,10 +245,14 @@ def test_safety_envelope_unknown_level_defaults():
 def test_safety_envelope_positive_only_limits():
     """Joint with only positive limits."""
     from rosclaw.e_urdf.parser import JointSpec, RobotModel
+
     model = RobotModel(name="pos_only")
     model.joints["j1"] = JointSpec(
-        name="j1", joint_type="prismatic", parent="base", child="link1",
-        limits={"lower": 0.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0}
+        name="j1",
+        joint_type="prismatic",
+        parent="base",
+        child="link1",
+        limits={"lower": 0.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0},
     )
     env = SafetyEnvelope.from_robot_model(model)
     lo, hi = env.joint_soft_limits[0]
@@ -254,12 +270,15 @@ def test_validation_response_violation_count():
     )
     assert resp.violation_count == 0
     from rosclaw.firewall.validator import ViolationDetail
-    resp.violations.append(ViolationDetail(
-        layer=ValidationLayer.EURDF_SOFT_LIMITS,
-        severity="critical",
-        joint_index=0,
-        description="test",
-    ))
+
+    resp.violations.append(
+        ViolationDetail(
+            layer=ValidationLayer.EURDF_SOFT_LIMITS,
+            severity="critical",
+            joint_index=0,
+            description="test",
+        )
+    )
     assert resp.violation_count == 1
 
 
@@ -277,6 +296,7 @@ def test_initialize_without_mujoco():
 def test_initialize_with_bad_mujoco_path(caplog):
     """Bad MuJoCo path logs warning and continues."""
     import logging
+
     model = _make_test_robot()
     bus = EventBus()
     validator = FirewallValidator(model, bus, mujoco_model_path="/nonexistent.xml")
@@ -384,15 +404,17 @@ def test_execute_trajectory_command():
     validator.initialize()
     responses = []
     bus.subscribe("agent.response", lambda e: responses.append(e.payload))
-    bus.publish(Event(
-        topic="agent.command",
-        payload={
-            "action": "execute_trajectory",
-            "robot_id": "test",
-            "trajectory": [[0.0, 0.0], [0.5, 0.3]],
-        },
-        metadata={"request_id": "req_exec"},
-    ))
+    bus.publish(
+        Event(
+            topic="agent.command",
+            payload={
+                "action": "execute_trajectory",
+                "robot_id": "test",
+                "trajectory": [[0.0, 0.0], [0.5, 0.3]],
+            },
+            metadata={"request_id": "req_exec"},
+        )
+    )
     assert len(responses) == 1
     assert responses[0]["request_id"] == "req_exec"
     validator.stop()

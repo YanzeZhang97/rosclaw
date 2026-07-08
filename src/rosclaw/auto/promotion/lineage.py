@@ -1,4 +1,5 @@
 """LineageTracker — skill evolution genealogy."""
+
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC
@@ -10,6 +11,7 @@ logger = logging.getLogger("rosclaw.auto.promotion.lineage")
 @dataclass
 class LineageNode:
     """A node in the skill evolution tree."""
+
     skill_id: str
     parent: str = ""
     patch_id: str = ""
@@ -21,19 +23,27 @@ class LineageNode:
 
     def to_dict(self) -> dict:
         return {
-            "skill_id": self.skill_id, "parent": self.parent,
-            "patch_id": self.patch_id, "experiment_id": self.experiment_id,
-            "result": self.result, "metrics": self.metrics,
-            "timestamp": self.timestamp, "children": self.children,
+            "skill_id": self.skill_id,
+            "parent": self.parent,
+            "patch_id": self.patch_id,
+            "experiment_id": self.experiment_id,
+            "result": self.result,
+            "metrics": self.metrics,
+            "timestamp": self.timestamp,
+            "children": self.children,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "LineageNode":
         return cls(
-            skill_id=d["skill_id"], parent=d.get("parent", ""),
-            patch_id=d.get("patch_id", ""), experiment_id=d.get("experiment_id", ""),
-            result=d.get("result", ""), metrics=d.get("metrics", {}),
-            timestamp=d.get("timestamp", ""), children=d.get("children", []),
+            skill_id=d["skill_id"],
+            parent=d.get("parent", ""),
+            patch_id=d.get("patch_id", ""),
+            experiment_id=d.get("experiment_id", ""),
+            result=d.get("result", ""),
+            metrics=d.get("metrics", {}),
+            timestamp=d.get("timestamp", ""),
+            children=d.get("children", []),
         )
 
 
@@ -46,18 +56,30 @@ class LineageTracker:
 
     def _ensure_namespace(self) -> None:
         import os
+
         path = os.path.join(str(self._store.base), self._namespace)
         os.makedirs(path, exist_ok=True)
 
-    def record(self, skill_id: str, parent_skill: str, patch_id: str,
-               experiment_id: str, result: str, metrics: dict | None = None) -> LineageNode:
+    def record(
+        self,
+        skill_id: str,
+        parent_skill: str,
+        patch_id: str,
+        experiment_id: str,
+        result: str,
+        metrics: dict | None = None,
+    ) -> LineageNode:
         """Record a new lineage node."""
         self._ensure_namespace()
         from datetime import datetime
+
         node = LineageNode(
-            skill_id=skill_id, parent=parent_skill,
-            patch_id=patch_id, experiment_id=experiment_id,
-            result=result, metrics=metrics or {},
+            skill_id=skill_id,
+            parent=parent_skill,
+            patch_id=patch_id,
+            experiment_id=experiment_id,
+            result=result,
+            metrics=metrics or {},
             timestamp=datetime.now(UTC).isoformat(),
         )
         self._store.save(self._namespace, skill_id, node.to_dict())
@@ -115,6 +137,8 @@ class LineageTracker:
         descendants = self.get_descendants(root_skill)
         for node in descendants:
             indent = "  " * len(self.get_lineage(node.skill_id))
-            marker = "✅" if node.result == "champion" else "❌" if node.result == "rejected" else "🔄"
+            marker = (
+                "✅" if node.result == "champion" else "❌" if node.result == "rejected" else "🔄"
+            )
             lines.append(f"{indent}{marker} {node.skill_id} ({node.result})")
         return "\n".join(lines)

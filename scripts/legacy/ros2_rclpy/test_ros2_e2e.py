@@ -16,7 +16,9 @@ import traceback
 
 # Check Python version
 if sys.version_info[:2] != (3, 10):
-    print(f"SKIP: ROS2 tests require Python 3.10 (found {sys.version_info.major}.{sys.version_info.minor})")
+    print(
+        f"SKIP: ROS2 tests require Python 3.10 (found {sys.version_info.major}.{sys.version_info.minor})"
+    )
     sys.exit(0)
 
 try:
@@ -44,6 +46,7 @@ ERRORS = []
 
 def test(name):
     """Decorator to run a test function."""
+
     def decorator(func):
         global PASSED, FAILED
         try:
@@ -55,12 +58,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Helper classes
 # ------------------------------------------------------------------
+
 
 class JointStatePublisher:
     def __init__(self, node_name: str):
@@ -95,10 +100,12 @@ class TrajectorySubscriber:
         )
 
     def _callback(self, msg):
-        self.received.append({
-            "joint_names": list(msg.joint_names),
-            "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
-        })
+        self.received.append(
+            {
+                "joint_names": list(msg.joint_names),
+                "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
+            }
+        )
 
     def destroy(self):
         self.node.destroy_node()
@@ -116,6 +123,7 @@ def spin_nodes(nodes, iterations: int = 20, timeout: float = 0.05):
 # ------------------------------------------------------------------
 
 counter = 0
+
 
 def next_name(base: str) -> str:
     global counter
@@ -357,6 +365,7 @@ def test_sensor_feedback():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     global counter

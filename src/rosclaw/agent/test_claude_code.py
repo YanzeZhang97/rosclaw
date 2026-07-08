@@ -49,7 +49,10 @@ def cmd_agent_test_claude_code(args: argparse.Namespace) -> int:
         ".mcp.json": profile.project_root / ".mcp.json",
         "CLAUDE.md": profile.project_root / "CLAUDE.md",
         "ROSCLAW.md": profile.project_root / "ROSCLAW.md",
-        "context.snapshot.json": profile.project_root / ".rosclaw" / "agent" / "context.snapshot.json",
+        "context.snapshot.json": profile.project_root
+        / ".rosclaw"
+        / "agent"
+        / "context.snapshot.json",
     }
 
     all_ok = True

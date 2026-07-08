@@ -96,9 +96,7 @@ def cmd_sense_readiness(args: argparse.Namespace) -> int:
             if item and item.failed_requirements:
                 print("Failed requirements:")
                 for req in item.failed_requirements:
-                    print(
-                        f"  - {req.name}: required {req.required}, current {req.current}"
-                    )
+                    print(f"  - {req.name}: required {req.required}, current {req.current}")
                 print()
             if item and item.allowed_alternatives:
                 print("Allowed alternatives:")
@@ -154,9 +152,7 @@ def cmd_sense_events(args: argparse.Namespace) -> int:
         else:
             print(f"Recent body events (last {len(events)}):")
             for event in events:
-                print(
-                    f"  [{event.severity}] {event.type}: {event.affected_parts}"
-                )
+                print(f"  [{event.severity}] {event.type}: {event.affected_parts}")
     finally:
         sense.stop()
     return 0

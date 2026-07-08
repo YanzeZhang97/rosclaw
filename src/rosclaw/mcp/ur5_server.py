@@ -29,13 +29,13 @@ try:
     from rclpy.executors import SingleThreadedExecutor
     from rclpy.node import Node
     from rclpy.qos import QoSProfile, ReliabilityPolicy
+
     RCLPY_AVAILABLE = True
 except ImportError:
     RCLPY_AVAILABLE = False
     # Stub classes for import-time compatibility when ROS 2 is not installed
 
     class Node:
-
         def __init__(self, *args, **kwargs):
             pass
 
@@ -46,7 +46,6 @@ except ImportError:
         pass
 
     class QoSProfile:
-
         def __init__(self, *args, **kwargs):
             pass
 
@@ -55,6 +54,7 @@ except ImportError:
 
     class SingleThreadedExecutor:
         pass
+
 
 # MCP imports
 from mcp.server import Server
@@ -79,6 +79,7 @@ try:
     from geometry_msgs.msg import Pose, Twist
     from sensor_msgs.msg import JointState
     from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+
     ROS_IMPORTS_OK = True
 except ImportError as e:
     ROS_IMPORTS_OK = False
@@ -95,6 +96,7 @@ except ImportError as e:
 @dataclass
 class RobotState:
     """Current state of the UR5 robot."""
+
     joint_positions: list[float]
     joint_velocities: list[float]
     joint_efforts: list[float]
@@ -239,7 +241,10 @@ class UR5ROSNode(Node):
         for _i, (name, pos) in enumerate(zip(self.JOINT_NAMES, positions, strict=False)):
             min_limit, max_limit = self.JOINT_LIMITS[name]
             if pos < min_limit or pos > max_limit:
-                return False, f"Joint {name} position {pos:.4f} outside limits [{min_limit:.4f}, {max_limit:.4f}]"
+                return (
+                    False,
+                    f"Joint {name} position {pos:.4f} outside limits [{min_limit:.4f}, {max_limit:.4f}]",
+                )
         return True, ""
 
     async def execute_joint_trajectory(
@@ -328,8 +333,7 @@ class UR5MCPServer:
     def __init__(self, robot_ip: str = "192.168.1.100", firewall_model_path: str | None = None):
         if not RCLPY_AVAILABLE:
             raise RuntimeError(
-                "ROS 2 rclpy is not installed. "
-                "Install ROS 2 to use the UR5 MCP server."
+                "ROS 2 rclpy is not installed. Install ROS 2 to use the UR5 MCP server."
             )
         if not ROS_IMPORTS_OK:
             raise RuntimeError(
@@ -494,8 +498,12 @@ class UR5MCPServer:
             state = self.ros_node.state
 
             result = {
-                "joint_positions": dict(zip(state.joint_names, state.joint_positions, strict=False)),
-                "joint_velocities": dict(zip(state.joint_names, state.joint_velocities, strict=False)),
+                "joint_positions": dict(
+                    zip(state.joint_names, state.joint_positions, strict=False)
+                ),
+                "joint_velocities": dict(
+                    zip(state.joint_names, state.joint_velocities, strict=False)
+                ),
                 "joint_efforts": dict(zip(state.joint_names, state.joint_efforts, strict=False)),
                 "is_connected": state.is_connected,
             }
@@ -509,7 +517,11 @@ class UR5MCPServer:
         validate = arguments.get("validate", True)
 
         if len(positions) != 6:
-            return [TextContent(type="text", text=f"Error: Expected 6 joint positions, got {len(positions)}")]
+            return [
+                TextContent(
+                    type="text", text=f"Error: Expected 6 joint positions, got {len(positions)}"
+                )
+            ]
 
         # First check joint limits
         valid, msg = self.ros_node.validate_joint_limits(positions)
@@ -524,12 +536,13 @@ class UR5MCPServer:
                 from rosclaw.core.event_bus import Event
 
                 # Get or create event bus reference
-                event_bus = getattr(self, '_event_bus', None)
+                event_bus = getattr(self, "_event_bus", None)
                 if event_bus is None:
                     # Fallback: try to find Runtime's event bus
                     try:
                         from rosclaw.core.runtime import Runtime
-                        runtime = Runtime._instance if hasattr(Runtime, '_instance') else None
+
+                        runtime = Runtime._instance if hasattr(Runtime, "_instance") else None
                         if runtime:
                             event_bus = runtime.event_bus
                     except Exception:
@@ -538,7 +551,9 @@ class UR5MCPServer:
                 if event_bus:
                     # Publish validation request with unique correlation ID
                     current = self.ros_node.get_current_joint_positions()
-                    trajectory = self._interpolate_trajectory(current, positions, int(duration * 50))
+                    trajectory = self._interpolate_trajectory(
+                        current, positions, int(duration * 50)
+                    )
                     req_id = f"val_{uuid.uuid4().hex[:8]}"
 
                     validation_result = {"is_safe": True, "reason": ""}
@@ -554,16 +569,18 @@ class UR5MCPServer:
                                 validation_event.set()
 
                     event_bus.subscribe("firewall.validation_result", on_validation_result)
-                    event_bus.publish(Event(
-                        topic="firewall.validation_request",
-                        payload={
-                            "robot_id": self.ros_node.robot_id,
-                            "trajectory": trajectory,
-                            "safety_level": "STRICT",
-                            "request_id": req_id,
-                        },
-                        source="ur5_mcp_server",
-                    ))
+                    event_bus.publish(
+                        Event(
+                            topic="firewall.validation_request",
+                            payload={
+                                "robot_id": self.ros_node.robot_id,
+                                "trajectory": trajectory,
+                                "safety_level": "STRICT",
+                                "request_id": req_id,
+                            },
+                            source="ur5_mcp_server",
+                        )
+                    )
 
                     try:
                         await asyncio.wait_for(validation_event.wait(), timeout=0.5)
@@ -580,7 +597,9 @@ class UR5MCPServer:
                     # Fallback to direct firewall if EventBus unavailable
                     if self.firewall:
                         current = self.ros_node.get_current_joint_positions()
-                        trajectory = self._interpolate_trajectory(current, positions, int(duration * 50))
+                        trajectory = self._interpolate_trajectory(
+                            current, positions, int(duration * 50)
+                        )
                         result = self.firewall.validate_trajectory(
                             [np.array(p) for p in trajectory],
                             safety_level=SafetyLevel.STRICT,
@@ -609,12 +628,18 @@ class UR5MCPServer:
         validate = arguments.get("validate", True)
 
         if len(waypoints) != len(times):
-            return [TextContent(type="text", text="Error: waypoints and times must have same length")]
+            return [
+                TextContent(type="text", text="Error: waypoints and times must have same length")
+            ]
 
         # Validate each waypoint
         for i, wp in enumerate(waypoints):
             if len(wp) != 6:
-                return [TextContent(type="text", text=f"Error: waypoint {i} should have 6 values, got {len(wp)}")]
+                return [
+                    TextContent(
+                        type="text", text=f"Error: waypoint {i} should have 6 values, got {len(wp)}"
+                    )
+                ]
             valid, msg = self.ros_node.validate_joint_limits(wp)
             if not valid:
                 return [TextContent(type="text", text=f"Error in waypoint {i}: {msg}")]

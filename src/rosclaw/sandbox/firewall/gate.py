@@ -1,4 +1,5 @@
 """FirewallGate - dynamic trajectory validation via MuJoCo simulation."""
+
 from __future__ import annotations
 
 import uuid
@@ -9,6 +10,7 @@ from typing import Any
 @dataclass
 class Decision:
     """Result of a firewall safety check."""
+
     action: str = "ALLOW"
     is_allowed: bool = True
     risk_score: float = 0.0
@@ -23,8 +25,12 @@ class FirewallGate:
     """Dynamic safety gate using MuJoCo mj_step simulation."""
 
     JOINT_LIMITS = [
-        (-6.28, 6.28), (-6.28, 6.28), (-6.28, 6.28),
-        (-6.28, 6.28), (-6.28, 6.28), (-6.28, 6.28),
+        (-6.28, 6.28),
+        (-6.28, 6.28),
+        (-6.28, 6.28),
+        (-6.28, 6.28),
+        (-6.28, 6.28),
+        (-6.28, 6.28),
     ]
     WORKSPACE_RADIUS = 1.5
     MAX_JOINT_VELOCITY = 3.15
@@ -91,31 +97,42 @@ class FirewallGate:
         if violations:
             if risk_score >= 0.8 or "self_collision" in violations:
                 return Decision(
-                    action="BLOCK", is_allowed=False, risk_score=risk_score,
+                    action="BLOCK",
+                    is_allowed=False,
+                    risk_score=risk_score,
                     predicted_collision=True,
                     reason=f"Firewall blocked: {', '.join(violations)}",
-                    violated_constraints=violations, replay_id=replay_id,
+                    violated_constraints=violations,
+                    replay_id=replay_id,
                 )
             elif risk_score >= 0.5:
                 modified = self._suggest_modification(action, violations)
                 return Decision(
-                    action="MODIFY", is_allowed=False, risk_score=risk_score,
+                    action="MODIFY",
+                    is_allowed=False,
+                    risk_score=risk_score,
                     predicted_collision=True,
                     reason=f"Firewall modified: {', '.join(violations)}",
-                    violated_constraints=violations, replay_id=replay_id,
+                    violated_constraints=violations,
+                    replay_id=replay_id,
                     modified_action=modified,
                 )
             else:
                 return Decision(
-                    action="REQUIRE_CONFIRMATION", is_allowed=False,
+                    action="REQUIRE_CONFIRMATION",
+                    is_allowed=False,
                     risk_score=risk_score,
                     reason=f"Firewall requires confirmation: {', '.join(violations)}",
-                    violated_constraints=violations, replay_id=replay_id,
+                    violated_constraints=violations,
+                    replay_id=replay_id,
                 )
 
         return Decision(
-            action="ALLOW", is_allowed=True, risk_score=0.0,
-            reason="Within limits", replay_id=replay_id,
+            action="ALLOW",
+            is_allowed=True,
+            risk_score=0.0,
+            reason="Within limits",
+            replay_id=replay_id,
         )
 
     def _forward_kinematics(self, joint_positions):

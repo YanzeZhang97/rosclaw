@@ -24,7 +24,17 @@ SUPPORTED_DOJO_SCHEMA = "rosclaw.dojo.v1"
 SUPPORTED_DARWIN_EVAL_SCHEMA = "rosclaw.darwin_eval.v1"
 SUPPORTED_LINEAGE_SCHEMA = "rosclaw.lineage.v1"
 
-STAGES = {"draft", "candidate", "validated", "deprecated", "revoked", "source_verified", "ci_passed", "official_verified", "installable"}
+STAGES = {
+    "draft",
+    "candidate",
+    "validated",
+    "deprecated",
+    "revoked",
+    "source_verified",
+    "ci_passed",
+    "official_verified",
+    "installable",
+}
 VALID_NAME_PATTERN = r"^[a-z0-9_\-]+$"
 VALID_NAMESPACE_PATTERN = r"^[a-z0-9][a-z0-9_-]{0,63}$"
 
@@ -294,7 +304,9 @@ class EurdfCompatYaml(BaseModel):
 
 class RuntimeMode(BaseModel):
     default: str = "sandbox_first"
-    allowed: list[str] = Field(default_factory=lambda: ["dry_run", "replay", "sandbox", "real_robot_guarded"])
+    allowed: list[str] = Field(
+        default_factory=lambda: ["dry_run", "replay", "sandbox", "real_robot_guarded"]
+    )
 
 
 class RobotSafety(BaseModel):
@@ -343,9 +355,15 @@ class SafetyYaml(BaseModel):
     @model_validator(mode="after")
     def _ensure_constraints_present(self) -> SafetyYaml:
         if not self.hard_constraints and not any(
-            [self.robot.model_dump(exclude_defaults=True), self.action.model_dump(exclude_defaults=True), self.environment.model_dump(exclude_defaults=True)]
+            [
+                self.robot.model_dump(exclude_defaults=True),
+                self.action.model_dump(exclude_defaults=True),
+                self.environment.model_dump(exclude_defaults=True),
+            ]
         ):
-            raise ValueError("SafetyYaml must define hard_constraints or concrete robot/action/environment constraints")
+            raise ValueError(
+                "SafetyYaml must define hard_constraints or concrete robot/action/environment constraints"
+            )
         return self
 
 
@@ -471,7 +489,9 @@ class SkillPackage:
         pkg = cls(path)
         pkg.skill = SkillYaml.model_validate(_load_yaml(pkg.root / "skill.yaml"))
         pkg.providers = ProvidersYaml.model_validate(_load_yaml(pkg.root / "providers.yaml"))
-        pkg.eurdf_compat = EurdfCompatYaml.model_validate(_load_yaml(pkg.root / "e-urdf-compat.yaml"))
+        pkg.eurdf_compat = EurdfCompatYaml.model_validate(
+            _load_yaml(pkg.root / "e-urdf-compat.yaml")
+        )
         pkg.safety = SafetyYaml.model_validate(_load_yaml(pkg.root / "safety.yaml"))
         pkg.dojo = DojoYaml.model_validate(_load_yaml(pkg.root / "dojo.yaml"))
         pkg.darwin_eval = DarwinEvalYaml.model_validate(_load_yaml(pkg.root / "darwin_eval.yaml"))
@@ -528,12 +548,16 @@ class SkillPackage:
     def write_skill_yaml(self) -> None:
         if self.skill is None:
             raise RuntimeError("skill is not loaded")
-        self._atomic_write(self.root / "skill.yaml", self._yaml_bytes(self.skill.model_dump(mode="json")))
+        self._atomic_write(
+            self.root / "skill.yaml", self._yaml_bytes(self.skill.model_dump(mode="json"))
+        )
 
     def write_lineage_yaml(self) -> None:
         if self.lineage is None:
             raise RuntimeError("lineage is not loaded")
-        self._atomic_write(self.root / "lineage.yaml", self._yaml_bytes(self.lineage.model_dump(mode="json")))
+        self._atomic_write(
+            self.root / "lineage.yaml", self._yaml_bytes(self.lineage.model_dump(mode="json"))
+        )
 
     def write_lock_yaml(self, data: dict[str, Any]) -> None:
         self._atomic_write(self.root / ".rosclaw" / "lock.yaml", self._yaml_bytes(data))
@@ -541,17 +565,26 @@ class SkillPackage:
     def write_manifest_json(self, data: dict[str, Any]) -> None:
         import json
 
-        self._atomic_write(self.root / ".rosclaw" / "manifest.json", json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8"))
+        self._atomic_write(
+            self.root / ".rosclaw" / "manifest.json",
+            json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8"),
+        )
 
     def write_hashes_json(self, data: dict[str, Any]) -> None:
         import json
 
-        self._atomic_write(self.root / ".rosclaw" / "hashes.json", json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8"))
+        self._atomic_write(
+            self.root / ".rosclaw" / "hashes.json",
+            json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8"),
+        )
 
     def write_upload_receipt(self, data: dict[str, Any]) -> None:
         import json
 
-        self._atomic_write(self.root / ".rosclaw" / "upload_receipt.json", json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8"))
+        self._atomic_write(
+            self.root / ".rosclaw" / "upload_receipt.json",
+            json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8"),
+        )
 
     @staticmethod
     def _yaml_bytes(data: dict[str, Any]) -> bytes:

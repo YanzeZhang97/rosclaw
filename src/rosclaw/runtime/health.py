@@ -132,11 +132,7 @@ def overall_status(health: dict[str, dict[str, Any]] | None = None) -> str:
     if health is None:
         health = subsystem_health()
 
-    degraded = [
-        name
-        for name, info in health.items()
-        if info.get("status") == "degraded"
-    ]
+    degraded = [name for name, info in health.items() if info.get("status") == "degraded"]
     return "HEALTHY" if not degraded else "DEGRADED"
 
 

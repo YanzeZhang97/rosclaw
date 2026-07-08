@@ -1,4 +1,5 @@
 """Tests for Sprint B: Event Bus Integration."""
+
 import pytest
 
 from rosclaw.auto.config import AutoConfig
@@ -32,6 +33,7 @@ class FakeEventBus:
 # Event Schemas
 # ------------------------------------------------------------------
 
+
 def test_event_envelope_roundtrip():
     evt = EventEnvelope(event_id="evt_001", event_type="test", task_id="pick_cube")
     d = evt.to_dict()
@@ -42,8 +44,12 @@ def test_event_envelope_roundtrip():
 
 def test_praxis_failed_event():
     evt = PraxisFailedEvent(
-        event_id="evt_f1", task_id="pick_cube", skill_id="pick_v1",
-        failure_mode="missed_grasp", phase="grasp", severity="high",
+        event_id="evt_f1",
+        task_id="pick_cube",
+        skill_id="pick_v1",
+        failure_mode="missed_grasp",
+        phase="grasp",
+        severity="high",
     )
     d = evt.to_dict()
     assert d["payload"]["failure_mode"] == "missed_grasp"
@@ -52,8 +58,11 @@ def test_praxis_failed_event():
 
 def test_benchmark_completed_event():
     evt = BenchmarkCompletedEvent(
-        event_id="evt_b1", task_id="pick_cube", skill_id="pick_v1",
-        metrics={"success_rate": 0.35}, regression_detected=True,
+        event_id="evt_b1",
+        task_id="pick_cube",
+        skill_id="pick_v1",
+        metrics={"success_rate": 0.35},
+        regression_detected=True,
     )
     assert evt.regression_detected is True
 
@@ -61,6 +70,7 @@ def test_benchmark_completed_event():
 # ------------------------------------------------------------------
 # AutoSubscriber
 # ------------------------------------------------------------------
+
 
 def test_subscriber_praxis_failed_creates_failure_and_proposal():
     bus = FakeEventBus()
@@ -70,8 +80,12 @@ def test_subscriber_praxis_failed_creates_failure_and_proposal():
 
     # Emit PraxisFailedEvent
     event = PraxisFailedEvent(
-        event_id="evt_001", task_id="pick_cube", skill_id="pick_v1",
-        failure_mode="missed_grasp", phase="grasp", severity="medium",
+        event_id="evt_001",
+        task_id="pick_cube",
+        skill_id="pick_v1",
+        failure_mode="missed_grasp",
+        phase="grasp",
+        severity="medium",
         evidence={"search_space": {"pregrasp_height": [0.02, 0.08]}},
     )
     bus.subscriptions["rosclaw.practice.failed"][0](event)
@@ -87,8 +101,11 @@ def test_subscriber_benchmark_regression_creates_proposal():
     sub = AutoSubscriber(engine=engine, event_bus=bus)
 
     event = BenchmarkCompletedEvent(
-        event_id="evt_b1", task_id="pick_cube", skill_id="pick_v1",
-        metrics={"success_rate": 0.30}, regression_detected=True,
+        event_id="evt_b1",
+        task_id="pick_cube",
+        skill_id="pick_v1",
+        metrics={"success_rate": 0.30},
+        regression_detected=True,
     )
     sub._on_benchmark_completed(event)
 
@@ -102,7 +119,11 @@ def test_subscriber_sandbox_rejected_registers_deadend():
     engine = AutoEngine(config=AutoConfig(local_store_path="./.rosclaw_auto_test_events3"))
     sub = AutoSubscriber(engine=engine, event_bus=bus)
 
-    event = {"task_id": "pick_cube", "rejection_reason": "collision_exceeded", "sandbox_result": "fail"}
+    event = {
+        "task_id": "pick_cube",
+        "rejection_reason": "collision_exceeded",
+        "sandbox_result": "fail",
+    }
     sub._on_sandbox_rejected(event)
 
     deads = engine.list_deadends("pick_cube")
@@ -112,6 +133,7 @@ def test_subscriber_sandbox_rejected_registers_deadend():
 # ------------------------------------------------------------------
 # AutoPublisher
 # ------------------------------------------------------------------
+
 
 def test_publisher_proposal_created():
     bus = FakeEventBus()
@@ -137,6 +159,7 @@ def test_publisher_champion_promoted():
 # ------------------------------------------------------------------
 # Idempotency & Ordering
 # ------------------------------------------------------------------
+
 
 def test_praxis_failed_event_idempotent():
     """AUTO-EVENT-002: Duplicate PraxisFailedEvent should not create duplicate FailureCases."""
@@ -168,6 +191,7 @@ def test_praxis_failed_event_idempotent():
 def test_sandbox_rejected_prevents_promotion():
     """AUTO-EVENT-003: SandboxRejectedEvent must not allow promotion."""
     from rosclaw.auto.promotion.gate import PromotionGate
+
     gate = PromotionGate()
     # Simulate sandbox rejection (high risk score)
     baseline = {"success_rate": 0.4, "collision_rate": 0.1}

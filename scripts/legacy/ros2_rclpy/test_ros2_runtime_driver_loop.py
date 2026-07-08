@@ -50,12 +50,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Helper classes
 # ------------------------------------------------------------------
+
 
 class JointStatePublisher:
     def __init__(self, node_name: str):
@@ -90,10 +92,12 @@ class TrajectorySubscriber:
         )
 
     def _callback(self, msg):
-        self.received.append({
-            "joint_names": list(msg.joint_names),
-            "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
-        })
+        self.received.append(
+            {
+                "joint_names": list(msg.joint_names),
+                "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
+            }
+        )
 
     def destroy(self):
         self.node.destroy_node()
@@ -118,6 +122,7 @@ def next_name(base: str) -> str:
 # ------------------------------------------------------------------
 # Tests
 # ------------------------------------------------------------------
+
 
 @test("Runtime registers ROS2Driver and get_driver returns it")
 def test_runtime_register_driver():
@@ -162,11 +167,13 @@ def test_runtime_emergency_stop():
     spin_nodes([robot.node, driver._node], iterations=10)
 
     # Trigger emergency stop via EventBus
-    runtime.event_bus.publish(Event(
-        topic="robot.emergency_stop",
-        payload={"reason": "test"},
-        source="test",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="robot.emergency_stop",
+            payload={"reason": "test"},
+            source="test",
+        )
+    )
     # Give EventBus time to process (async handlers)
     time.sleep(0.2)
 
@@ -277,11 +284,13 @@ def test_eventbus_safety_to_emergency():
 
     # safety.violation should trigger robot.emergency_stop
     # which triggers driver.emergency_stop
-    runtime.event_bus.publish(Event(
-        topic="safety.violation",
-        payload={"description": "joint limit exceeded"},
-        source="test",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="safety.violation",
+            payload={"description": "joint limit exceeded"},
+            source="test",
+        )
+    )
     time.sleep(0.2)
 
     state = driver.get_state()
@@ -344,6 +353,7 @@ def test_runtime_status_with_driver():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     if not rclpy.ok():

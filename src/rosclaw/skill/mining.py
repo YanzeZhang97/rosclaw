@@ -253,12 +253,14 @@ def _failure_recovery_patterns(episodes: list[PracticeEpisode]) -> list[dict[str
         key = payload.get("type", "unknown")
         by_type.setdefault(key, []).append(payload)
     for key, items in by_type.items():
-        patterns.append({
-            "failure": key,
-            "evidence_count": len(items),
-            "patch": {},
-            "retry_success_rate": 0.0,
-        })
+        patterns.append(
+            {
+                "failure": key,
+                "evidence_count": len(items),
+                "patch": {},
+                "retry_success_rate": 0.0,
+            }
+        )
     return patterns
 
 
@@ -271,7 +273,10 @@ def mine_skill_candidate(
         raise RuntimeError("dojo.yaml not loaded")
     query = PracticeQuery(
         task=pkg.dojo.practice_sources.default_query.get("task", pkg.name),
-        robot=pkg.dojo.practice_sources.default_query.get("robot") or pkg.eurdf_compat.compatible_robots[0].robot if pkg.eurdf_compat and pkg.eurdf_compat.compatible_robots else None,
+        robot=pkg.dojo.practice_sources.default_query.get("robot")
+        or pkg.eurdf_compat.compatible_robots[0].robot
+        if pkg.eurdf_compat and pkg.eurdf_compat.compatible_robots
+        else None,
         min_episodes=pkg.dojo.mining.min_episodes,
         include_failures=pkg.dojo.mining.include_failure_recovery,
     )
@@ -295,7 +300,9 @@ def mine_skill_candidate(
 
     params_path = pkg.root / "policies" / "params" / f"{candidate_id}.yaml"
     params_path.parent.mkdir(parents=True, exist_ok=True)
-    params_path.write_text(yaml.safe_dump(params_yaml, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    params_path.write_text(
+        yaml.safe_dump(params_yaml, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
 
     # Generate candidate behavior tree.
     bt_path = pkg.root / f"behavior_tree.{candidate_id}.xml"
@@ -348,4 +355,11 @@ def _score_candidate(success: list[Any], failure: list[Any]) -> float:
         return 0.0
     success_rate = len(success) / total
     # Heuristic score.
-    return round(0.3 * success_rate + 0.25 * success_rate + 0.2 * 0.9 + 0.15 * min(len(failure) / max(total, 1), 1.0) + 0.1 * 0.8, 2)
+    return round(
+        0.3 * success_rate
+        + 0.25 * success_rate
+        + 0.2 * 0.9
+        + 0.15 * min(len(failure) / max(total, 1), 1.0)
+        + 0.1 * 0.8,
+        2,
+    )

@@ -56,12 +56,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 class JointStatePublisher:
     def __init__(self, node_name: str):
@@ -75,8 +77,12 @@ class JointStatePublisher:
     def _publish(self):
         msg = JointState()
         msg.name = [
-            "shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
-            "wrist_1_joint", "wrist_2_joint", "wrist_3_joint",
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
         ]
         msg.position = self.positions
         msg.velocity = self.velocities
@@ -99,10 +105,12 @@ class TrajectorySubscriber:
         )
 
     def _callback(self, msg):
-        self.received.append({
-            "joint_names": list(msg.joint_names),
-            "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
-        })
+        self.received.append(
+            {
+                "joint_names": list(msg.joint_names),
+                "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
+            }
+        )
 
     def destroy(self):
         self.node.destroy_node()
@@ -134,6 +142,7 @@ def _cleanup_server(server):
 # ------------------------------------------------------------------
 # Tests
 # ------------------------------------------------------------------
+
 
 @test("MCP tool: get_joint_states returns structured data")
 def test_mcp_get_joint_states():
@@ -171,11 +180,13 @@ def test_mcp_move_joints_valid():
     )
 
     async def _run():
-        return await server._handle_move_joints({
-            "joint_positions": [0.0, -0.5, 1.0, 0.0, 0.0, 0.0],
-            "duration": 2.0,
-            "validate": False,
-        })
+        return await server._handle_move_joints(
+            {
+                "joint_positions": [0.0, -0.5, 1.0, 0.0, 0.0, 0.0],
+                "duration": 2.0,
+                "validate": False,
+            }
+        )
 
     loop = asyncio.new_event_loop()
     try:
@@ -186,7 +197,9 @@ def test_mcp_move_joints_valid():
     assert len(result) == 1
     # Should attempt execution but action server not available
     text = result[0].text
-    assert "not available" in text.lower() or "failed" in text.lower() or "trajectory" in text.lower()
+    assert (
+        "not available" in text.lower() or "failed" in text.lower() or "trajectory" in text.lower()
+    )
 
     _cleanup_server(server)
 
@@ -199,9 +212,11 @@ def test_mcp_move_joints_wrong_count():
     )
 
     async def _run():
-        return await server._handle_move_joints({
-            "joint_positions": [0.0] * 3,
-        })
+        return await server._handle_move_joints(
+            {
+                "joint_positions": [0.0] * 3,
+            }
+        )
 
     loop = asyncio.new_event_loop()
     try:
@@ -223,9 +238,11 @@ def test_mcp_move_joints_limit_violation():
     )
 
     async def _run():
-        return await server._handle_move_joints({
-            "joint_positions": [100.0] * 6,
-        })
+        return await server._handle_move_joints(
+            {
+                "joint_positions": [100.0] * 6,
+            }
+        )
 
     loop = asyncio.new_event_loop()
     try:
@@ -294,9 +311,11 @@ def test_mcp_validate_no_firewall():
     )
 
     async def _run():
-        return await server._handle_validate_trajectory({
-            "waypoints": [[0.0] * 6],
-        })
+        return await server._handle_validate_trajectory(
+            {
+                "waypoints": [[0.0] * 6],
+            }
+        )
 
     loop = asyncio.new_event_loop()
     try:
@@ -318,10 +337,12 @@ def test_mcp_execute_wrong_size():
     )
 
     async def _run():
-        return await server._handle_execute_trajectory({
-            "waypoints": [[0.0] * 3],
-            "times": [1.0],
-        })
+        return await server._handle_execute_trajectory(
+            {
+                "waypoints": [[0.0] * 3],
+                "times": [1.0],
+            }
+        )
 
     loop = asyncio.new_event_loop()
     try:
@@ -343,10 +364,12 @@ def test_mcp_execute_mismatched():
     )
 
     async def _run():
-        return await server._handle_execute_trajectory({
-            "waypoints": [[0.0] * 6],
-            "times": [1.0, 2.0],
-        })
+        return await server._handle_execute_trajectory(
+            {
+                "waypoints": [[0.0] * 6],
+                "times": [1.0, 2.0],
+            }
+        )
 
     loop = asyncio.new_event_loop()
     try:
@@ -378,6 +401,7 @@ def test_mcp_server_tools_registered():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     if not rclpy.ok():

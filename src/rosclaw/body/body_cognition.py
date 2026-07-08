@@ -5,6 +5,7 @@ configuration, sim2real deltas, promoted policies, and known safe poses.
 PromotionGateResult records whether a candidate policy passed repeatability
 and safety gates.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field

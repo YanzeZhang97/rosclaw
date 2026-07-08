@@ -31,14 +31,10 @@ def main() -> None:
         state = collector.collect()
 
         fatigue = fatigue_estimator.estimate(state, prev_state=None, dt=1.0)
-        risk_summary, _ = risk_estimator.evaluate(
-            state, fatigue_risk=fatigue["fatigue_risk"]
-        )
+        risk_summary, _ = risk_estimator.evaluate(state, fatigue_risk=fatigue["fatigue_risk"])
         readiness = readiness_evaluator.evaluate_all(state, risk_summary)
         sense = explainer.summarize(state, risk_summary, readiness)
-        envelope = envelope_estimator.estimate(
-            sense, fatigue_risk=fatigue["fatigue_risk"]
-        )
+        envelope = envelope_estimator.estimate(sense, fatigue_risk=fatigue["fatigue_risk"])
 
         print(f"\nScenario: {scenario}")
         print(f"  overall_status: {sense.overall_status}")

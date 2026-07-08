@@ -48,6 +48,7 @@ class TypedPayload(RuntimeEvent):
 # Event schema
 # ---------------------------------------------------------------------------
 
+
 def test_runtime_event_topic():
     ev = RuntimeEvent(type="camera.rgbd_frame", source="cam")
     assert ev.topic == "rosclaw.camera.rgbd_frame"
@@ -73,6 +74,7 @@ def test_runtime_event_roundtrip():
 # ---------------------------------------------------------------------------
 # RuntimeBus
 # ---------------------------------------------------------------------------
+
 
 def test_runtime_bus_publish_subscribe():
     event_bus = EventBus(normalize_topics=False)
@@ -123,6 +125,7 @@ def test_runtime_bus_history():
 # Component registry
 # ---------------------------------------------------------------------------
 
+
 def test_registry_lifecycle():
     event_bus = EventBus(normalize_topics=False)
     bus = RuntimeBus(event_bus=event_bus)
@@ -144,6 +147,7 @@ def test_registry_lifecycle():
 # Service lifecycle
 # ---------------------------------------------------------------------------
 
+
 def test_kernel_service_lifecycle(tmp_path):
     service = RuntimeKernelService(home=str(tmp_path))
     service.initialize()
@@ -156,12 +160,19 @@ def test_kernel_service_lifecycle(tmp_path):
 # Replay
 # ---------------------------------------------------------------------------
 
+
 def test_replay_from_history():
     event_bus = EventBus(normalize_topics=False)
     bus = RuntimeBus(event_bus=event_bus)
     replay = RuntimeReplay(bus)
-    bus.publish(RuntimeEvent(type="skill.invoke", payload={"skill_id": "s1"}, metadata={"trace_id": "ep1"}))
-    bus.publish(RuntimeEvent(type="skill.complete", payload={"skill_id": "s1"}, metadata={"trace_id": "ep1"}))
+    bus.publish(
+        RuntimeEvent(type="skill.invoke", payload={"skill_id": "s1"}, metadata={"trace_id": "ep1"})
+    )
+    bus.publish(
+        RuntimeEvent(
+            type="skill.complete", payload={"skill_id": "s1"}, metadata={"trace_id": "ep1"}
+        )
+    )
     episode = replay.replay_episode("ep1")
     assert len(episode) == 2
     skills = replay.replay_skill("s1", episode_id="ep1")

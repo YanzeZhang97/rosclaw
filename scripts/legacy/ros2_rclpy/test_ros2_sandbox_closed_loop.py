@@ -53,12 +53,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 class TrajectorySubscriber:
     def __init__(self, node_name: str):
@@ -72,10 +74,12 @@ class TrajectorySubscriber:
         )
 
     def _callback(self, msg):
-        self.received.append({
-            "joint_names": list(msg.joint_names),
-            "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
-        })
+        self.received.append(
+            {
+                "joint_names": list(msg.joint_names),
+                "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
+            }
+        )
 
     def destroy(self):
         self.node.destroy_node()
@@ -100,6 +104,7 @@ def next_name(base: str) -> str:
 # ------------------------------------------------------------------
 # Tests
 # ------------------------------------------------------------------
+
 
 @test("Sandbox validates trajectory before ROS2Driver executes")
 def test_sandbox_validate_then_execute():
@@ -231,14 +236,16 @@ def test_eventbus_firewall_to_emergency():
     runtime.register_driver("ros2", driver)
 
     # Publish firewall blocked event
-    runtime.event_bus.publish(Event(
-        topic="firewall.action_blocked",
-        payload={
-            "request_id": "test-123",
-            "violations": [{"description": "joint limit exceeded"}],
-        },
-        source="firewall",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="firewall.action_blocked",
+            payload={
+                "request_id": "test-123",
+                "violations": [{"description": "joint limit exceeded"}],
+            },
+            source="firewall",
+        )
+    )
     time.sleep(0.2)
 
     # Runtime's _on_firewall_action_blocked should trigger
@@ -251,6 +258,7 @@ def test_eventbus_firewall_to_emergency():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     if not rclpy.ok():

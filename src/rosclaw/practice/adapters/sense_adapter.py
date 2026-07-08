@@ -33,6 +33,7 @@ class SenseAdapter(SourceAdapter):
         self._running = True
         if self._sense_runtime is None:
             from rosclaw.sense.collectors.mock_collector import MockCollector
+
             self._collector = MockCollector(robot_id=self._robot_id, scenario=self._scenario)
         else:
             self._collector = getattr(self._sense_runtime, "collector", None)
@@ -81,7 +82,7 @@ class SenseAdapter(SourceAdapter):
 
         imu = body_state.imu
         if imu and imu.angular_velocity:
-            payload = IMUPayload(
+            imu_payload = IMUPayload(
                 angular_velocity_xyz=imu.angular_velocity or [0.0, 0.0, 0.0],
                 linear_acceleration_xyz=[0.0, 0.0, 9.81],
             )
@@ -91,14 +92,14 @@ class SenseAdapter(SourceAdapter):
                 source="dds",
                 event_type="dds.imu",
                 timestamp_ns=ts_ns,
-                payload=payload.model_dump(),
+                payload=imu_payload.model_dump(),
             )
 
         contact = body_state.contact
         if contact:
             left = contact.get("left_foot")
             right = contact.get("right_foot")
-            payload = FootContactPayload(
+            contact_payload = FootContactPayload(
                 left_contact=bool(left.contact) if left else False,
                 right_contact=bool(right.contact) if right else False,
                 left_force_n=left.confidence if left else None,
@@ -110,7 +111,7 @@ class SenseAdapter(SourceAdapter):
                 source="dds",
                 event_type="dds.foot_contact",
                 timestamp_ns=ts_ns,
-                payload=payload.model_dump(),
+                payload=contact_payload.model_dump(),
             )
 
     def on_event(self, callback: Any) -> None:

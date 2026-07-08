@@ -19,6 +19,7 @@ import yaml
 
 # ── Default zoo resolution ──
 
+
 def _packaged_zoo_path() -> Path | None:
     """Return the path to e-urdf-zoo data shipped inside the rosclaw package, if any."""
     try:
@@ -41,11 +42,14 @@ def _default_zoo_path() -> Path:
     # No packaged data available; keep the project-root path for error messages.
     return project_root_zoo
 
+
 # ── Profile Data Classes ──
+
 
 @dataclass
 class RobotEmbodimentProfile:
     """Physical form: links, joints, sensors, actuators, DOF."""
+
     robot_id: str
     name: str
     vendor: str
@@ -77,6 +81,7 @@ class RobotEmbodimentProfile:
 @dataclass
 class RobotSafetyProfile:
     """Safety constraints: limits, PFL, collision, e-stop."""
+
     robot_id: str
     safety_level: str
     safety_limits: dict[str, Any] = field(default_factory=dict)
@@ -106,6 +111,7 @@ class RobotSafetyProfile:
 @dataclass
 class RobotCapabilityProfile:
     """What the robot can do: skills, preconditions, metrics."""
+
     robot_id: str
     capabilities: list[dict[str, Any]] = field(default_factory=list)
     skill_registry: dict[str, Any] = field(default_factory=dict)
@@ -123,6 +129,7 @@ class RobotCapabilityProfile:
 @dataclass
 class RobotSimulationProfile:
     """Simulation backend configurations."""
+
     robot_id: str
     backends: dict[str, Any] = field(default_factory=dict)
 
@@ -133,6 +140,7 @@ class RobotSimulationProfile:
 @dataclass
 class RobotSemanticProfile:
     """Semantic annotations for LLM/VLM grounding."""
+
     robot_id: str
     semantic_version: str = "1.0"
     functional_regions: list[dict[str, Any]] = field(default_factory=list)
@@ -156,6 +164,7 @@ class RobotSemanticProfile:
 @dataclass
 class RobotBenchmarkProfile:
     """Benchmark configurations for regression testing."""
+
     robot_id: str
     kinematic_benchmarks: list[dict[str, Any]] = field(default_factory=list)
     dynamic_benchmarks: list[dict[str, Any]] = field(default_factory=list)
@@ -179,6 +188,7 @@ class RobotBenchmarkProfile:
 @dataclass
 class RobotCompleteProfile:
     """Aggregated complete profile of a robot."""
+
     robot_id: str
     name: str
     vendor: str
@@ -211,6 +221,7 @@ class RobotCompleteProfile:
 
 # ── Loader ──
 
+
 class EURDFLoader:
     """Load e-URDF directory and generate all profiles."""
 
@@ -233,10 +244,13 @@ class EURDFLoader:
         """List all robot directories in the zoo."""
         if not self.zoo_path.exists():
             return []
-        return sorted([
-            d.name for d in self.zoo_path.iterdir()
-            if d.is_dir() and (d / "robot.eurdf.yaml").exists()
-        ])
+        return sorted(
+            [
+                d.name
+                for d in self.zoo_path.iterdir()
+                if d.is_dir() and (d / "robot.eurdf.yaml").exists()
+            ]
+        )
 
     def load(self, robot_id: str) -> RobotCompleteProfile:
         """Load a complete robot profile from the zoo."""
@@ -414,6 +428,7 @@ class EURDFLoader:
 
 
 # ── Registry ──
+
 
 class RobotRegistry:
     """In-memory registry of loaded robot profiles.

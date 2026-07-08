@@ -75,17 +75,20 @@ def registry(bus):
 
 @pytest.fixture
 def manifest():
-    return ProviderManifest.from_dict({
-        "name": "dummy",
-        "version": "1.0.0",
-        "type": "test",
-        "capabilities": ["test.cap"],
-    })
+    return ProviderManifest.from_dict(
+        {
+            "name": "dummy",
+            "version": "1.0.0",
+            "type": "test",
+            "capabilities": ["test.cap"],
+        }
+    )
 
 
 # ------------------------------------------------------------------
 # provider_registered event
 # ------------------------------------------------------------------
+
 
 def test_provider_registered_event(bus, registry, manifest):
     registry.register(manifest, lambda m: DummyProvider(m), auto_load=False)
@@ -127,6 +130,7 @@ async def test_provider_registered_with_auto_load_async(bus, manifest):
 # provider_unregistered event
 # ------------------------------------------------------------------
 
+
 def test_provider_unregistered_event(bus, registry, manifest):
     registry.register(manifest, lambda m: DummyProvider(m), auto_load=False)
     bus.events.clear()
@@ -140,6 +144,7 @@ def test_provider_unregistered_event(bus, registry, manifest):
 # ------------------------------------------------------------------
 # provider_health_changed event
 # ------------------------------------------------------------------
+
 
 def test_set_provider_health_emits_event(bus, registry, manifest):
     registry.register(manifest, lambda m: DummyProvider(m), auto_load=False)
@@ -199,6 +204,7 @@ def test_load_failure_emits_health_event(bus, manifest):
 # No event bus (backwards compatibility)
 # ------------------------------------------------------------------
 
+
 def test_no_event_bus_no_crash(manifest):
     registry = ProviderRegistry(event_bus=None)
     registry.register(manifest, lambda m: DummyProvider(m), auto_load=False)
@@ -211,9 +217,11 @@ def test_no_event_bus_no_crash(manifest):
 # Runtime subscription integration
 # ------------------------------------------------------------------
 
+
 def test_runtime_injects_event_bus():
     """Runtime passes its EventBus into ProviderRegistry."""
     from rosclaw.core.runtime import Runtime, RuntimeConfig
+
     config = RuntimeConfig(
         robot_id="test",
         enable_firewall=False,
@@ -234,6 +242,7 @@ def test_runtime_subscription_output(caplog):
     import logging
 
     from rosclaw.core.runtime import Runtime, RuntimeConfig
+
     config = RuntimeConfig(
         robot_id="test",
         enable_firewall=False,
@@ -244,5 +253,9 @@ def test_runtime_subscription_output(caplog):
     with caplog.at_level(logging.INFO, logger="rosclaw.core.runtime"):
         rt = Runtime(config)
         rt.initialize()
-    assert "Provider event: provider_registered" in caplog.text or "Provider 'mock_vlm' is now healthy" in caplog.text or "Provider Layer" in caplog.text
+    assert (
+        "Provider event: provider_registered" in caplog.text
+        or "Provider 'mock_vlm' is now healthy" in caplog.text
+        or "Provider Layer" in caplog.text
+    )
     rt.stop()

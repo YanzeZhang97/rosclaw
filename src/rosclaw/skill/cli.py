@@ -46,6 +46,8 @@ def _copy_template(template_dir: Path, dest: Path, context: dict[str, str]) -> N
     for src_path in sorted(template_dir.rglob("*")):
         if not src_path.is_file():
             continue
+        if "__pycache__" in src_path.parts or src_path.suffix in {".pyc", ".pyo"}:
+            continue
         rel = src_path.relative_to(template_dir)
         dst_path = dest / rel
         dst_path.parent.mkdir(parents=True, exist_ok=True)
@@ -55,7 +57,15 @@ def _copy_template(template_dir: Path, dest: Path, context: dict[str, str]) -> N
             text = text.replace(f"{{{key}}}", value)
         dst_path.write_text(text, encoding="utf-8")
     # Create placeholder files for empty dirs.
-    for placeholder in ["policies/checkpoints/.gitkeep", "evidence/practice/.gitkeep", "evidence/eval/.gitkeep", "evidence/videos/.gitkeep", "evidence/reports/.gitkeep", "evidence/signatures/.gitkeep", ".rosclaw/package/.gitkeep"]:
+    for placeholder in [
+        "policies/checkpoints/.gitkeep",
+        "evidence/practice/.gitkeep",
+        "evidence/eval/.gitkeep",
+        "evidence/videos/.gitkeep",
+        "evidence/reports/.gitkeep",
+        "evidence/signatures/.gitkeep",
+        ".rosclaw/package/.gitkeep",
+    ]:
         ph = dest / placeholder
         if not ph.exists():
             ph.parent.mkdir(parents=True, exist_ok=True)
@@ -143,12 +153,18 @@ def cmd_skill_validate(args: argparse.Namespace) -> int:
     report = validate_package(pkg)
 
     if args.json:
-        print(json.dumps({
-            "ok": report.ok,
-            "errors": report.errors,
-            "warnings": report.warnings,
-            "checks": report.checks,
-        }, indent=2, ensure_ascii=False))
+        print(
+            json.dumps(
+                {
+                    "ok": report.ok,
+                    "errors": report.errors,
+                    "warnings": report.warnings,
+                    "checks": report.checks,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
     else:
         print(f"[ROSClaw] Validating {skill_dir.name}")
         for check, ok in report.checks.items():
@@ -205,7 +221,9 @@ def cmd_skill_eval(args: argparse.Namespace) -> int:
         print(f"[ROSClaw] Skill not found: {skill_dir}")
         return 1
     pkg = SkillPackage(skill_dir).try_load()
-    report = evaluate_skill(pkg, candidate_id=args.candidate, mode=args.mode, save_evidence=args.save_evidence)
+    report = evaluate_skill(
+        pkg, candidate_id=args.candidate, mode=args.mode, save_evidence=args.save_evidence
+    )
 
     if args.json:
         print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
@@ -251,7 +269,9 @@ def cmd_skill_promote(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
-        print(f"[ROSClaw] Promoted {ref.name}@{candidate_id} to v{result['version']} ({result['stage']})")
+        print(
+            f"[ROSClaw] Promoted {ref.name}@{candidate_id} to v{result['version']} ({result['stage']})"
+        )
         print(f"  package_hash: {result['package_hash']}")
     return 0
 
@@ -288,7 +308,13 @@ def cmd_skill_package(args: argparse.Namespace) -> int:
     )
 
     if args.json:
-        print(json.dumps({"archive": str(archive), "manifest": prepare_manifest(pkg)}, indent=2, ensure_ascii=False))
+        print(
+            json.dumps(
+                {"archive": str(archive), "manifest": prepare_manifest(pkg)},
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
     else:
         print(f"[ROSClaw] Packaged: {archive}")
     return 0
@@ -335,11 +361,17 @@ def cmd_skill_upload(args: argparse.Namespace) -> int:
     if args.json:
         # Mask API key in payload if present.
         payload = result.get("payload", {})
-        print(json.dumps({
-            "ok": result["ok"],
-            "dry_run": result["dry_run"],
-            "payload": payload,
-        }, indent=2, ensure_ascii=False))
+        print(
+            json.dumps(
+                {
+                    "ok": result["ok"],
+                    "dry_run": result["dry_run"],
+                    "payload": payload,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
     else:
         print(f"[ROSClaw] Upload: {'DRY-RUN' if result['dry_run'] else 'OK'}")
         print(f"  skill: {result['payload']['name']}")
@@ -497,7 +529,9 @@ def add_skill_hub_parsers(skill_subparsers: Any) -> None:
     search_parser.add_argument("--json", action="store_true", help="Output as JSON")
     search_parser.set_defaults(func=cmd_skill_search)
 
-    install_parser = skill_subparsers.add_parser("install", help="Install a builtin skill reference")
+    install_parser = skill_subparsers.add_parser(
+        "install", help="Install a builtin skill reference"
+    )
     install_parser.add_argument("name", help="Skill name")
     install_parser.add_argument("--json", action="store_true", help="Output as JSON")
     install_parser.set_defaults(func=cmd_skill_install)
@@ -524,8 +558,12 @@ def add_skill_hub_parsers(skill_subparsers: Any) -> None:
     validate_parser.add_argument("--json", action="store_true", help="Output JSON")
     validate_parser.set_defaults(func=cmd_skill_validate)
 
-    mine_parser = skill_subparsers.add_parser("mine", help="Mine skill candidate from practice episodes")
-    mine_parser.add_argument("--from", dest="source", required=True, help="Practice episodes directory")
+    mine_parser = skill_subparsers.add_parser(
+        "mine", help="Mine skill candidate from practice episodes"
+    )
+    mine_parser.add_argument(
+        "--from", dest="source", required=True, help="Practice episodes directory"
+    )
     mine_parser.add_argument("--task", required=True, help="Task name")
     mine_parser.add_argument("--robot", default=None, help="Robot filter")
     mine_parser.add_argument("--output", default=None, help="Skill output directory")
@@ -537,8 +575,12 @@ def add_skill_hub_parsers(skill_subparsers: Any) -> None:
     eval_parser.add_argument("skill_dir", nargs="?", help="Skill directory")
     eval_parser.add_argument("--name", default=None, help="Skill name")
     eval_parser.add_argument("--candidate", default=None, help="Candidate ID")
-    eval_parser.add_argument("--mode", default="replay", choices=["replay", "sandbox"], help="Eval mode")
-    eval_parser.add_argument("--save-evidence", action="store_true", default=True, help="Write eval report")
+    eval_parser.add_argument(
+        "--mode", default="replay", choices=["replay", "sandbox"], help="Eval mode"
+    )
+    eval_parser.add_argument(
+        "--save-evidence", action="store_true", default=True, help="Write eval report"
+    )
     eval_parser.add_argument("--json", action="store_true", help="Output JSON")
     eval_parser.set_defaults(func=cmd_skill_eval)
 
@@ -546,32 +588,56 @@ def add_skill_hub_parsers(skill_subparsers: Any) -> None:
     promote_parser.add_argument("skill_ref", help="Skill ref: name@candidate_id")
     promote_parser.add_argument("--to-version", required=True, help="Target version")
     promote_parser.add_argument("--stage", default="validated", help="Target stage")
-    promote_parser.add_argument("--require-eval-pass", action="store_true", default=True, help="Require eval pass")
+    promote_parser.add_argument(
+        "--require-eval-pass", action="store_true", default=True, help="Require eval pass"
+    )
     promote_parser.add_argument("--workspace", default=None, help="Workspace root")
     promote_parser.add_argument("--json", action="store_true", help="Output JSON")
     promote_parser.set_defaults(func=cmd_skill_promote)
 
-    package_parser = skill_subparsers.add_parser("package", help="Package skill into distributable archive")
+    package_parser = skill_subparsers.add_parser(
+        "package", help="Package skill into distributable archive"
+    )
     package_parser.add_argument("skill_dir", nargs="?", help="Skill directory")
     package_parser.add_argument("--name", default=None, help="Skill name")
     package_parser.add_argument("--output", default="dist", help="Output directory")
-    package_parser.add_argument("--format", default="tar.gz", choices=["tar.gz"], help="Archive format")
-    package_parser.add_argument("--include-evidence", default="summary", choices=["none", "summary", "full"], help="Evidence inclusion")
+    package_parser.add_argument(
+        "--format", default="tar.gz", choices=["tar.gz"], help="Archive format"
+    )
+    package_parser.add_argument(
+        "--include-evidence",
+        default="summary",
+        choices=["none", "summary", "full"],
+        help="Evidence inclusion",
+    )
     package_parser.add_argument("--workspace", default=None, help="Workspace root")
     package_parser.add_argument("--json", action="store_true", help="Output JSON")
     package_parser.set_defaults(func=cmd_skill_package)
 
-    verify_pkg_parser = skill_subparsers.add_parser("verify-package", help="Verify packaged archive")
+    verify_pkg_parser = skill_subparsers.add_parser(
+        "verify-package", help="Verify packaged archive"
+    )
     verify_pkg_parser.add_argument("archive", help="Archive path")
     verify_pkg_parser.add_argument("--json", action="store_true", help="Output JSON")
     verify_pkg_parser.set_defaults(func=cmd_skill_verify_package)
 
-    upload_parser = skill_subparsers.add_parser("upload", help="Upload skill metadata to ROSClaw Hub (admin only)")
+    upload_parser = skill_subparsers.add_parser(
+        "upload", help="Upload skill metadata to ROSClaw Hub (admin only)"
+    )
     upload_parser.add_argument("skill_dir", nargs="?", help="Skill directory")
     upload_parser.add_argument("--name", default=None, help="Skill name")
-    upload_parser.add_argument("--visibility", default="private", choices=["public", "private", "org", "unlisted"], help="Visibility")
-    upload_parser.add_argument("--hub-base-url", default="https://www.rosclaw.io", help="Hub base URL")
-    upload_parser.add_argument("--api-key-env", default="ROSCLAW_ADMIN_API_KEY", help="API key env var")
+    upload_parser.add_argument(
+        "--visibility",
+        default="private",
+        choices=["public", "private", "org", "unlisted"],
+        help="Visibility",
+    )
+    upload_parser.add_argument(
+        "--hub-base-url", default="https://www.rosclaw.io", help="Hub base URL"
+    )
+    upload_parser.add_argument(
+        "--api-key-env", default="ROSCLAW_ADMIN_API_KEY", help="API key env var"
+    )
     upload_parser.add_argument("--dry-run", action="store_true", help="Dry run")
     upload_parser.add_argument("--force", action="store_true", help="Force update on conflict")
     upload_parser.add_argument("--workspace", default=None, help="Workspace root")
@@ -584,9 +650,15 @@ def add_skill_hub_parsers(skill_subparsers: Any) -> None:
     )
     submit_catalog_parser.add_argument("skill_dir", nargs="?", help="Skill directory")
     submit_catalog_parser.add_argument("--name", default=None, help="Skill name")
-    submit_catalog_parser.add_argument("--catalog-repo", default="ros-claw/skills", help="Upstream catalog repo")
-    submit_catalog_parser.add_argument("--base-branch", default="main", help="Base branch in upstream repo")
-    submit_catalog_parser.add_argument("--branch-prefix", default="add", help="Feature branch prefix")
+    submit_catalog_parser.add_argument(
+        "--catalog-repo", default="ros-claw/skills", help="Upstream catalog repo"
+    )
+    submit_catalog_parser.add_argument(
+        "--base-branch", default="main", help="Base branch in upstream repo"
+    )
+    submit_catalog_parser.add_argument(
+        "--branch-prefix", default="add", help="Feature branch prefix"
+    )
     submit_catalog_parser.add_argument("--workspace", default=None, help="Workspace root")
     submit_catalog_parser.add_argument("--dry-run", action="store_true", help="Dry run")
     submit_catalog_parser.add_argument("--json", action="store_true", help="Output JSON")

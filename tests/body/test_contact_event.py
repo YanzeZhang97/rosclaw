@@ -1,4 +1,5 @@
 """Tests for generic contact-event types."""
+
 from __future__ import annotations
 
 from rosclaw.body.contact_event import (

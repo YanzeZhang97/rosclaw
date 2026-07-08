@@ -16,6 +16,7 @@ Cooldown rule: when the diagnoser says CATALYST but the agent has
 already received an injection in the last N iterations, swap to
 DIVERSIFY so the same pattern doesn't snowball.
 """
+
 from __future__ import annotations
 
 from typing import Final

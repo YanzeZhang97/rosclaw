@@ -24,7 +24,10 @@ def _check_mcp_server_imports():
     """Helper that returns bool for script mode."""
     try:
         from rosclaw.mcp.ur5_server import RCLPY_AVAILABLE, ROS_IMPORTS_OK
-        print(f"✅ UR5MCPServer imported (rclpy available: {RCLPY_AVAILABLE}, ROS imports: {ROS_IMPORTS_OK})")
+
+        print(
+            f"✅ UR5MCPServer imported (rclpy available: {RCLPY_AVAILABLE}, ROS imports: {ROS_IMPORTS_OK})"
+        )
         return True
     except Exception as e:
         print(f"❌ Failed to import UR5MCPServer: {e}")
@@ -74,7 +77,9 @@ async def _check_mcp_hub_tool_registration():
     print(f"✅ emergency_stop returned: {result}")
 
     # Test query_knowledge
-    result = await hub.handle_tool_call("query_knowledge", {"query_type": "capability", "query": "ur5e"})
+    result = await hub.handle_tool_call(
+        "query_knowledge", {"query_type": "capability", "query": "ur5e"}
+    )
     print(f"✅ query_knowledge returned: {result}")
 
     # Test unknown tool
@@ -136,8 +141,8 @@ async def _check_command_response_pattern():
     hub.initialize()
 
     # The _send_command_and_wait method should exist and use asyncio.Future
-    assert hasattr(hub, '_send_command_and_wait'), "MCPHub missing _send_command_and_wait"
-    assert hasattr(hub, '_pending_requests'), "MCPHub missing _pending_requests"
+    assert hasattr(hub, "_send_command_and_wait"), "MCPHub missing _send_command_and_wait"
+    assert hasattr(hub, "_pending_requests"), "MCPHub missing _pending_requests"
 
     print("✅ Command-response pattern infrastructure present")
     hub.stop()

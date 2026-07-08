@@ -1,4 +1,5 @@
 """RuleDiagnoser — rule-based failure diagnosis."""
+
 import logging
 from typing import Any
 
@@ -36,7 +37,11 @@ class RuleDiagnoser:
             "auto_repairable": True,
         },
         "collision": {
-            "root_causes": ["approach_speed_too_fast", "path_planning_failure", "obstacle_not_detected"],
+            "root_causes": [
+                "approach_speed_too_fast",
+                "path_planning_failure",
+                "obstacle_not_detected",
+            ],
             "search_space": {"approach_speed": [0.02, 0.1], "collision_buffer": [0.01, 0.05]},
             "risk_level": "medium",
             "auto_repairable": True,
@@ -66,7 +71,11 @@ class RuleDiagnoser:
             "auto_repairable": True,
         },
         "button_press_missed": {
-            "root_causes": ["approach_angle_wrong", "force_threshold_too_high", "pose_estimation_error"],
+            "root_causes": [
+                "approach_angle_wrong",
+                "force_threshold_too_high",
+                "pose_estimation_error",
+            ],
             "search_space": {"approach_angle": [0, 15], "press_force": [1, 10]},
             "risk_level": "low",
             "auto_repairable": True,
@@ -82,12 +91,15 @@ class RuleDiagnoser:
     def diagnose(self, failure_case: Any) -> Diagnosis:
         """Generate a rule-based diagnosis from a failure case."""
         failure_mode = getattr(failure_case, "failure_mode", "unknown")
-        rule = self.FAILURE_TAXONOMY.get(failure_mode, {
-            "root_causes": ["unknown"],
-            "search_space": {},
-            "risk_level": "medium",
-            "auto_repairable": False,
-        })
+        rule = self.FAILURE_TAXONOMY.get(
+            failure_mode,
+            {
+                "root_causes": ["unknown"],
+                "search_space": {},
+                "risk_level": "medium",
+                "auto_repairable": False,
+            },
+        )
 
         diag = Diagnosis(
             id=f"diag_{failure_mode}_{getattr(failure_case, 'id', 'unknown')[:8]}",
@@ -100,8 +112,12 @@ class RuleDiagnoser:
             auto_repairable=rule["auto_repairable"],
             risk_level=rule["risk_level"],
         )
-        logger.info("RuleDiagnoser: %s -> %s (repairable=%s)",
-                    failure_mode, diag.root_cause_candidates, diag.auto_repairable)
+        logger.info(
+            "RuleDiagnoser: %s -> %s (repairable=%s)",
+            failure_mode,
+            diag.root_cause_candidates,
+            diag.auto_repairable,
+        )
         return diag
 
     def can_diagnose(self, failure_mode: str) -> bool:

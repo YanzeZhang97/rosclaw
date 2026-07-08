@@ -16,6 +16,7 @@ Verifies that the intervention pipeline ported into
   rules still win when both could match (e.g. "communication timeout"
   surfaces the "Retry with exponential backoff" remediation).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -52,9 +53,7 @@ class TestInterventionPureRules:
             assert entry["severity"] in {"S0", "S1", "S2", "S3", "S4"}
 
     def test_collision_log_classified_as_hazard(self) -> None:
-        symptom, severity, strategy = diagnose_safety(
-            "collision detected on link 3"
-        )
+        symptom, severity, strategy = diagnose_safety("collision detected on link 3")
         assert symptom == "Collision_Risk"
         assert severity == "S3"
         assert strategy == "STOP_UNSAFE"
@@ -110,14 +109,13 @@ class TestEngineTaxonomyFallback:
 
     @pytest.mark.asyncio
     async def test_unseeded_collision_log_returns_taxonomy_rule(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         # No seed_defaults() — only the taxonomy path can serve this.
         # We use 'link collision' rather than 'collision detected' so the
         # S3 Collision_Risk keyword group doesn't pre-empt Self_Collision.
-        recovery = await engine.suggest_recovery(
-            "ERROR: self collision between link_2 and link_4"
-        )
+        recovery = await engine.suggest_recovery("ERROR: self collision between link_2 and link_4")
         assert recovery is not None
         assert recovery["rule_id"] == "tax_Self_Collision"
         assert "Self_Collision" in recovery["action"]
@@ -126,7 +124,8 @@ class TestEngineTaxonomyFallback:
 
     @pytest.mark.asyncio
     async def test_v1_rule_wins_over_taxonomy_for_overlapping_keywords(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """The reactive 'communication timeout' rule should beat the taxonomy.
 
@@ -135,16 +134,15 @@ class TestEngineTaxonomyFallback:
         operators depend on.
         """
         await engine.seed_defaults()
-        recovery = await engine.suggest_recovery(
-            "communication timeout to ROS master"
-        )
+        recovery = await engine.suggest_recovery("communication timeout to ROS master")
         assert recovery is not None
         assert "backoff" in recovery["action"].lower()
         assert not recovery["rule_id"].startswith("tax_")
 
     @pytest.mark.asyncio
     async def test_seed_defaults_also_seeds_taxonomy_rows(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         count = await engine.seed_defaults()
         # 21 reactive rules + 15 taxonomy rows = 36, but some IDs collide
@@ -163,7 +161,8 @@ class TestDecideRecoveryOutcome:
 
     @pytest.mark.asyncio
     async def test_decide_recovery_returns_rule_id_for_safety_symptom(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         req = from_v1_prompt_build(
             "ERROR: torque saturation on joint 2",
@@ -177,7 +176,8 @@ class TestDecideRecoveryOutcome:
 
     @pytest.mark.asyncio
     async def test_decide_recovery_returns_none_rule_id_for_plateau(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """CATALYST plateau decisions have no single attributable rule."""
         req = from_v1_prompt_build(
@@ -191,7 +191,8 @@ class TestDecideRecoveryOutcome:
 
     @pytest.mark.asyncio
     async def test_record_outcome_increments_taxonomy_counter(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         # Use Torque_Overflow (physical_hazard) — Memory_Exhaustion now falls
         # through to CATALYST (software_resource), which is NOT a blocking
@@ -213,7 +214,8 @@ class TestDecideRecoveryOutcome:
 
     @pytest.mark.asyncio
     async def test_cooldown_swaps_catalyst_for_diversify(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """Recent pattern repeats should flip CATALYST to DIVERSIFY.
 
@@ -228,7 +230,8 @@ class TestDecideRecoveryOutcome:
             recent_pattern_ids=["pat_xyz"],
         )
         decision, _ = await engine.decide_recovery(
-            req, recent_pattern_id="pat_xyz",
+            req,
+            recent_pattern_id="pat_xyz",
         )
         assert decision.strategy == "DIVERSIFY"
         assert decision.injected is True
@@ -244,7 +247,8 @@ class TestMergeEdgeCases:
 
     @pytest.mark.asyncio
     async def test_query_exact_skips_taxonomy_rows(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """A bare symptom string must not short-circuit via exact match.
 
@@ -266,7 +270,8 @@ class TestMergeEdgeCases:
 
     @pytest.mark.asyncio
     async def test_taxonomy_rule_lazy_seed_survives_reinitialize(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """Lazily-seeded ``tax_`` cache rows must NOT be dropped on warm.
 
@@ -276,9 +281,7 @@ class TestMergeEdgeCases:
         attached to that row is silently lost.
         """
         # 1. lazy seed (no seed_defaults, no initialize)
-        recovery = await engine.suggest_recovery(
-            "ERROR: cuda out of memory"
-        )
+        recovery = await engine.suggest_recovery("ERROR: cuda out of memory")
         assert recovery is not None
         assert recovery["rule_id"] == "tax_Memory_Exhaustion"
 
@@ -297,7 +300,8 @@ class TestMergeEdgeCases:
 
     @pytest.mark.asyncio
     async def test_decide_recovery_no_attribution_under_cooldown(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """Cooldown→DIVERSIFY must NOT credit the taxonomy.
 
@@ -319,14 +323,16 @@ class TestMergeEdgeCases:
             recent_pattern_ids=["recent_pat"],
         )
         decision, rule_id = await engine.decide_recovery(
-            req, recent_pattern_id="recent_pat",
+            req,
+            recent_pattern_id="recent_pat",
         )
         assert decision.strategy == "DIVERSIFY"
         assert rule_id is None  # NOT attributed to any taxonomy rule
 
     @pytest.mark.asyncio
     async def test_decide_recovery_no_attribution_for_stabilize(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """STABILIZE driven by Numerical_Instability is a constraint-violation,
         and STABILIZE is NOT in ``is_blocking`` — so rule_id should be None.
@@ -349,7 +355,8 @@ class TestMergeEdgeCases:
 
     @pytest.mark.asyncio
     async def test_decide_recovery_attributes_for_blocking_safety(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """Torque_Overflow → SAFETY is a blocking strategy → rule_id present.
 
@@ -369,7 +376,8 @@ class TestMergeEdgeCases:
 
     @pytest.mark.asyncio
     async def test_decide_recovery_software_resource_falls_through(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """OOM (software_resource) → CATALYST with no curated match → empty
         snippet (the LLM's library knowledge beats an off-topic synth
@@ -390,7 +398,8 @@ class TestMergeEdgeCases:
 
     @pytest.mark.asyncio
     async def test_minimize_direction_inverts_improvement(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """Direction-aware: a falling score on a 'minimize' task is improving.
 
@@ -399,6 +408,7 @@ class TestMergeEdgeCases:
         trajectory as 'regressing' and trigger DIAGNOSE.
         """
         from rosclaw.how import InterventionRequest, OptimizationContext, TaskContext
+
         req = InterventionRequest(
             task_context=TaskContext(objective_direction="minimize"),
             optimization_context=OptimizationContext(
@@ -414,7 +424,8 @@ class TestMergeEdgeCases:
 
     @pytest.mark.asyncio
     async def test_severity_hint_promotes_to_emergency(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """``severity_hint`` lets the caller assert severity even when
         keywords don't match. S4 hint → STOP_UNSAFE."""
@@ -423,6 +434,7 @@ class TestMergeEdgeCases:
             OptimizationContext,
             SafetyContext,
         )
+
         req = InterventionRequest(
             optimization_context=OptimizationContext(
                 current_iteration=5,
@@ -438,7 +450,8 @@ class TestMergeEdgeCases:
 
     @pytest.mark.asyncio
     async def test_taxonomy_rule_id_disjoint_from_v1_namespace(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """``tax_`` and ``rule_<n>_`` ID namespaces never collide."""
         await engine.seed_defaults()
@@ -450,15 +463,14 @@ class TestMergeEdgeCases:
 
     @pytest.mark.asyncio
     async def test_idempotent_seed_taxonomy(
-        self, engine: HeuristicEngine,
+        self,
+        engine: HeuristicEngine,
     ) -> None:
         """Calling seed_defaults twice must not corrupt or duplicate
         taxonomy rows in the cache."""
         await engine.seed_defaults()
         first = {
-            rid: dict(rule)
-            for rid, rule in engine._rule_cache.items()
-            if rid.startswith("tax_")
+            rid: dict(rule) for rid, rule in engine._rule_cache.items() if rid.startswith("tax_")
         }
         # Mutate a counter to detect overwrite vs preserve
         engine._rule_cache["tax_Collision_Risk"]["success_count"] = 7
@@ -467,9 +479,7 @@ class TestMergeEdgeCases:
         # but the rule_ids and structure must remain identical.
         await engine.seed_defaults()
         second = {
-            rid: dict(rule)
-            for rid, rule in engine._rule_cache.items()
-            if rid.startswith("tax_")
+            rid: dict(rule) for rid, rule in engine._rule_cache.items() if rid.startswith("tax_")
         }
         assert set(first.keys()) == set(second.keys())
         # No phantom new tax_ rows appeared.

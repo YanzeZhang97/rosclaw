@@ -9,11 +9,16 @@ Sprint 5 of DESIGN_SPRINT3_5.
 
 import contextlib
 import json
-import time
+import logging
+import sqlite3
+import uuid
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
-SEEKDB_SCHEMAS = {
+logger = logging.getLogger(__name__)
+
+SEEKDB_SCHEMAS: dict[str, Any] = {
     "experience_graph": {
         "columns": {
             "id": "TEXT PRIMARY KEY",
@@ -33,7 +38,8 @@ SEEKDB_SCHEMAS = {
     },
     "skill_metadata": {
         "columns": {
-            "skill_id": "TEXT PRIMARY KEY",
+            "id": "TEXT PRIMARY KEY",
+            "skill_id": "TEXT NOT NULL",
             "name": "TEXT NOT NULL",
             "description": "TEXT",
             "category": "TEXT",
@@ -45,7 +51,7 @@ SEEKDB_SCHEMAS = {
             "prerequisites": "TEXT",
             "metadata": "TEXT",
         },
-        "indices": ["name", "category", "source"],
+        "indices": ["name", "category", "source", "skill_id"],
     },
     "knowledge_graph": {
         "columns": {
@@ -149,13 +155,14 @@ SEEKDB_SCHEMAS = {
             "episode_id": "TEXT",
             "task_id": "TEXT",
             "robot_id": "TEXT NOT NULL",
+            "body_id": "TEXT",
             "failure_type": "TEXT",
             "root_cause": "TEXT",
             "timestamp": "REAL",
             "recovery_hint": "TEXT",
             "metadata": "TEXT",
         },
-        "indices": ["episode_id", "task_id", "robot_id", "failure_type", "timestamp"],
+        "indices": ["episode_id", "task_id", "robot_id", "body_id", "failure_type", "timestamp"],
     },
     "success_patterns": {
         "columns": {
@@ -192,6 +199,88 @@ SEEKDB_SCHEMAS = {
             "metadata": "TEXT",
         },
         "indices": ["episode_id", "artifact_type", "created_at", "uri"],
+    },
+    # Sprint 8 — Practice distilled knowledge tables
+    "how_interventions": {
+        "columns": {
+            "id": "TEXT PRIMARY KEY",
+            "failure_id": "TEXT",
+            "episode_id": "TEXT",
+            "robot_id": "TEXT NOT NULL",
+            "task_id": "TEXT",
+            "intervention_type": "TEXT",
+            "description": "TEXT",
+            "action_taken": "TEXT",
+            "outcome": "TEXT",
+            "timestamp": "REAL",
+            "metadata": "TEXT",
+        },
+        "indices": ["failure_id", "episode_id", "robot_id", "outcome"],
+    },
+    "body_cognition": {
+        "columns": {
+            "id": "TEXT PRIMARY KEY",
+            "body_id": "TEXT NOT NULL",
+            "robot_id": "TEXT NOT NULL",
+            "episode_id": "TEXT",
+            "session_id": "TEXT",
+            "cognition_type": "TEXT",
+            "data": "TEXT",
+            "timestamp": "REAL",
+            "metadata": "TEXT",
+        },
+        "indices": ["body_id", "robot_id", "episode_id", "cognition_type"],
+    },
+    "sim2real_deltas": {
+        "columns": {
+            "id": "TEXT PRIMARY KEY",
+            "body_id": "TEXT NOT NULL",
+            "robot_id": "TEXT NOT NULL",
+            "episode_id": "TEXT",
+            "dofs": "TEXT",
+            "sim_value": "TEXT",
+            "real_value": "TEXT",
+            "delta": "TEXT",
+            "unit": "TEXT",
+            "timestamp": "REAL",
+            "metadata": "TEXT",
+        },
+        "indices": ["body_id", "robot_id", "episode_id"],
+    },
+    "skill_candidates": {
+        "columns": {
+            "id": "TEXT PRIMARY KEY",
+            "skill_id": "TEXT",
+            "robot_id": "TEXT NOT NULL",
+            "episode_id": "TEXT",
+            "policy_id": "TEXT",
+            "policy_type": "TEXT",
+            "policy_params": "TEXT",
+            "metrics": "TEXT",
+            "status": "TEXT DEFAULT 'candidate'",
+            "evidence_refs": "TEXT",
+            "timestamp": "REAL",
+            "metadata": "TEXT",
+        },
+        "indices": ["skill_id", "robot_id", "episode_id", "policy_id", "status"],
+    },
+    "promotion_results": {
+        "columns": {
+            "id": "TEXT PRIMARY KEY",
+            "candidate_id": "TEXT",
+            "policy_id": "TEXT",
+            "robot_id": "TEXT NOT NULL",
+            "episode_id": "TEXT",
+            "gate_name": "TEXT",
+            "passed": "INTEGER",
+            "metrics": "TEXT",
+            "failures": "TEXT",
+            "evidence_refs": "TEXT",
+            "promoted_policy_ref": "TEXT",
+            "timestamp": "REAL",
+            "metadata": "TEXT",
+        },
+        "indices": ["candidate_id", "policy_id", "robot_id", "episode_id", "passed"],
     },
     "retries": {
         "columns": {
@@ -290,16 +379,16 @@ class SeekDBClient(ABC):
     """Abstract interface to SeekDB Knowledge Plane."""
 
     @abstractmethod
-    def connect(self) -> None:
-        ...
+    def connect(self) -> None: ...
 
     @abstractmethod
-    def disconnect(self) -> None:
-        ...
+    def is_connected(self) -> bool: ...
 
     @abstractmethod
-    def insert(self, table: str, record: dict) -> str:
-        ...
+    def disconnect(self) -> None: ...
+
+    @abstractmethod
+    def insert(self, table: str, record: dict) -> str: ...
 
     @abstractmethod
     def query(
@@ -308,24 +397,19 @@ class SeekDBClient(ABC):
         filters: dict | None = None,
         order_by: str | None = None,
         limit: int = 100,
-    ) -> list[dict]:
-        ...
+    ) -> list[dict]: ...
 
     @abstractmethod
-    def update(self, table: str, record_id: str, updates: dict) -> bool:
-        ...
+    def update(self, table: str, record_id: str, updates: dict) -> bool: ...
 
     @abstractmethod
-    def count(self, table: str, filters: dict | None = None) -> int:
-        ...
+    def count(self, table: str, filters: dict | None = None) -> int: ...
 
     @abstractmethod
-    def delete(self, table: str, record_id: str) -> bool:
-        ...
+    def delete(self, table: str, record_id: str) -> bool: ...
 
     @abstractmethod
-    def delete_where(self, table: str, filters: dict) -> int:
-        ...
+    def delete_where(self, table: str, filters: dict) -> int: ...
 
 
 class SeekDBMemoryClient(SeekDBClient):
@@ -346,6 +430,7 @@ class SeekDBMemoryClient(SeekDBClient):
         # Inverted indexes: _indices[table][column][value] = set of record_ids
         self._indices: dict[str, dict[str, dict[Any, set[str]]]] = {}
         import threading
+
         self._lock = threading.RLock()
 
     def connect(self) -> None:
@@ -358,6 +443,9 @@ class SeekDBMemoryClient(SeekDBClient):
                 if col not in self._indices[table_name]:
                     self._indices[table_name][col] = {}
 
+    def is_connected(self) -> bool:
+        return bool(self._tables)
+
     def disconnect(self) -> None:
         pass
 
@@ -366,12 +454,14 @@ class SeekDBMemoryClient(SeekDBClient):
             if table not in self._tables:
                 self._tables[table] = {}
                 self._indices[table] = {}
-            record_id = record.get("id", str(len(self._tables[table])))
-            self._tables[table][record_id] = dict(record)
+            record_id = record.get("id") or str(uuid.uuid4())
+            stored = dict(record)
+            stored["id"] = record_id
+            self._tables[table][record_id] = stored
             # Update inverted indexes
             if table in self._indices:
                 for col, idx in self._indices[table].items():
-                    val = record.get(col)
+                    val = stored.get(col)
                     if val is not None:
                         if val not in idx:
                             idx[val] = set()
@@ -416,8 +506,7 @@ class SeekDBMemoryClient(SeekDBClient):
             # Apply remaining non-indexed filters
             if remaining_filters:
                 records = [
-                    r for r in records
-                    if all(r.get(k) == v for k, v in remaining_filters.items())
+                    r for r in records if all(r.get(k) == v for k, v in remaining_filters.items())
                 ]
 
             if order_by:
@@ -496,13 +585,30 @@ class SeekDBSQLiteClient(SeekDBClient):
 
     def __init__(self, db_path: str = "./seekdb.sqlite"):
         self._db_path = db_path
-        self._conn = None
+        self._conn: sqlite3.Connection | None = None
 
     def connect(self) -> None:
-        import sqlite3
+        if self._conn is not None:
+            return
+        Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(self._db_path)
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
+
+    def is_connected(self) -> bool:
+        return self._conn is not None
+
+    def disconnect(self) -> None:
+        if self._conn:
+            self._conn.close()
+            self._conn = None
+
+    @property
+    def _connection(self) -> Any:
+        if self._conn is None:
+            self.connect()
+        assert self._conn is not None
+        return self._conn
 
     # Composite indexes for common query patterns
     _COMPOSITE_INDICES = [
@@ -525,23 +631,48 @@ class SeekDBSQLiteClient(SeekDBClient):
     def _create_tables(self) -> None:
         for table_name, schema in SEEKDB_SCHEMAS.items():
             cols = ", ".join(f"{k} {v}" for k, v in schema["columns"].items())
-            self._conn.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({cols})")
+            self._connection.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({cols})")
+        self._connection.commit()
+        # Add any columns that were added to SEEKDB_SCHEMAS after the table
+        # was first created before creating indexes that may reference them.
+        self._migrate_missing_columns()
+        # Create single-column and composite indexes
+        for table_name, schema in SEEKDB_SCHEMAS.items():
             for idx_col in schema.get("indices", []):
                 idx_name = f"idx_{table_name}_{idx_col}"
-                self._conn.execute(
+                self._connection.execute(
                     f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table_name}({idx_col})"
                 )
-        # Create composite indexes
         for table_name, idx_name, columns in self._COMPOSITE_INDICES:
-            self._conn.execute(
+            self._connection.execute(
                 f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table_name}({columns})"
             )
-        self._conn.commit()
+        self._connection.commit()
 
-    def disconnect(self) -> None:
-        if self._conn:
-            self._conn.close()
-            self._conn = None
+    def _migrate_missing_columns(self) -> None:
+        """Add columns that were added to SEEKDB_SCHEMAS after table creation.
+
+        SQLite does not allow adding a PRIMARY KEY column to an existing table,
+        so the constraint is dropped for the migration; the column presence is
+        enough for inserts/upserts to succeed.
+        """
+        for table_name, schema in SEEKDB_SCHEMAS.items():
+            cursor = self._connection.execute(f"PRAGMA table_info({table_name})")
+            existing = {row["name"] for row in cursor.fetchall()}
+            if not existing:
+                continue
+            for col_name, col_type in schema["columns"].items():
+                if col_name in existing:
+                    continue
+                # Strip PRIMARY KEY because ALTER TABLE ADD COLUMN rejects it.
+                safe_type = col_type.replace(" PRIMARY KEY", "").strip()
+                try:
+                    self._connection.execute(
+                        f"ALTER TABLE {table_name} ADD COLUMN {col_name} {safe_type}"
+                    )
+                except Exception as exc:
+                    logger.warning("Failed to add column %s to %s: %s", col_name, table_name, exc)
+        self._connection.commit()
 
     def insert(self, table: str, record: dict) -> str:
         if table not in SEEKDB_SCHEMAS:
@@ -549,25 +680,26 @@ class SeekDBSQLiteClient(SeekDBClient):
         serialized = {}
         for k, v in record.items():
             serialized[k] = json.dumps(v) if isinstance(v, (list, dict)) else v
+        # The id column is required (PRIMARY KEY). Assign a deterministic fallback
+        # before building the INSERT so the column list always includes it.
+        if "id" not in serialized:
+            serialized["id"] = str(uuid.uuid4())
         cols = ", ".join(serialized.keys())
         placeholders = ", ".join("?" for _ in serialized)
         values = list(serialized.values())
-        record_id = serialized.get("id", str(int(time.time() * 1000)))
-        if "id" not in serialized:
-            serialized["id"] = record_id
         try:
-            self._conn.execute(
+            self._connection.execute(
                 f"INSERT INTO {table} ({cols}) VALUES ({placeholders})",
                 values,
             )
         except Exception:
             # Conflict on id — update existing record (explicit upsert)
-            self._conn.execute(
+            self._connection.execute(
                 f"REPLACE INTO {table} ({cols}) VALUES ({placeholders})",
                 values,
             )
-        self._conn.commit()
-        return record_id
+        self._connection.commit()
+        return serialized["id"]
 
     def query(
         self,
@@ -589,7 +721,7 @@ class SeekDBSQLiteClient(SeekDBClient):
             key = order_by.lstrip("-")
             sql += f" ORDER BY {key} {direction}"
         sql += f" LIMIT {limit}"
-        cursor = self._conn.execute(sql, params)
+        cursor = self._connection.execute(sql, params)
         rows = cursor.fetchall()
         results = []
         for row in rows:
@@ -609,11 +741,11 @@ class SeekDBSQLiteClient(SeekDBClient):
             serialized[k] = json.dumps(v) if isinstance(v, (list, dict)) else v
         set_clause = ", ".join(f"{k} = ?" for k in serialized)
         values = list(serialized.values()) + [record_id]
-        cursor = self._conn.execute(
+        cursor = self._connection.execute(
             f"UPDATE {table} SET {set_clause} WHERE id = ?",
             values,
         )
-        self._conn.commit()
+        self._connection.commit()
         return cursor.rowcount > 0
 
     def count(self, table: str, filters: dict | None = None) -> int:
@@ -625,15 +757,15 @@ class SeekDBSQLiteClient(SeekDBClient):
                 conditions.append(f"{k} = ?")
                 params.append(v)
             sql += " WHERE " + " AND ".join(conditions)
-        cursor = self._conn.execute(sql, params)
+        cursor = self._connection.execute(sql, params)
         return cursor.fetchone()[0]
 
     def delete(self, table: str, record_id: str) -> bool:
-        cursor = self._conn.execute(
+        cursor = self._connection.execute(
             f"DELETE FROM {table} WHERE id = ?",
             (record_id,),
         )
-        self._conn.commit()
+        self._connection.commit()
         return cursor.rowcount > 0
 
     def delete_where(self, table: str, filters: dict) -> int:
@@ -645,6 +777,6 @@ class SeekDBSQLiteClient(SeekDBClient):
             conditions.append(f"{k} = ?")
             params.append(v)
         sql = f"DELETE FROM {table} WHERE " + " AND ".join(conditions)
-        cursor = self._conn.execute(sql, params)
-        self._conn.commit()
+        cursor = self._connection.execute(sql, params)
+        self._connection.commit()
         return cursor.rowcount

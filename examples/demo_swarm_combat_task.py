@@ -108,7 +108,9 @@ def run_task_decomposition(coordinator: SwarmCoordinator, task: dict) -> list[di
     subtasks = coordinator.decompose_task(task)
     print(f"  Generated {len(subtasks)} subtask(s):")
     for st in subtasks:
-        print(f"    - {st['id']} | type={st['type']} | required={st.get('required_capabilities', [])}")
+        print(
+            f"    - {st['id']} | type={st['type']} | required={st.get('required_capabilities', [])}"
+        )
     return subtasks
 
 
@@ -141,36 +143,40 @@ def simulate_execution(
         episode_id = f"{SCENARIO['task_id']}_{subtask_id}"
 
         # skill.execution.start
-        event_bus.publish(Event(
-            topic="skill.execution.start",
-            payload={
-                "episode_id": episode_id,
-                "skill_name": subtask_id,
-                "agent_id": agent_id,
-                "initial_state": {"position": "zone_A", "gripper": "open"},
-                "parameters": {"object": SCENARIO["objects"][0]},
-            },
-            source="swarm_executor",
-            priority=EventPriority.HIGH,
-        ))
+        event_bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={
+                    "episode_id": episode_id,
+                    "skill_name": subtask_id,
+                    "agent_id": agent_id,
+                    "initial_state": {"position": "zone_A", "gripper": "open"},
+                    "parameters": {"object": SCENARIO["objects"][0]},
+                },
+                source="swarm_executor",
+                priority=EventPriority.HIGH,
+            )
+        )
         print(f"  ▶ {subtask_id} started on {agent_id}")
 
         time.sleep(0.05)  # tiny delay for event ordering
 
         # skill.execution.complete
-        event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "episode_id": episode_id,
-                "skill_name": subtask_id,
-                "agent_id": agent_id,
-                "final_state": {"position": "zone_B", "gripper": "closed"},
-                "result": {"success": True, "object_moved": SCENARIO["objects"][0]},
-                "duration_sec": 2.5,
-            },
-            source="swarm_executor",
-            priority=EventPriority.HIGH,
-        ))
+        event_bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "episode_id": episode_id,
+                    "skill_name": subtask_id,
+                    "agent_id": agent_id,
+                    "final_state": {"position": "zone_B", "gripper": "closed"},
+                    "result": {"success": True, "object_moved": SCENARIO["objects"][0]},
+                    "duration_sec": 2.5,
+                },
+                source="swarm_executor",
+                priority=EventPriority.HIGH,
+            )
+        )
         print(f"  ✓ {subtask_id} completed on {agent_id}")
 
         time.sleep(0.05)
@@ -205,19 +211,21 @@ def run_consensus(
 def publish_praxis_completion(event_bus: EventBus) -> None:
     """Publish the terminal praxis.completed event."""
     print("\n[PRAXIS] Publishing completion event...")
-    event_bus.publish(Event(
-        topic="praxis.completed",
-        payload={
-            "episode_id": SCENARIO["task_id"],
-            "outcome": {
-                "success": True,
-                "reward": 1.0,
-                "description": "Table successfully carried from zone_A to zone_B",
+    event_bus.publish(
+        Event(
+            topic="praxis.completed",
+            payload={
+                "episode_id": SCENARIO["task_id"],
+                "outcome": {
+                    "success": True,
+                    "reward": 1.0,
+                    "description": "Table successfully carried from zone_A to zone_B",
+                },
             },
-        },
-        source="swarm_demo",
-        priority=EventPriority.HIGH,
-    ))
+            source="swarm_demo",
+            priority=EventPriority.HIGH,
+        )
+    )
     print("  ✅ praxis.completed published")
 
 

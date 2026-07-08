@@ -79,7 +79,11 @@ class TestROS2DriverExtended:
         driver = ROS2Driver("test_bot")
         driver.initialize()
         driver.start()
-        driver._latest_joint_state = {"positions": [0.5] * 6, "velocities": [0.0] * 6, "efforts": [0.0] * 6}
+        driver._latest_joint_state = {
+            "positions": [0.5] * 6,
+            "velocities": [0.0] * 6,
+            "efforts": [0.0] * 6,
+        }
         driver.emergency_stop()
         assert driver._driver_state.error_code == 99
         assert "Emergency stop" in driver._driver_state.error_message

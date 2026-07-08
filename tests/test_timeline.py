@@ -77,16 +77,18 @@ def test_praxis_event_assembly():
     timeline._record(TimelineChannel.AGENT_COMMAND, {"waypoint": [0.1] * 6}, "sess1")
     timeline.record_sensorimotor([0.1] * 6, [0.0] * 6, [0.5] * 6, "sess1")
 
-    bus.publish(Event(
-        topic="praxis.completed",
-        payload={
-            "correlation_id": "sess1",
-            "event_id": "evt1",
-            "instruction": "pick up red block",
-            "duration_sec": 2.5,
-        },
-        source="test",
-    ))
+    bus.publish(
+        Event(
+            topic="praxis.completed",
+            payload={
+                "correlation_id": "sess1",
+                "event_id": "evt1",
+                "instruction": "pick up red block",
+                "duration_sec": 2.5,
+            },
+            source="test",
+        )
+    )
 
     assert len(recorded_events) == 1
     assert recorded_events[0]["event_id"] == "evt1"
@@ -107,16 +109,18 @@ def test_timeline_export():
     timeline._record(TimelineChannel.AGENT_COMMAND, {"waypoint": [0.2] * 6}, "export_test")
     timeline.record_sensorimotor([0.2] * 6, [0.0] * 6, [0.1] * 6, "export_test")
 
-    bus.publish(Event(
-        topic="praxis.completed",
-        payload={
-            "correlation_id": "export_test",
-            "event_id": "evt_export",
-            "instruction": "test instruction",
-            "duration_sec": 1.0,
-        },
-        source="test",
-    ))
+    bus.publish(
+        Event(
+            topic="praxis.completed",
+            payload={
+                "correlation_id": "export_test",
+                "event_id": "evt_export",
+                "instruction": "test instruction",
+                "duration_sec": 1.0,
+            },
+            source="test",
+        )
+    )
 
     session_dir = Path(output_dir) / "session_export_test"
     assert (session_dir / "timeline.jsonl").exists()

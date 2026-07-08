@@ -17,14 +17,16 @@ def test_praxis_failed_event_published():
     captured = []
     bus.subscribe("praxis.failed", lambda e: captured.append(e))
 
-    bus.publish(Event(
-        topic="skill.execution.complete",
-        payload={
-            "skill_name": "pick_red_cup",
-            "result": {"status": "failure", "reward": -1.0, "error": "gripper slip"},
-            "correlation_id": "prac_fail_001",
-        },
-    ))
+    bus.publish(
+        Event(
+            topic="skill.execution.complete",
+            payload={
+                "skill_name": "pick_red_cup",
+                "result": {"status": "failure", "reward": -1.0, "error": "gripper slip"},
+                "correlation_id": "prac_fail_001",
+            },
+        )
+    )
 
     assert len(captured) == 1
     evt = captured[0]
@@ -48,14 +50,16 @@ def test_praxis_failed_priority_is_high():
     captured = []
     bus.subscribe("praxis.failed", lambda e: captured.append(e))
 
-    bus.publish(Event(
-        topic="skill.execution.complete",
-        payload={
-            "skill_name": "test",
-            "result": {"status": "failure", "error": "motor fault"},
-            "correlation_id": "prac_fail_002",
-        },
-    ))
+    bus.publish(
+        Event(
+            topic="skill.execution.complete",
+            payload={
+                "skill_name": "test",
+                "result": {"status": "failure", "error": "motor fault"},
+                "correlation_id": "prac_fail_002",
+            },
+        )
+    )
 
     assert captured[0].priority == EventPriority.HIGH
     recorder.stop()
@@ -72,14 +76,16 @@ def test_praxis_failed_tracks_iteration():
     bus.subscribe("praxis.failed", lambda e: captured.append(e.payload))
 
     for i in range(3):
-        bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "skill_name": "pick",
-                "result": {"status": "failure", "reward": -0.5, "error": f"fail_{i}"},
-                "correlation_id": f"prac_{i}",
-            },
-        ))
+        bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "skill_name": "pick",
+                    "result": {"status": "failure", "reward": -0.5, "error": f"fail_{i}"},
+                    "correlation_id": f"prac_{i}",
+                },
+            )
+        )
 
     assert len(captured) == 3
     assert captured[0]["current_iteration"] == 1
@@ -100,14 +106,16 @@ def test_praxis_failed_tracks_previous_scores():
     bus.subscribe("praxis.failed", lambda e: captured.append(e.payload))
 
     for reward in [-0.5, -0.8, -1.0]:
-        bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "skill_name": "pick",
-                "result": {"status": "failure", "reward": reward, "error": "slip"},
-                "correlation_id": "prac_scores",
-            },
-        ))
+        bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "skill_name": "pick",
+                    "result": {"status": "failure", "reward": reward, "error": "slip"},
+                    "correlation_id": "prac_scores",
+                },
+            )
+        )
 
     assert captured[0]["previous_scores"] == [-0.5]
     assert captured[1]["previous_scores"] == [-0.5, -0.8]
@@ -123,14 +131,16 @@ def test_praxis_failed_context_exposed():
     recorder.initialize()
     recorder.start_recording()
 
-    bus.publish(Event(
-        topic="skill.execution.complete",
-        payload={
-            "skill_name": "pick",
-            "result": {"status": "failure", "reward": -0.3, "error": "collision"},
-            "correlation_id": "prac_ctx",
-        },
-    ))
+    bus.publish(
+        Event(
+            topic="skill.execution.complete",
+            payload={
+                "skill_name": "pick",
+                "result": {"status": "failure", "reward": -0.3, "error": "collision"},
+                "correlation_id": "prac_ctx",
+            },
+        )
+    )
 
     ctx = recorder.failure_context
     assert ctx["current_iteration"] == 1
@@ -150,14 +160,16 @@ def test_praxis_failed_payload_full_context():
     captured = []
     bus.subscribe("praxis.failed", lambda e: captured.append(e.payload))
 
-    bus.publish(Event(
-        topic="skill.execution.complete",
-        payload={
-            "skill_name": "grasp",
-            "result": {"status": "failure", "reward": -0.9, "error": "force exceeded"},
-            "correlation_id": "prac_full",
-        },
-    ))
+    bus.publish(
+        Event(
+            topic="skill.execution.complete",
+            payload={
+                "skill_name": "grasp",
+                "result": {"status": "failure", "reward": -0.9, "error": "force exceeded"},
+                "correlation_id": "prac_full",
+            },
+        )
+    )
 
     p = captured[0]
     assert "practice_id" in p

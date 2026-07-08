@@ -1,4 +1,5 @@
 """rosclaw-auto 配置."""
+
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -37,7 +38,9 @@ class AutoConfig:
             enabled=d.get("enabled", True),
             trigger_repeated_failure_threshold=d.get("trigger_repeated_failure_threshold", 3),
             trigger_min_failure_severity=d.get("trigger_min_failure_severity", "medium"),
-            trigger_benchmark_regression_threshold=d.get("trigger_benchmark_regression_threshold", 0.05),
+            trigger_benchmark_regression_threshold=d.get(
+                "trigger_benchmark_regression_threshold", 0.05
+            ),
             patch_allow_config_patch=d.get("patch_allow_config_patch", True),
             patch_allow_skill_param_patch=d.get("patch_allow_skill_param_patch", True),
             patch_allow_skill_graph_patch=d.get("patch_allow_skill_graph_patch", True),

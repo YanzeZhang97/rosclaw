@@ -14,7 +14,9 @@ def test_loader_validate_missing_files(tmp_path):
     loader = EURDFLoader(zoo_path=tmp_path)
     robot_dir = tmp_path / "bad_bot"
     robot_dir.mkdir()
-    (robot_dir / "robot.eurdf.yaml").write_text("robot_id: bad_bot\nname: Bad\nvendor: test\ndof: 6\nlinks: []\njoints: []")
+    (robot_dir / "robot.eurdf.yaml").write_text(
+        "robot_id: bad_bot\nname: Bad\nvendor: test\ndof: 6\nlinks: []\njoints: []"
+    )
 
     result = loader.validate("bad_bot")
     assert result["valid"] is False

@@ -1,4 +1,5 @@
 """Darwin benchmark runner."""
+
 from __future__ import annotations
 
 import logging
@@ -57,12 +58,8 @@ class BenchmarkRunner:
                     base_success -= 0.1
                 elif scenario.difficulty == "extreme":
                     base_success -= 0.2
-            success_count = sum(
-                1 for _ in range(self.episodes) if rng.random() < base_success
-            )
-            collision_count = sum(
-                1 for _ in range(self.episodes) if rng.random() < 0.05
-            )
+            success_count = sum(1 for _ in range(self.episodes) if rng.random() < base_success)
+            collision_count = sum(1 for _ in range(self.episodes) if rng.random() < 0.05)
             completion_times = [rng.uniform(2.0, 8.0) for _ in range(success_count)]
             sr = SeedResult(
                 seed=seed,
@@ -90,7 +87,9 @@ class BenchmarkRunner:
             success_rate=statistics.mean(success_rates) if success_rates else 0.0,
             success_rate_std=statistics.stdev(success_rates) if len(success_rates) > 1 else 0.0,
             collision_rate=statistics.mean(collision_rates) if collision_rates else 0.0,
-            collision_rate_std=statistics.stdev(collision_rates) if len(collision_rates) > 1 else 0.0,
+            collision_rate_std=statistics.stdev(collision_rates)
+            if len(collision_rates) > 1
+            else 0.0,
             completion_time_mean=statistics.mean(all_times) if all_times else 0.0,
             completion_time_std=statistics.stdev(all_times) if len(all_times) > 1 else 0.0,
             safety_violation_count=total_safety,

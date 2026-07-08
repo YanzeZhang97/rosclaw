@@ -13,7 +13,10 @@ class SecretScanner:
         "openai_key": re.compile(r"sk-[\w-]{32,}", re.IGNORECASE),
         "aws_key": re.compile(r"AKIA[\w]{16}", re.IGNORECASE),
         "jwt": re.compile(r"\beyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\b"),
-        "generic_secret": re.compile("(?:api[_-]?key|secret|token|password)\\s*[:=]\\s*['\"]?[\\w-]{16,}['\"]?", re.IGNORECASE),
+        "generic_secret": re.compile(
+            "(?:api[_-]?key|secret|token|password)\\s*[:=]\\s*['\"]?[\\w-]{16,}['\"]?",
+            re.IGNORECASE,
+        ),
     }
 
     def find_secrets(self, text: str) -> list[dict[str, str]]:

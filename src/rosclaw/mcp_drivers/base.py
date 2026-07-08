@@ -14,6 +14,7 @@ from rosclaw.core.lifecycle import LifecycleMixin
 @dataclass
 class DriverState:
     """Standardized state report from any driver."""
+
     connected: bool = False
     joint_positions: list[float] = field(default_factory=list)
     joint_velocities: list[float] = field(default_factory=list)
@@ -43,6 +44,7 @@ class DriverState:
 @dataclass
 class TrajectoryCommand:
     """Standard trajectory command."""
+
     waypoints: list[list[float]]
     times: list[float]
     velocity_limits: list[float] | None = None
@@ -99,10 +101,9 @@ class BaseDriver(LifecycleMixin, ABC):
     def _validate_joint_positions(self, positions: list[float]) -> None:
         """Guard: validate joint positions are finite and within reasonable bounds."""
         import math
+
         if len(positions) != self.joint_dof:
-            raise ValueError(
-                f"Expected {self.joint_dof} joint positions, got {len(positions)}"
-            )
+            raise ValueError(f"Expected {self.joint_dof} joint positions, got {len(positions)}")
         for i, p in enumerate(positions):
             if not isinstance(p, (int, float)):
                 raise TypeError(f"Joint position {i} must be numeric, got {type(p).__name__}")
@@ -117,6 +118,7 @@ class BaseDriver(LifecycleMixin, ABC):
     def _validate_duration(self, duration: float) -> None:
         """Guard: validate duration is positive and finite."""
         import math
+
         if not isinstance(duration, (int, float)):
             raise TypeError(f"Duration must be numeric, got {type(duration).__name__}")
         if not math.isfinite(duration):
@@ -127,6 +129,7 @@ class BaseDriver(LifecycleMixin, ABC):
     def _validate_trajectory(self, trajectory: TrajectoryCommand) -> None:
         """Guard: validate trajectory has matching waypoint lengths and positive times."""
         import math
+
         if not trajectory.waypoints:
             raise ValueError("Trajectory must have at least one waypoint")
         if len(trajectory.waypoints) != len(trajectory.times):
@@ -135,9 +138,7 @@ class BaseDriver(LifecycleMixin, ABC):
             )
         for i, wp in enumerate(trajectory.waypoints):
             if len(wp) != self.joint_dof:
-                raise ValueError(
-                    f"Waypoint {i} has {len(wp)} joints, expected {self.joint_dof}"
-                )
+                raise ValueError(f"Waypoint {i} has {len(wp)} joints, expected {self.joint_dof}")
             for j, p in enumerate(wp):
                 if not math.isfinite(p):
                     raise ValueError(f"Waypoint {i} joint {j} is not finite: {p}")

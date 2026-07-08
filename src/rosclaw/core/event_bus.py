@@ -26,16 +26,18 @@ logger = logging.getLogger("rosclaw.core.event_bus")
 try:
     from rosclaw.core.event_topics import normalize_topic
 except ImportError:
+
     def normalize_topic(topic: str) -> str:
         return topic
 
 
 class EventPriority(Enum):
     """Priority levels for event processing."""
-    CRITICAL = 0   # Emergency stop, safety violations
-    HIGH = 1       # Control commands, trajectory execution
-    NORMAL = 2     # Standard operational events
-    LOW = 3        # Telemetry, logging
+
+    CRITICAL = 0  # Emergency stop, safety violations
+    HIGH = 1  # Control commands, trajectory execution
+    NORMAL = 2  # Standard operational events
+    LOW = 3  # Telemetry, logging
     BACKGROUND = 4  # Data export, analytics
 
 
@@ -53,6 +55,7 @@ class Event:
         event_id: Unique identifier
         metadata: Additional context
     """
+
     topic: str
     payload: Any
     source: str = "unknown"
@@ -126,7 +129,7 @@ class EventBus:
         self._async_subscribers: dict[str, list[Callable]] = {}
         self._max_history = 10000
         self._event_history: deque[Event] = deque(maxlen=self._max_history)
-        self._lock = threading.Lock()          # protects _subscribers, _async_subscribers, _event_history
+        self._lock = threading.Lock()  # protects _subscribers, _async_subscribers, _event_history
         self._async_lock = asyncio.Lock()
         self._running = False
         self._event_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
@@ -155,9 +158,7 @@ class EventBus:
                 self._subscribers[topic] = []
             self._subscribers[topic].append(callback)
 
-    def subscribe_async(
-        self, topic: str, callback: Callable[[Event], Coroutine]
-    ) -> None:
+    def subscribe_async(self, topic: str, callback: Callable[[Event], Coroutine]) -> None:
         """Subscribe to a topic with an async callback.
 
         Topic is normalized to the v1.0 standard namespace automatically.
@@ -232,12 +233,8 @@ class EventBus:
                 self._event_history.popleft()
 
             # Snapshot subscribers under lock to avoid races during iteration
-            subscribers_snapshot = {
-                k: list(v) for k, v in self._subscribers.items()
-            }
-            async_subscribers_snapshot = {
-                k: list(v) for k, v in self._async_subscribers.items()
-            }
+            subscribers_snapshot = {k: list(v) for k, v in self._subscribers.items()}
+            async_subscribers_snapshot = {k: list(v) for k, v in self._async_subscribers.items()}
 
         # Call sync subscribers (exact + wildcard match)
         for topic_pattern, callbacks in subscribers_snapshot.items():
@@ -343,7 +340,9 @@ class EventBus:
     def get_stats(self) -> dict:
         """Return event bus statistics."""
         with self._lock:
-            topics = list(set(list(self._subscribers.keys()) + list(self._async_subscribers.keys())))
+            topics = list(
+                set(list(self._subscribers.keys()) + list(self._async_subscribers.keys()))
+            )
             history_size = len(self._event_history)
             total_subscribers = sum(
                 len(self._subscribers.get(t, [])) + len(self._async_subscribers.get(t, []))

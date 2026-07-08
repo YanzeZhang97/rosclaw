@@ -18,9 +18,7 @@ from rosclaw.sense.runtime import SenseRuntime
 @pytest.fixture
 def sense_runtime():
     bus = EventBus()
-    cfg = SenseConfig(
-        robot_id="g1_lab_01", collector="mock", extra={"scenario": "kick_not_ready"}
-    )
+    cfg = SenseConfig(robot_id="g1_lab_01", collector="mock", extra={"scenario": "kick_not_ready"})
     runtime = SenseRuntime(cfg, event_bus=bus, robot_id="g1_lab_01")
     runtime.initialize()
     runtime.tick()
@@ -31,9 +29,7 @@ def sense_runtime():
 @pytest.fixture
 def ready_runtime():
     bus = EventBus()
-    cfg = SenseConfig(
-        robot_id="g1_lab_01", collector="mock", extra={"scenario": "normal"}
-    )
+    cfg = SenseConfig(robot_id="g1_lab_01", collector="mock", extra={"scenario": "normal"})
     runtime = SenseRuntime(cfg, event_bus=bus, robot_id="g1_lab_01")
     runtime.initialize()
     runtime.tick()

@@ -3,6 +3,7 @@
 Covers: EventBus, Runtime, DataFlywheel, DashboardMetrics, FirewallValidator,
 PracticeRecorder, MemoryInterface/SeekDB, HeuristicEngine, CapabilityClient, PID control.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -62,7 +63,7 @@ def test_data_flywheel():
         fly = DataFlywheel(
             robot_id="test_bot",
             joint_dof=6,
-            storage_path=__import__('pathlib').Path(tmpdir),
+            storage_path=__import__("pathlib").Path(tmpdir),
         )
         for i in range(200):
             state = RobotState(
@@ -84,7 +85,9 @@ def test_data_flywheel():
         assert event_id, "event missing id"
         events_with_paths = [e for e in fly._events if e.event_id == event_id and e.data_paths]
         assert events_with_paths, "event missing exported data paths"
-        print(f"  PASS: captured {len(events_with_paths[0].data_paths)} data paths for event {event_id}")
+        print(
+            f"  PASS: captured {len(events_with_paths[0].data_paths)} data paths for event {event_id}"
+        )
 
 
 def test_dashboard_metrics():
@@ -103,8 +106,12 @@ def test_firewall_validator():
     robot = RobotModel(
         name="test_arm",
         joints={
-            "j0": type("J", (), {"limits": {"lower": -1.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0}})(),
-            "j1": type("J", (), {"limits": {"lower": -1.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0}})(),
+            "j0": type(
+                "J", (), {"limits": {"lower": -1.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0}}
+            )(),
+            "j1": type(
+                "J", (), {"limits": {"lower": -1.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0}}
+            )(),
         },
     )
     bus = EventBus()
@@ -130,7 +137,12 @@ def test_practice_memory():
     memory = MemoryInterface(robot_id="test_bot", event_bus=bus)
     memory.initialize()
 
-    bus.publish(Event(topic="rosclaw.practice.event.created", payload={"tag": "grasp_attempt", "event_id": "p001"}))
+    bus.publish(
+        Event(
+            topic="rosclaw.practice.event.created",
+            payload={"tag": "grasp_attempt", "event_id": "p001"},
+        )
+    )
     memory.store_experience(
         event_id="exp_001",
         event_type="skill_execution",

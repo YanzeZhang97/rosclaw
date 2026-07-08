@@ -19,11 +19,19 @@ def linked_body(tmp_path, monkeypatch):
 
 
 def test_diff_detects_sensor_change(linked_body, capsys):
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "installed_components.sensors.head_camera.status=unavailable",
-        "--reason", "test camera",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "update-state",
+            "--set",
+            "installed_components.sensors.head_camera.status=unavailable",
+            "--reason",
+            "test camera",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     with patch.object(sys, "argv", ["rosclaw", "body", "diff", "--format", "json"]):

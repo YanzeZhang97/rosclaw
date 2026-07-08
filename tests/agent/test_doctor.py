@@ -44,7 +44,9 @@ async def test_doctor_passes_after_init(tmp_path: Path, capsys: pytest.CaptureFi
     assert "Onboarding files: OK" in captured.out
 
 
-async def test_doctor_fails_without_init(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+async def test_doctor_fails_without_init(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     _bootstrap_project(tmp_path)
     assert cmd_agent_doctor_claude_code(_make_doctor_args(tmp_path)) == 1
     captured = capsys.readouterr()

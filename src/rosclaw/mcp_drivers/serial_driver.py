@@ -67,11 +67,11 @@ class SerialDriver(BaseDriver):
         if len(data) < 1 + self.joint_dof * 12:
             return {}
         fmt = f"<B{self.joint_dof}f{self.joint_dof}f{self.joint_dof}f"
-        parts = struct.unpack(fmt, data[:struct.calcsize(fmt)])
+        parts = struct.unpack(fmt, data[: struct.calcsize(fmt)])
         return {
-            "positions": list(parts[1:1 + self.joint_dof]),
-            "velocities": list(parts[1 + self.joint_dof:1 + 2 * self.joint_dof]),
-            "torques": list(parts[1 + 2 * self.joint_dof:1 + 3 * self.joint_dof]),
+            "positions": list(parts[1 : 1 + self.joint_dof]),
+            "velocities": list(parts[1 + self.joint_dof : 1 + 2 * self.joint_dof]),
+            "torques": list(parts[1 + 2 * self.joint_dof : 1 + 3 * self.joint_dof]),
         }
 
     def get_joint_positions(self) -> list[float]:

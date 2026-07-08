@@ -31,6 +31,7 @@ logger = logging.getLogger("rosclaw.agent_runtime.llm_provider")
 @dataclass
 class LLMConfig:
     """Base configuration for any LLM provider."""
+
     api_key: str = ""
     base_url: str = ""
     model: str = ""
@@ -43,6 +44,7 @@ class LLMConfig:
 @dataclass
 class TaskPlan:
     """Structured task plan from LLM."""
+
     task_name: str
     steps: list[dict]
     safety_notes: list[str]
@@ -51,6 +53,7 @@ class TaskPlan:
 @dataclass
 class FailureAnalysis:
     """Failure analysis from LLM."""
+
     root_cause: str
     severity: str
     recovery_strategy: str
@@ -60,6 +63,7 @@ class FailureAnalysis:
 @dataclass
 class SkillDescription:
     """Skill description from LLM."""
+
     skill_name: str
     description: str
     preconditions: list[str]
@@ -223,8 +227,7 @@ Generate a task plan."""
         except Exception as e:
             return {"error": str(e), "task_name": "failed", "steps": []}
 
-    def analyze_failure(self, task_description: str, error_log: str,
-                        heuristic_engine=None) -> dict:
+    def analyze_failure(self, task_description: str, error_log: str, heuristic_engine=None) -> dict:
         """
         Analyze a task failure and suggest recovery.
 
@@ -240,6 +243,7 @@ Generate a task plan."""
         if heuristic_engine is not None:
             try:
                 from rosclaw.core.async_utils import run_sync
+
                 heuristic = run_sync(heuristic_engine.suggest_recovery(error_log))
                 if heuristic:
                     return {
@@ -375,6 +379,7 @@ class DeepSeekProvider(LLMProvider):
     def _create_client(self) -> Any:
         try:
             import openai
+
             return openai.OpenAI(
                 api_key=self.config.api_key,
                 base_url=self.config.base_url,
@@ -383,8 +388,7 @@ class DeepSeekProvider(LLMProvider):
             )
         except ImportError as err:
             raise RuntimeError(
-                "openai package required for DeepSeek integration. "
-                "Install with: pip install openai"
+                "openai package required for DeepSeek integration. Install with: pip install openai"
             ) from err
 
 
@@ -418,6 +422,7 @@ class OpenAIProvider(LLMProvider):
     def _create_client(self) -> Any:
         try:
             import openai
+
             return openai.OpenAI(
                 api_key=self.config.api_key,
                 base_url=self.config.base_url,
@@ -426,8 +431,7 @@ class OpenAIProvider(LLMProvider):
             )
         except ImportError as err:
             raise RuntimeError(
-                "openai package required for OpenAI integration. "
-                "Install with: pip install openai"
+                "openai package required for OpenAI integration. Install with: pip install openai"
             ) from err
 
 
@@ -461,6 +465,7 @@ class QwenProvider(LLMProvider):
     def _create_client(self) -> Any:
         try:
             import openai
+
             return openai.OpenAI(
                 api_key=self.config.api_key,
                 base_url=self.config.base_url,
@@ -469,8 +474,7 @@ class QwenProvider(LLMProvider):
             )
         except ImportError as err:
             raise RuntimeError(
-                "openai package required for Qwen integration. "
-                "Install with: pip install openai"
+                "openai package required for Qwen integration. Install with: pip install openai"
             ) from err
 
 

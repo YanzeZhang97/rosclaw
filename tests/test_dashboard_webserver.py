@@ -40,6 +40,7 @@ class TestDashboardWebServerInit:
 class TestDashboardWebServerHttpApi:
     def test_health_endpoint(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
         resp = client.get("/health")
         assert resp.status_code == 200
@@ -48,46 +49,57 @@ class TestDashboardWebServerHttpApi:
 
     def test_snapshot_endpoint(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
         resp = client.get("/snapshot")
         assert resp.status_code == 200
         data = resp.json()
         # Snapshot returns metrics data directly
-        assert "provider" in data or "sandbox" in data or "episodes" in data or "module_health" in data
+        assert (
+            "provider" in data or "sandbox" in data or "episodes" in data or "module_health" in data
+        )
 
     def test_event_counts_endpoint(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
         resp = client.get("/events/counts")
         assert resp.status_code == 200
 
     def test_provider_metrics_endpoint(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
         resp = client.get("/metrics/provider")
         assert resp.status_code == 200
 
     def test_sandbox_metrics_endpoint(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
         resp = client.get("/metrics/sandbox")
         assert resp.status_code == 200
 
     def test_episode_metrics_endpoint(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
         resp = client.get("/metrics/episode")
         assert resp.status_code == 200
 
     def test_record_provider_post(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
-        resp = client.post("/metrics/provider?provider=llm&capability=chat&latency_ms=150.0&status=ok")
+        resp = client.post(
+            "/metrics/provider?provider=llm&capability=chat&latency_ms=150.0&status=ok"
+        )
         assert resp.status_code == 200
         assert resp.json()["status"] == "recorded"
 
     def test_record_sandbox_post(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
         resp = client.post("/metrics/sandbox?action_type=move&is_safe=true")
         assert resp.status_code == 200
@@ -95,13 +107,17 @@ class TestDashboardWebServerHttpApi:
 
     def test_record_episode_post(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
-        resp = client.post("/metrics/episode?episode_id=ep1&robot_id=ur5e&status=success&reward=0.95&duration_sec=1.5")
+        resp = client.post(
+            "/metrics/episode?episode_id=ep1&robot_id=ur5e&status=success&reward=0.95&duration_sec=1.5"
+        )
         assert resp.status_code == 200
         assert resp.json()["status"] == "recorded"
 
     def test_record_event_post(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
         resp = client.post("/event/rosclaw.test.topic")
         assert resp.status_code == 200
@@ -109,6 +125,7 @@ class TestDashboardWebServerHttpApi:
 
     def test_set_module_health_post(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
         resp = client.post("/health/runtime?status=HEALTHY")
         assert resp.status_code == 200
@@ -120,11 +137,18 @@ class TestDashboardWebServerEventBus:
         bus = EventBus()
         webserver.attach_to_event_bus(bus)
         # Publish a praxis.completed event
-        bus.publish(Event(
-            topic="praxis.completed",
-            payload={"episode_id": "ep_test", "robot_id": "ur5e", "success": True, "duration_sec": 2.0},
-            source="test",
-        ))
+        bus.publish(
+            Event(
+                topic="praxis.completed",
+                payload={
+                    "episode_id": "ep_test",
+                    "robot_id": "ur5e",
+                    "success": True,
+                    "duration_sec": 2.0,
+                },
+                source="test",
+            )
+        )
         stats = webserver.metrics.get_episode_stats()
         assert stats["total"] >= 1
 
@@ -147,6 +171,7 @@ class TestDashboardWebServerLifecycle:
 class TestDashboardWebServerWebsocket:
     def test_websocket_ping_pong(self, webserver):
         from fastapi.testclient import TestClient
+
         client = TestClient(webserver.app)
         with client.websocket_connect("/ws") as ws:
             # Receive initial snapshot

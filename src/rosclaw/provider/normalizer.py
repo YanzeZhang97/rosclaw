@@ -120,7 +120,9 @@ class ProviderResultNormalizer:
         present_keys = set(data.keys())
         if not required_keys.issubset(present_keys):
             result.fallback_parse = True
-            result.reason = f"Parsed JSON missing required keys: {sorted(required_keys - present_keys)}"
+            result.reason = (
+                f"Parsed JSON missing required keys: {sorted(required_keys - present_keys)}"
+            )
             return cls._merge_fallback(data, result)
 
         result.schema_valid = True

@@ -1,4 +1,5 @@
 """Phase 1收尾: 验证 Sandbox 防火墙 BLOCK/ALLOW/MODIFY/REQUIRE_CONFIRMATION 模式。"""
+
 import pytest
 
 from rosclaw.core.event_bus import EventBus
@@ -52,7 +53,11 @@ class TestFirewallModifyMode:
 
     def test_pfl_force_modify(self):
         gate = FirewallGate(robot_id="ur5e", world_id="empty")
-        action = {"type": "joint_position", "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "force": 152.0}
+        action = {
+            "type": "joint_position",
+            "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            "force": 152.0,
+        }
         d = gate.check(action)
         assert d.action == "MODIFY"
         assert d.modified_action is not None

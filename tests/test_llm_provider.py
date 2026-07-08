@@ -19,6 +19,7 @@ from rosclaw.agent_runtime.llm_provider import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_openai_client():
     """Return a mock OpenAI-compatible client."""
@@ -35,13 +36,19 @@ def mock_openai_module(mock_openai_client):
     """Patch the openai module import."""
     mock_module = MagicMock()
     mock_module.OpenAI.return_value = mock_openai_client
-    with patch("builtins.__import__", lambda name, *args, **kwargs: mock_module if name == "openai" else __builtins__["__import__"](name, *args, **kwargs)):
+    with patch(
+        "builtins.__import__",
+        lambda name, *args, **kwargs: (
+            mock_module if name == "openai" else __builtins__["__import__"](name, *args, **kwargs)
+        ),
+    ):
         yield mock_module
 
 
 # ---------------------------------------------------------------------------
 # Configuration tests
 # ---------------------------------------------------------------------------
+
 
 def test_llm_config_defaults():
     cfg = LLMConfig()
@@ -63,6 +70,7 @@ def test_llm_config_override():
 # ---------------------------------------------------------------------------
 # Provider instantiation tests
 # ---------------------------------------------------------------------------
+
 
 def test_deepseek_provider_env_vars(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-deep")
@@ -116,6 +124,7 @@ def test_qwen_provider_explicit_config():
 # Factory function tests
 # ---------------------------------------------------------------------------
 
+
 def test_get_provider_deepseek():
     provider = get_provider("deepseek", LLMConfig(api_key="sk-test"))
     assert isinstance(provider, DeepSeekProvider)
@@ -155,6 +164,7 @@ def test_list_providers():
 # Custom provider registration
 # ---------------------------------------------------------------------------
 
+
 def test_register_custom_provider():
     class CustomProvider(LLMProvider):
         @property
@@ -179,6 +189,7 @@ def test_register_provider_must_subclass():
 # API consistency tests (all providers must support same interface)
 # ---------------------------------------------------------------------------
 
+
 def test_all_providers_have_same_methods():
     required_methods = [
         "plan_task",
@@ -195,6 +206,7 @@ def test_all_providers_have_same_methods():
 # ---------------------------------------------------------------------------
 # Functional tests with mocked client
 # ---------------------------------------------------------------------------
+
 
 def test_plan_task(mock_openai_client):
     provider = DeepSeekProvider(LLMConfig(api_key="sk-test"))
@@ -258,13 +270,16 @@ def test_health_check_failure(mock_openai_client):
 # Backward compatibility tests
 # ---------------------------------------------------------------------------
 
+
 def test_deepseek_client_alias():
     from rosclaw.agent_runtime import DeepSeekClient, DeepSeekConfig
+
     assert DeepSeekClient is DeepSeekProvider
     assert DeepSeekConfig is LLMConfig
 
 
 def test_old_imports_still_work():
     from rosclaw import DeepSeekClient, DeepSeekConfig
+
     assert DeepSeekClient is DeepSeekProvider
     assert DeepSeekConfig is LLMConfig

@@ -104,6 +104,7 @@ async def test_await_event_filter_no_match():
         bus.publish(Event(topic="test", payload={"val": 1}))
 
     asyncio.create_task(late_publish())
-    result = await bus.await_event("test", timeout=0.5, filter_fn=lambda e: e.payload.get("val") == 2)
+    result = await bus.await_event(
+        "test", timeout=0.5, filter_fn=lambda e: e.payload.get("val") == 2
+    )
     assert result is None
-

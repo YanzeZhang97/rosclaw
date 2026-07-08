@@ -97,17 +97,21 @@ class RosCapabilityProvider(Provider):
     # ------------------------------------------------------------------
     # Event helpers
     # ------------------------------------------------------------------
-    def _publish_event(self, topic: str, payload: dict[str, Any], priority: Any | None = None) -> None:
+    def _publish_event(
+        self, topic: str, payload: dict[str, Any], priority: Any | None = None
+    ) -> None:
         """Publish an event to the EventBus if available."""
         if self._event_bus is None or Event is None:
             return
         try:
-            self._event_bus.publish(Event(
-                topic=topic,
-                payload=payload,
-                source="ros_capability_provider",
-                priority=priority or (EventPriority.NORMAL if EventPriority else None),
-            ))
+            self._event_bus.publish(
+                Event(
+                    topic=topic,
+                    payload=payload,
+                    source="ros_capability_provider",
+                    priority=priority or (EventPriority.NORMAL if EventPriority else None),
+                )
+            )
         except Exception as exc:
             logger.debug("Failed to publish event %s: %s", topic, exc)
 
@@ -156,6 +160,7 @@ class RosCapabilityProvider(Provider):
             return
         try:
             from rosclaw.connectors.ros.know.ros_knowledge_seed import seed_ros_capabilities
+
             seed_ros_capabilities(knowledge_interface, self._robot_id, self.capabilities)
         except Exception as exc:
             logger.debug("ROS knowledge seeding failed: %s", exc)
@@ -167,6 +172,7 @@ class RosCapabilityProvider(Provider):
             return
         try:
             from rosclaw.connectors.ros.how.ros_recovery_rules import seed_ros_recovery_rules
+
             seed_ros_recovery_rules(seekdb_client)
         except Exception as exc:
             logger.debug("ROS recovery rule seeding failed: %s", exc)
@@ -259,7 +265,9 @@ class RosCapabilityProvider(Provider):
             trace={
                 "ros_interface": result.ros_interface,
                 "ros_kind": result.ros_kind,
-                "sandbox_decision": result.sandbox_decision.to_dict() if result.sandbox_decision else None,
+                "sandbox_decision": result.sandbox_decision.to_dict()
+                if result.sandbox_decision
+                else None,
                 "practice_trace_id": result.practice_trace_id,
                 "started_at": started_at,
                 "ended_at": result.ended_at,
@@ -506,6 +514,7 @@ class RosCapabilityProvider(Provider):
             return {}
         try:
             import yaml
+
             with open(path, encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
         except Exception as exc:
@@ -514,6 +523,7 @@ class RosCapabilityProvider(Provider):
 
     def _load_static_manifest(self, path: str) -> CapabilityManifest:
         import yaml
+
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         # Minimal reconstruction; for full fidelity use dataclass from_dict.
@@ -573,23 +583,32 @@ class RosCapabilityProvider(Provider):
             return
         try:
             from rosclaw.core.event_bus import Event
-            topic = "rosclaw.practice.event.created" if success else "rosclaw.sandbox.episode.failed"
-            self._event_bus.publish(Event(
-                topic=topic,
-                payload={
-                    "event_type": "RosExecutionSucceededEvent" if success else "RosExecutionFailedEvent",
-                    "trace_id": trace_id,
-                    "robot_id": self._robot_id,
-                    "capability_id": capability_id,
-                    "ros_kind": cap.interface.ros_kind,
-                    "ros_name": cap.interface.name,
-                    "ros_type": cap.interface.msg_type,
-                    "args": args,
-                    "sandbox_decision": decision.to_dict() if hasattr(decision, "to_dict") else {},
-                    "result": {"ok": success, "raw": raw_response},
-                    "error": error,
-                },
-                source="ros_capability_provider",
-            ))
+
+            topic = (
+                "rosclaw.practice.event.created" if success else "rosclaw.sandbox.episode.failed"
+            )
+            self._event_bus.publish(
+                Event(
+                    topic=topic,
+                    payload={
+                        "event_type": "RosExecutionSucceededEvent"
+                        if success
+                        else "RosExecutionFailedEvent",
+                        "trace_id": trace_id,
+                        "robot_id": self._robot_id,
+                        "capability_id": capability_id,
+                        "ros_kind": cap.interface.ros_kind,
+                        "ros_name": cap.interface.name,
+                        "ros_type": cap.interface.msg_type,
+                        "args": args,
+                        "sandbox_decision": decision.to_dict()
+                        if hasattr(decision, "to_dict")
+                        else {},
+                        "result": {"ok": success, "raw": raw_response},
+                        "error": error,
+                    },
+                    source="ros_capability_provider",
+                )
+            )
         except Exception as exc:
             logger.debug("Failed to emit practice event: %s", exc)

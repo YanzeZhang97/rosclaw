@@ -31,7 +31,9 @@ def add_mcp_subparser(mcp_subparsers: Any) -> None:
     install_parser = mcp_subparsers.add_parser(
         "install", help="Install/register a Hardware MCP server"
     )
-    install_parser.add_argument("alias", nargs="?", default=None, help="Short name, alias, or canonical manifest ID")
+    install_parser.add_argument(
+        "alias", nargs="?", default=None, help="Short name, alias, or canonical manifest ID"
+    )
     install_parser.add_argument("--version", default=None, help="Exact version to install")
     install_parser.add_argument(
         "--from-git", dest="from_git", default=None, help="Install from a public git URL"
@@ -40,13 +42,19 @@ def add_mcp_subparser(mcp_subparsers: Any) -> None:
         "--local-path", dest="local_path", default=None, help="Install from a local directory path"
     )
     install_parser.add_argument(
-        "--python", dest="python", default=None, help="Python interpreter to use for dependency installation"
+        "--python",
+        dest="python",
+        default=None,
+        help="Python interpreter to use for dependency installation",
     )
     install_parser.add_argument(
         "--venv", dest="venv", default=None, help="Path to a virtualenv to use for the server"
     )
     install_parser.add_argument(
-        "--no-install-deps", dest="no_install_deps", action="store_true", help="Skip dependency installation"
+        "--no-install-deps",
+        dest="no_install_deps",
+        action="store_true",
+        help="Skip dependency installation",
     )
     install_parser.add_argument(
         "--dry-run", action="store_true", help="Show plan without writing files"
@@ -113,9 +121,7 @@ def add_mcp_subparser(mcp_subparsers: Any) -> None:
     inspect_parser.add_argument("--project-root", default=".", help="Project root path")
     inspect_parser.set_defaults(func=lambda args: dispatch_mcp_inspect(args))
 
-    call_parser = mcp_subparsers.add_parser(
-        "call", help="Call a tool on an installed MCP server"
-    )
+    call_parser = mcp_subparsers.add_parser("call", help="Call a tool on an installed MCP server")
     call_parser.add_argument("server_name", help="Installed server name")
     call_parser.add_argument("tool_name", help="Tool name to call")
     call_parser.add_argument(
@@ -152,9 +158,8 @@ def dispatch_mcp_install(args: argparse.Namespace) -> int:
             plan = {
                 "source_type": "git" if args.from_git else "local_path",
                 "source_url": args.from_git or args.local_path,
-                "server_name": args.alias or source_installer._default_name(
-                    args.from_git or args.local_path
-                ),
+                "server_name": args.alias
+                or source_installer._default_name(args.from_git or args.local_path),
                 "python": _resolve_python(args),
                 "install_deps": not args.no_install_deps,
                 "dry_run": True,
@@ -462,13 +467,8 @@ def dispatch_mcp_list(args: argparse.Namespace) -> int:
                 if entry.get("description"):
                     print(f"    {entry['description']}")
         elif hub_error:
-            print(
-                f"  (registry unavailable: {hub_error})"
-            )
-            print(
-                "  Hint: install from source with "
-                "rosclaw mcp install --from-git <url>"
-            )
+            print(f"  (registry unavailable: {hub_error})")
+            print("  Hint: install from source with rosclaw mcp install --from-git <url>")
         else:
             print("  (none)")
 
@@ -510,7 +510,11 @@ def dispatch_mcp_health(args: argparse.Namespace) -> int:
 
     if args.json:
         _print_json(reports)
-        return 1 if any(r.get("overall") == "failed" or not r.get("healthy", True) for r in reports) else 0
+        return (
+            1
+            if any(r.get("overall") == "failed" or not r.get("healthy", True) for r in reports)
+            else 0
+        )
 
     failed_any = False
     for report in reports:

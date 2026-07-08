@@ -21,7 +21,9 @@ def _make_manifest(**kwargs):
         name=kwargs.get("name", "vlm"),
         version="1.0.0",
         type="vlm",
-        capabilities=kwargs.get("capabilities", ["vlm.object_grounding", "vlm.scene_understanding"]),
+        capabilities=kwargs.get(
+            "capabilities", ["vlm.object_grounding", "vlm.scene_understanding"]
+        ),
     )
 
 

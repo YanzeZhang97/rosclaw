@@ -29,10 +29,21 @@ pytestmark = pytest.mark.legacy_rclpy
 # Clean up sys.modules mocks from test_mcp_server.py so real ROS2 imports work.
 # Must run before ANY rosclaw or rclpy imports.
 for _mod in list(sys.modules.keys()):
-    if _mod.startswith(("rclpy.", "rosclaw.", "geometry_msgs", "sensor_msgs",
-                        "std_msgs", "trajectory_msgs", "control_msgs",
-                        "builtin_interfaces", "unique_identifier_msgs",
-                        "action_msgs", "rcl_interfaces")):
+    if _mod.startswith(
+        (
+            "rclpy.",
+            "rosclaw.",
+            "geometry_msgs",
+            "sensor_msgs",
+            "std_msgs",
+            "trajectory_msgs",
+            "control_msgs",
+            "builtin_interfaces",
+            "unique_identifier_msgs",
+            "action_msgs",
+            "rcl_interfaces",
+        )
+    ):
         sys.modules.pop(_mod, None)
 # Also remove top-level rclpy itself
 sys.modules.pop("rclpy", None)
@@ -445,9 +456,11 @@ class TestUR5MCPServerHandleValidateTrajectory:
             firewall_model_path="/nonexistent/model.xml",
         )
 
-        result = await server._handle_validate_trajectory({
-            "waypoints": [[0.0] * 6],
-        })
+        result = await server._handle_validate_trajectory(
+            {
+                "waypoints": [[0.0] * 6],
+            }
+        )
         assert len(result) == 1
         assert "firewall not available" in result[0].text
 
@@ -469,9 +482,11 @@ class TestUR5MCPServerHandleValidateTrajectory:
             firewall_model_path=model_path,
         )
 
-        result = await server._handle_validate_trajectory({
-            "waypoints": [[0.0] * 6, [0.1] * 6],
-        })
+        result = await server._handle_validate_trajectory(
+            {
+                "waypoints": [[0.0] * 6, [0.1] * 6],
+            }
+        )
         assert len(result) == 1
         text = result[0].text
         response = __import__("json").loads(text)
@@ -507,9 +522,11 @@ class TestUR5MCPServerHandleMoveJoints:
             firewall_model_path="/nonexistent/model.xml",
         )
 
-        result = await server._handle_move_joints({
-            "joint_positions": [0.0] * 3,
-        })
+        result = await server._handle_move_joints(
+            {
+                "joint_positions": [0.0] * 3,
+            }
+        )
         assert "Expected 6" in result[0].text
 
         server.ros_node.destroy_node()
@@ -523,9 +540,11 @@ class TestUR5MCPServerHandleMoveJoints:
             firewall_model_path="/nonexistent/model.xml",
         )
 
-        result = await server._handle_move_joints({
-            "joint_positions": [100.0] * 6,
-        })
+        result = await server._handle_move_joints(
+            {
+                "joint_positions": [100.0] * 6,
+            }
+        )
         assert "Joint limit violation" in result[0].text
 
         server.ros_node.destroy_node()
@@ -540,10 +559,12 @@ class TestUR5MCPServerHandleMoveJoints:
             firewall_model_path="/nonexistent/model.xml",
         )
 
-        result = await server._handle_move_joints({
-            "joint_positions": [0.0] * 6,
-            "validate": False,
-        })
+        result = await server._handle_move_joints(
+            {
+                "joint_positions": [0.0] * 6,
+                "validate": False,
+            }
+        )
         # Should attempt to execute but server not available
         assert "not available" in result[0].text or "failed" in result[0].text.lower()
 
@@ -560,10 +581,12 @@ class TestUR5MCPServerHandleExecuteTrajectory:
             firewall_model_path="/nonexistent/model.xml",
         )
 
-        result = await server._handle_execute_trajectory({
-            "waypoints": [[0.0] * 6],
-            "times": [1.0, 2.0],
-        })
+        result = await server._handle_execute_trajectory(
+            {
+                "waypoints": [[0.0] * 6],
+                "times": [1.0, 2.0],
+            }
+        )
         assert "same length" in result[0].text
 
         server.ros_node.destroy_node()
@@ -577,10 +600,12 @@ class TestUR5MCPServerHandleExecuteTrajectory:
             firewall_model_path="/nonexistent/model.xml",
         )
 
-        result = await server._handle_execute_trajectory({
-            "waypoints": [[0.0] * 3],
-            "times": [1.0],
-        })
+        result = await server._handle_execute_trajectory(
+            {
+                "waypoints": [[0.0] * 3],
+                "times": [1.0],
+            }
+        )
         assert "should have 6 values" in result[0].text
 
         server.ros_node.destroy_node()
@@ -594,10 +619,12 @@ class TestUR5MCPServerHandleExecuteTrajectory:
             firewall_model_path="/nonexistent/model.xml",
         )
 
-        result = await server._handle_execute_trajectory({
-            "waypoints": [[100.0] * 6],
-            "times": [1.0],
-        })
+        result = await server._handle_execute_trajectory(
+            {
+                "waypoints": [[100.0] * 6],
+                "times": [1.0],
+            }
+        )
         assert "Error in waypoint" in result[0].text
 
         server.ros_node.destroy_node()
@@ -633,11 +660,15 @@ class TestMain:
     @patch("rosclaw.mcp.ur5_server.UR5MCPServer")
     @patch("rosclaw.mcp.ur5_server.asyncio.run")
     def test_main_custom_model(self, mock_run, mock_server_cls):
-        with patch.object(sys, "argv", [
-            "ur5_server",
-            "--firewall-model",
-            "/path/to/model.xml",
-        ]):
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "ur5_server",
+                "--firewall-model",
+                "/path/to/model.xml",
+            ],
+        ):
             main()
 
         args = mock_server_cls.call_args

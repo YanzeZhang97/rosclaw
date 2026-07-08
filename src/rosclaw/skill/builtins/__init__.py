@@ -112,11 +112,13 @@ def list_builtin_skills() -> list[dict[str, Any]]:
         if manifest_path.exists():
             try:
                 manifest = SkillManifest.from_yaml(manifest_path)
-                info.update({
-                    "display_name": manifest.display_name,
-                    "version": manifest.skill_version,
-                    "description": manifest.display_name,
-                })
+                info.update(
+                    {
+                        "display_name": manifest.display_name,
+                        "version": manifest.skill_version,
+                        "description": manifest.display_name,
+                    }
+                )
             except Exception:
                 pass
         results.append(info)

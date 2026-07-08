@@ -134,7 +134,9 @@ class TestDoctor:
             code = main()
             captured = capsys.readouterr()
             assert "ROSClaw v1.0 — Doctor" in captured.out
-            assert code == 0 or "All checks passed" in captured.out or "Issues found" in captured.out
+            assert (
+                code == 0 or "All checks passed" in captured.out or "Issues found" in captured.out
+            )
         finally:
             os.chdir(old_cwd)
 
@@ -198,6 +200,7 @@ class TestLogs:
 class TestRobotList:
     def test_robot_list(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "robot", "list"]
         assert main() == 0
         captured = capsys.readouterr()
@@ -207,6 +210,7 @@ class TestRobotList:
 class TestRobotInspect:
     def test_robot_inspect_found(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "robot", "inspect", "ur5e"]
         main()
         captured = capsys.readouterr()
@@ -214,6 +218,7 @@ class TestRobotInspect:
 
     def test_robot_inspect_not_found(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "robot", "inspect", "nonexistent_robot_xyz"]
         code = main()
         captured = capsys.readouterr()
@@ -223,6 +228,7 @@ class TestRobotInspect:
 class TestRobotValidate:
     def test_robot_validate_found(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "robot", "validate", "ur5e"]
         main()
         captured = capsys.readouterr()
@@ -230,6 +236,7 @@ class TestRobotValidate:
 
     def test_robot_validate_not_found(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "robot", "validate", "nonexistent_robot_xyz"]
         code = main()
         captured = capsys.readouterr()
@@ -239,6 +246,7 @@ class TestRobotValidate:
 class TestPracticeCommands:
     def test_practice_list_empty(self, tmp_path, capsys):
         from rosclaw.cli import main
+
         data_root = tmp_path / "practice_data"
         sys.argv = ["rosclaw", "practice", "list", "--data-root", str(data_root)]
         assert main() == 0
@@ -247,6 +255,7 @@ class TestPracticeCommands:
 
     def test_practice_show_not_found(self, tmp_path, capsys):
         from rosclaw.cli import main
+
         data_root = tmp_path / "practice_data"
         sys.argv = ["rosclaw", "practice", "show", "ep_nonexistent", "--data-root", str(data_root)]
         code = main()
@@ -255,14 +264,23 @@ class TestPracticeCommands:
 
     def test_practice_replay_not_found(self, tmp_path, capsys):
         from rosclaw.cli import main
+
         data_root = tmp_path / "practice_data"
-        sys.argv = ["rosclaw", "practice", "replay", "ep_nonexistent", "--data-root", str(data_root)]
+        sys.argv = [
+            "rosclaw",
+            "practice",
+            "replay",
+            "ep_nonexistent",
+            "--data-root",
+            str(data_root),
+        ]
         code = main()
         captured = capsys.readouterr()
         assert "not found" in captured.out or code == 1
 
     def test_practice_export_not_found(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "practice", "export", "ep_nonexistent", "--format", "json"]
         code = main()
         captured = capsys.readouterr()
@@ -270,6 +288,7 @@ class TestPracticeCommands:
 
     def test_practice_init(self, monkeypatch, tmp_path):
         from rosclaw.cli import main
+
         monkeypatch.setenv("HOME", str(tmp_path))
         sys.argv = ["rosclaw", "practice", "init", "--robot", "test_bot"]
         assert main() == 0
@@ -277,18 +296,26 @@ class TestPracticeCommands:
 
     def test_practice_start_mock(self, monkeypatch, tmp_path, capsys):
         from rosclaw.cli import main
+
         home = tmp_path / "home"
         home.mkdir()
         monkeypatch.setenv("HOME", str(home))
         data_root = tmp_path / "practice_data"
         sys.argv = [
-            "rosclaw", "practice", "start",
-            "--robot", "test_bot",
-            "--task", "mock_task",
-            "--sources", "agent,runtime",
+            "rosclaw",
+            "practice",
+            "start",
+            "--robot",
+            "test_bot",
+            "--task",
+            "mock_task",
+            "--sources",
+            "agent,runtime",
             "--mock",
-            "--duration", "500ms",
-            "--data-root", str(data_root),
+            "--duration",
+            "500ms",
+            "--data-root",
+            str(data_root),
         ]
         assert main() == 0
         captured = capsys.readouterr()
@@ -297,18 +324,26 @@ class TestPracticeCommands:
 
     def test_practice_export_jsonl(self, monkeypatch, tmp_path, capsys):
         from rosclaw.cli import main
+
         home = tmp_path / "home"
         home.mkdir()
         monkeypatch.setenv("HOME", str(home))
         data_root = tmp_path / "practice_data"
         sys.argv = [
-            "rosclaw", "practice", "start",
-            "--robot", "test_bot",
-            "--task", "mock_task",
-            "--sources", "agent",
+            "rosclaw",
+            "practice",
+            "start",
+            "--robot",
+            "test_bot",
+            "--task",
+            "mock_task",
+            "--sources",
+            "agent",
             "--mock",
-            "--duration", "300ms",
-            "--data-root", str(data_root),
+            "--duration",
+            "300ms",
+            "--data-root",
+            str(data_root),
         ]
         assert main() == 0
         # Find the practice id from data root
@@ -316,10 +351,14 @@ class TestPracticeCommands:
         assert sessions
         practice_id = sessions[0].name
         sys.argv = [
-            "rosclaw", "practice", "export",
+            "rosclaw",
+            "practice",
+            "export",
             practice_id,
-            "--format", "jsonl",
-            "--data-root", str(data_root),
+            "--format",
+            "jsonl",
+            "--data-root",
+            str(data_root),
         ]
         capsys.readouterr()  # clear output from start command
         assert main() == 0
@@ -327,22 +366,31 @@ class TestPracticeCommands:
         lines = [line for line in captured.out.splitlines() if line.strip()]
         assert len(lines) > 0
         import json
+
         assert json.loads(lines[0])["schema_version"] == "practice.event.v1"
 
     def test_practice_list_show_replay_with_session(self, monkeypatch, tmp_path, capsys):
         from rosclaw.cli import main
+
         home = tmp_path / "home"
         home.mkdir()
         monkeypatch.setenv("HOME", str(home))
         data_root = tmp_path / "practice_data"
         sys.argv = [
-            "rosclaw", "practice", "start",
-            "--robot", "test_bot",
-            "--task", "mock_task",
-            "--sources", "agent,runtime",
+            "rosclaw",
+            "practice",
+            "start",
+            "--robot",
+            "test_bot",
+            "--task",
+            "mock_task",
+            "--sources",
+            "agent,runtime",
             "--mock",
-            "--duration", "500ms",
-            "--data-root", str(data_root),
+            "--duration",
+            "500ms",
+            "--data-root",
+            str(data_root),
         ]
         assert main() == 0
         sessions = [d for d in (data_root / "sessions").iterdir() if d.is_dir()]
@@ -371,7 +419,11 @@ class TestPracticeCommands:
         assert "Total events:" in captured.out
         assert "agent" in captured.out
 
+        import uvicorn
+
         from rosclaw.cli import main
+
+        monkeypatch.setattr(uvicorn, "run", lambda *a, **kw: None)
         sys.argv = ["rosclaw", "dashboard"]
         code = main()
         captured = capsys.readouterr()
@@ -383,6 +435,7 @@ class TestPracticeCommands:
         import uvicorn
 
         from rosclaw.cli import main
+
         monkeypatch.setattr(uvicorn, "run", lambda *a, **kw: None)
         sys.argv = ["rosclaw", "dashboard", "--open"]
         code = main()
@@ -394,6 +447,7 @@ class TestPracticeCommands:
 class TestProviderList:
     def test_provider_list(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "provider", "list"]
         code = main()
         captured = capsys.readouterr()
@@ -404,6 +458,7 @@ class TestProviderList:
 class TestSkillList:
     def test_skill_list(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "skill", "list"]
         code = main()
         captured = capsys.readouterr()
@@ -414,6 +469,7 @@ class TestSkillList:
 class TestSandboxCommands:
     def test_sandbox_list_worlds(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "sandbox", "list-worlds"]
         code = main()
         captured = capsys.readouterr()
@@ -423,6 +479,7 @@ class TestSandboxCommands:
 
     def test_sandbox_validate_found(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "sandbox", "validate", "ur5e"]
         main()
         captured = capsys.readouterr()
@@ -430,6 +487,7 @@ class TestSandboxCommands:
 
     def test_sandbox_validate_not_found(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "sandbox", "validate", "nonexistent_robot_xyz"]
         code = main()
         captured = capsys.readouterr()
@@ -458,6 +516,7 @@ class TestSandboxCommands:
 class TestMemoryCommands:
     def test_memory_status(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "memory", "status"]
         code = main()
         captured = capsys.readouterr()
@@ -466,6 +525,7 @@ class TestMemoryCommands:
 
     def test_memory_query(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "memory", "query", "pick up cup"]
         code = main()
         captured = capsys.readouterr()
@@ -473,6 +533,7 @@ class TestMemoryCommands:
 
     def test_memory_explain(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "memory", "explain"]
         code = main()
         captured = capsys.readouterr()
@@ -482,6 +543,7 @@ class TestMemoryCommands:
 class TestEventsCommand:
     def test_events_tail(self, capsys):
         from rosclaw.cli import main
+
         sys.argv = ["rosclaw", "events", "--tail", "5"]
         code = main()
         captured = capsys.readouterr()
@@ -608,7 +670,9 @@ class TestSandboxGenerateConfig:
         assert "Generated mujoco config" in captured.out
         assert "g1-cli" in captured.out
 
-        output_path = linked_workspace / "bodies" / "g1-cli" / "refs" / "sandbox" / "mujoco.config.yaml"
+        output_path = (
+            linked_workspace / "bodies" / "g1-cli" / "refs" / "sandbox" / "mujoco.config.yaml"
+        )
         assert output_path.exists()
 
     def test_sandbox_generate_config_isaac_json(self, linked_workspace, capsys):
@@ -675,4 +739,3 @@ class TestBodyUpdateStateFromProviderHealth:
         captured = capsys.readouterr()
         assert code == 0
         assert "Updated body state" in captured.out
-

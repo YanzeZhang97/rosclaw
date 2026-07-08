@@ -32,7 +32,9 @@ def latest_eval_report(root: Path, candidate_id: str | None = None) -> Path | No
         path = reports_dir / f"{candidate_id}_eval.json"
         return path if path.exists() else None
     # Return most recent eval report.
-    candidates = sorted(reports_dir.glob("*_eval.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    candidates = sorted(
+        reports_dir.glob("*_eval.json"), key=lambda p: p.stat().st_mtime, reverse=True
+    )
     return candidates[0] if candidates else None
 
 

@@ -1,4 +1,5 @@
 """Tests for Sprint D: Champion/DeadEnd/Promotion Gate."""
+
 from rosclaw.auto.core.champion import Champion
 from rosclaw.auto.promotion import ChampionStore, LineageTracker, PromotionGate, RollbackManager
 from rosclaw.auto.storage.local_store import LocalStore
@@ -12,8 +13,9 @@ def test_promotion_gate_passes():
         0: {"candidate": {"success_rate": 0.54}},
         1: {"candidate": {"success_rate": 0.56}},
     }
-    result = gate.evaluate(baseline, candidate, current_level="baseline",
-                           per_seed=per_seed, sandbox_risk_score=0.1)
+    result = gate.evaluate(
+        baseline, candidate, current_level="baseline", per_seed=per_seed, sandbox_risk_score=0.1
+    )
     assert result.passed is True
     assert result.decision == "promote_to_sim"
     assert result.next_level == "sim"
@@ -40,8 +42,13 @@ def test_promotion_gate_need_more_data():
 def test_champion_store_save_and_get():
     store = LocalStore("./.rosclaw_auto_test_promo")
     cs = ChampionStore(store)
-    champ = Champion(id="champ_001", skill_id="pick_v1.5", task_id="pick_cube",
-                     level="sim", metrics={"success_rate": 0.76})
+    champ = Champion(
+        id="champ_001",
+        skill_id="pick_v1.5",
+        task_id="pick_cube",
+        level="sim",
+        metrics={"success_rate": 0.76},
+    )
     cs.save_champion(champ)
     retrieved = cs.get_champion("pick_cube", "sim")
     assert retrieved is not None
@@ -51,9 +58,15 @@ def test_champion_store_save_and_get():
 def test_champion_store_best_champion():
     store = LocalStore("./.rosclaw_auto_test_promo2")
     cs = ChampionStore(store)
-    cs.save_champion(Champion(id="c1", skill_id="pick_v1", task_id="pick_cube", level="baseline", metrics={}))
-    cs.save_champion(Champion(id="c2", skill_id="pick_v1.5", task_id="pick_cube", level="sim", metrics={}))
-    cs.save_champion(Champion(id="c3", skill_id="pick_v1.8", task_id="pick_cube", level="real", metrics={}))
+    cs.save_champion(
+        Champion(id="c1", skill_id="pick_v1", task_id="pick_cube", level="baseline", metrics={})
+    )
+    cs.save_champion(
+        Champion(id="c2", skill_id="pick_v1.5", task_id="pick_cube", level="sim", metrics={})
+    )
+    cs.save_champion(
+        Champion(id="c3", skill_id="pick_v1.8", task_id="pick_cube", level="real", metrics={})
+    )
     best = cs.get_best_champion("pick_cube")
     assert best is not None
     assert best.level == "real"
@@ -64,8 +77,12 @@ def test_rollback_manager():
     cs = ChampionStore(store)
     rb = RollbackManager(store)
 
-    cs.save_champion(Champion(id="c1", skill_id="pick_v1", task_id="pick_cube", level="baseline", metrics={}))
-    cs.save_champion(Champion(id="c2", skill_id="pick_v1.5", task_id="pick_cube", level="sim", metrics={}))
+    cs.save_champion(
+        Champion(id="c1", skill_id="pick_v1", task_id="pick_cube", level="baseline", metrics={})
+    )
+    cs.save_champion(
+        Champion(id="c2", skill_id="pick_v1.5", task_id="pick_cube", level="sim", metrics={})
+    )
 
     target = rb.rollback("pick_cube")
     assert target is not None

@@ -132,7 +132,9 @@ class TestGuardPipeline:
     def test_empty_pipeline_passes(self):
         pipeline = GuardPipeline()
         req = ProviderRequest(request_id="r1", capability="test", inputs={})
-        resp = ProviderResponse(request_id="r1", provider="p", capability="test", result={}, status="ok")
+        resp = ProviderResponse(
+            request_id="r1", provider="p", capability="test", result={}, status="ok"
+        )
         result = pipeline.check(req, resp)
         assert result["pass"] is True
         assert result["checks"] == []
@@ -140,7 +142,9 @@ class TestGuardPipeline:
     def test_single_guard_passes(self):
         pipeline = GuardPipeline([DummyGuard("g1", True)])
         req = ProviderRequest(request_id="r1", capability="test", inputs={})
-        resp = ProviderResponse(request_id="r1", provider="p", capability="test", result={}, status="ok")
+        resp = ProviderResponse(
+            request_id="r1", provider="p", capability="test", result={}, status="ok"
+        )
         result = pipeline.check(req, resp)
         assert result["pass"] is True
         assert len(result["checks"]) == 1
@@ -148,14 +152,18 @@ class TestGuardPipeline:
     def test_single_guard_fails_raises(self):
         pipeline = GuardPipeline([DummyGuard("g1", False)])
         req = ProviderRequest(request_id="r1", capability="test", inputs={})
-        resp = ProviderResponse(request_id="r1", provider="p", capability="test", result={}, status="ok")
+        resp = ProviderResponse(
+            request_id="r1", provider="p", capability="test", result={}, status="ok"
+        )
         with pytest.raises(GuardBlockedError, match="g1 blocked"):
             pipeline.check(req, resp)
 
     def test_multiple_guards_all_pass(self):
         pipeline = GuardPipeline([DummyGuard("g1", True), DummyGuard("g2", True)])
         req = ProviderRequest(request_id="r1", capability="test", inputs={})
-        resp = ProviderResponse(request_id="r1", provider="p", capability="test", result={}, status="ok")
+        resp = ProviderResponse(
+            request_id="r1", provider="p", capability="test", result={}, status="ok"
+        )
         result = pipeline.check(req, resp)
         assert result["pass"] is True
         assert len(result["checks"]) == 2
@@ -163,7 +171,9 @@ class TestGuardPipeline:
     def test_multiple_guards_first_fails(self):
         pipeline = GuardPipeline([DummyGuard("g1", False), DummyGuard("g2", True)])
         req = ProviderRequest(request_id="r1", capability="test", inputs={})
-        resp = ProviderResponse(request_id="r1", provider="p", capability="test", result={}, status="ok")
+        resp = ProviderResponse(
+            request_id="r1", provider="p", capability="test", result={}, status="ok"
+        )
         with pytest.raises(GuardBlockedError) as exc:
             pipeline.check(req, resp)
         assert exc.value.checks[0]["name"] == "g1"
@@ -177,7 +187,9 @@ class TestGuardPipeline:
     def test_blocked_error_contains_all_checks(self):
         pipeline = GuardPipeline([DummyGuard("g1", True), DummyGuard("g2", False)])
         req = ProviderRequest(request_id="r1", capability="test", inputs={})
-        resp = ProviderResponse(request_id="r1", provider="p", capability="test", result={}, status="ok")
+        resp = ProviderResponse(
+            request_id="r1", provider="p", capability="test", result={}, status="ok"
+        )
         with pytest.raises(GuardBlockedError) as exc:
             pipeline.check(req, resp)
         # g1's pass check should be in the error too

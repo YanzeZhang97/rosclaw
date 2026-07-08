@@ -53,9 +53,7 @@ def _make_episode(data_root: Path, practice_id: str) -> Path:
             "depth_ref": "artifacts/frames/depth_000001.png",
         },
     }
-    (session_dir / "timeline.jsonl").write_text(
-        json.dumps(frame_event) + "\n", encoding="utf-8"
-    )
+    (session_dir / "timeline.jsonl").write_text(json.dumps(frame_event) + "\n", encoding="utf-8")
     (session_dir / "episode.json").write_text(
         json.dumps(
             {

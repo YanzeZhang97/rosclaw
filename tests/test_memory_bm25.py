@@ -99,9 +99,7 @@ class TestBM25Search:
 
     def test_unrelated_query_returns_empty(self, populated_mem):
         """Completely unrelated query should return few or no results."""
-        results = populated_mem.find_similar_experiences(
-            "quantum physics entanglement", limit=5
-        )
+        results = populated_mem.find_similar_experiences("quantum physics entanglement", limit=5)
         # Should return empty or very few results (BM25 may still match "the")
         assert len(results) <= 2
 

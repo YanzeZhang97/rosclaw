@@ -1,4 +1,5 @@
 """L0: Static checks and architecture boundary tests."""
+
 import ast
 from pathlib import Path
 
@@ -49,6 +50,7 @@ def test_no_hardcoded_api_keys():
 def test_all_core_models_have_to_dict():
     """AUTO-CORE-000: All core models must implement to_dict/from_dict."""
     import importlib
+
     core = importlib.import_module("rosclaw.auto.core")
     for name in dir(core):
         obj = getattr(core, name)
@@ -60,8 +62,15 @@ def test_all_core_models_have_to_dict():
 def test_dataclass_fields_not_empty():
     """AUTO-CORE-000b: Core models must have required fields."""
     from rosclaw.auto.core import AutoTask, FailureCase
-    task = AutoTask(id="t1", name="pick", task_type="skill_tuning", robot_id="r1",
-                    environment_id="e1", target_skill_id="s1")
+
+    task = AutoTask(
+        id="t1",
+        name="pick",
+        task_type="skill_tuning",
+        robot_id="r1",
+        environment_id="e1",
+        target_skill_id="s1",
+    )
     assert task.id == "t1"
     fc = FailureCase(id="f1", praxis_event_id="e1", task_id="t1", skill_id="s1")
     assert fc.failure_mode == ""

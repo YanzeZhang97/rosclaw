@@ -52,11 +52,7 @@ class OperationalEnvelopeEstimator:
 
     def _is_thermal_limited(self, body_sense: BodySense) -> bool:
         risk = body_sense.risk_summary
-        return (
-            risk.thermal_risk in ("high", "critical")
-            or any(
-                reason.startswith(("joint_hot", "joint_overheat"))
-                or "temperature" in reason
-                for reason in body_sense.main_reasons
-            )
+        return risk.thermal_risk in ("high", "critical") or any(
+            reason.startswith(("joint_hot", "joint_overheat")) or "temperature" in reason
+            for reason in body_sense.main_reasons
         )

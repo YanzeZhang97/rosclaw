@@ -9,6 +9,7 @@ from rosclaw.critic.basic_critic import BasicCritic
 class TestBasicCriticLifecycle:
     def test_passive_mode_no_event_bus(self, caplog):
         import logging
+
         critic = BasicCritic("test_bot", event_bus=None)
         with caplog.at_level(logging.INFO, logger="rosclaw.critic.basic_critic"):
             critic.initialize()
@@ -17,6 +18,7 @@ class TestBasicCriticLifecycle:
 
     def test_active_mode_with_event_bus(self, caplog):
         import logging
+
         bus = EventBus()
         critic = BasicCritic("test_bot", event_bus=bus)
         with caplog.at_level(logging.INFO, logger="rosclaw.critic.basic_critic"):
@@ -50,10 +52,12 @@ class TestBasicCriticSkillComplete:
         bus = EventBus()
         critic = BasicCritic("bot", event_bus=bus)
         critic.initialize()
-        critic._on_skill_complete(Event(
-            topic="skill.execution.complete",
-            payload={"result": {"status": "success"}, "episode_id": "ep1"},
-        ))
+        critic._on_skill_complete(
+            Event(
+                topic="skill.execution.complete",
+                payload={"result": {"status": "success"}, "episode_id": "ep1"},
+            )
+        )
         assert len(critic._judgments) == 1
         assert critic._judgments[0]["status"] == "SUCCESS"
         assert critic._judgments[0]["reward"] == 1.0
@@ -63,13 +67,15 @@ class TestBasicCriticSkillComplete:
         bus = EventBus()
         critic = BasicCritic("bot", event_bus=bus)
         critic.initialize()
-        critic._on_skill_complete(Event(
-            topic="skill.execution.complete",
-            payload={
-                "result": {"status": "failure", "error": "operation timeout"},
-                "episode_id": "ep2",
-            },
-        ))
+        critic._on_skill_complete(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "result": {"status": "failure", "error": "operation timeout"},
+                    "episode_id": "ep2",
+                },
+            )
+        )
         assert critic._judgments[0]["status"] == "FAILED"
         assert critic._judgments[0]["reward"] == -0.3
         assert "timeout" in critic._judgments[0]["reason"]
@@ -79,13 +85,15 @@ class TestBasicCriticSkillComplete:
         bus = EventBus()
         critic = BasicCritic("bot", event_bus=bus)
         critic.initialize()
-        critic._on_skill_complete(Event(
-            topic="skill.execution.complete",
-            payload={
-                "result": {"status": "failure", "error": "collision detected"},
-                "episode_id": "ep3",
-            },
-        ))
+        critic._on_skill_complete(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "result": {"status": "failure", "error": "collision detected"},
+                    "episode_id": "ep3",
+                },
+            )
+        )
         assert critic._judgments[0]["status"] == "FAILED"
         assert critic._judgments[0]["reward"] == -1.0
         assert critic._judgments[0]["reason"] == "collision detected"
@@ -95,10 +103,12 @@ class TestBasicCriticSkillComplete:
         bus = EventBus()
         critic = BasicCritic("bot", event_bus=bus)
         critic.initialize()
-        critic._on_skill_complete(Event(
-            topic="skill.execution.complete",
-            payload="not a dict",
-        ))
+        critic._on_skill_complete(
+            Event(
+                topic="skill.execution.complete",
+                payload="not a dict",
+            )
+        )
         # Non-dict payload -> status="unknown" -> no judgment recorded
         assert len(critic._judgments) == 0
         critic.stop()
@@ -109,13 +119,15 @@ class TestBasicCriticPraxisEvents:
         bus = EventBus()
         critic = BasicCritic("bot", event_bus=bus)
         critic.initialize()
-        critic._on_praxis_completed(Event(
-            topic="praxis.completed",
-            payload={
-                "outcome": {"reward": 0.8},
-                "practice_id": "pr1",
-            },
-        ))
+        critic._on_praxis_completed(
+            Event(
+                topic="praxis.completed",
+                payload={
+                    "outcome": {"reward": 0.8},
+                    "practice_id": "pr1",
+                },
+            )
+        )
         assert critic._judgments[0]["status"] == "SUCCESS"
         assert critic._judgments[0]["reward"] == 0.8
         critic.stop()
@@ -124,14 +136,16 @@ class TestBasicCriticPraxisEvents:
         bus = EventBus()
         critic = BasicCritic("bot", event_bus=bus)
         critic.initialize()
-        critic._on_praxis_failed(Event(
-            topic="praxis.failed",
-            payload={
-                "outcome": {"reward": -0.7},
-                "practice_id": "pr2",
-                "error_log": "grasp slipped",
-            },
-        ))
+        critic._on_praxis_failed(
+            Event(
+                topic="praxis.failed",
+                payload={
+                    "outcome": {"reward": -0.7},
+                    "practice_id": "pr2",
+                    "error_log": "grasp slipped",
+                },
+            )
+        )
         assert critic._judgments[0]["status"] == "FAILED"
         assert critic._judgments[0]["reward"] == -0.7
         assert critic._judgments[0]["reason"] == "grasp slipped"
@@ -151,13 +165,15 @@ class TestBasicCriticFirewallAndSafety:
         bus = EventBus()
         critic = BasicCritic("bot", event_bus=bus)
         critic.initialize()
-        critic._on_firewall_blocked(Event(
-            topic="firewall.action_blocked",
-            payload={
-                "episode_id": "ep4",
-                "reason": "joint limit exceeded",
-            },
-        ))
+        critic._on_firewall_blocked(
+            Event(
+                topic="firewall.action_blocked",
+                payload={
+                    "episode_id": "ep4",
+                    "reason": "joint limit exceeded",
+                },
+            )
+        )
         assert critic._judgments[0]["status"] == "BLOCKED"
         assert critic._judgments[0]["reward"] == -0.5
         assert critic._judgments[0]["reason"] == "joint limit exceeded"
@@ -167,13 +183,15 @@ class TestBasicCriticFirewallAndSafety:
         bus = EventBus()
         critic = BasicCritic("bot", event_bus=bus)
         critic.initialize()
-        critic._on_safety_violation(Event(
-            topic="safety.violation",
-            payload={
-                "episode_id": "ep5",
-                "violations": ["collision", "workspace breach"],
-            },
-        ))
+        critic._on_safety_violation(
+            Event(
+                topic="safety.violation",
+                payload={
+                    "episode_id": "ep5",
+                    "violations": ["collision", "workspace breach"],
+                },
+            )
+        )
         assert critic._judgments[0]["status"] == "BLOCKED"
         assert critic._judgments[0]["reason"] == "collision"
         critic.stop()
@@ -182,13 +200,15 @@ class TestBasicCriticFirewallAndSafety:
         bus = EventBus()
         critic = BasicCritic("bot", event_bus=bus)
         critic.initialize()
-        critic._on_safety_violation(Event(
-            topic="safety.violation",
-            payload={
-                "episode_id": "ep6",
-                "violations": [],
-            },
-        ))
+        critic._on_safety_violation(
+            Event(
+                topic="safety.violation",
+                payload={
+                    "episode_id": "ep6",
+                    "violations": [],
+                },
+            )
+        )
         assert critic._judgments[0]["reason"] == "safety violation"
         critic.stop()
 

@@ -1,4 +1,5 @@
 """PromotionGate — safety-gated skill champion promotion."""
+
 import logging
 from dataclasses import dataclass, field
 
@@ -8,6 +9,7 @@ logger = logging.getLogger("rosclaw.auto.promotion.gate")
 @dataclass
 class GateResult:
     """Result of running a promotion gate."""
+
     passed: bool = False
     decision: str = ""
     checks: list[dict] = field(default_factory=list)
@@ -46,61 +48,114 @@ class PromotionGate:
         self.min_seeds = self.config.get("min_seeds", 2)
         self.max_risk_score = self.config.get("max_risk_score", 0.2)
 
-    def evaluate(self, baseline_metrics: dict, candidate_metrics: dict,
-                 current_level: str = "baseline", per_seed: dict | None = None,
-                 sandbox_risk_score: float = 0.0) -> GateResult:
+    def evaluate(
+        self,
+        baseline_metrics: dict,
+        candidate_metrics: dict,
+        current_level: str = "baseline",
+        per_seed: dict | None = None,
+        sandbox_risk_score: float = 0.0,
+    ) -> GateResult:
         """Run all promotion gates and return decision."""
         checks = []
         passed = True
         next_level = self._next_level(current_level)
 
         # Gate 1: metric_improvement
-        sr_delta = candidate_metrics.get("success_rate", 0) - baseline_metrics.get("success_rate", 0)
+        sr_delta = candidate_metrics.get("success_rate", 0) - baseline_metrics.get(
+            "success_rate", 0
+        )
         g1 = sr_delta >= self.min_success_delta
-        checks.append({"name": "metric_improvement", "passed": g1,
-                       "detail": f"success_rate_delta={sr_delta:.3f} (need >= {self.min_success_delta})"})
+        checks.append(
+            {
+                "name": "metric_improvement",
+                "passed": g1,
+                "detail": f"success_rate_delta={sr_delta:.3f} (need >= {self.min_success_delta})",
+            }
+        )
         if not g1:
             passed = False
 
         # Gate 2: safety_non_regression
-        col_delta = candidate_metrics.get("collision_rate", 0) - baseline_metrics.get("collision_rate", 0)
+        col_delta = candidate_metrics.get("collision_rate", 0) - baseline_metrics.get(
+            "collision_rate", 0
+        )
         g2 = col_delta <= self.max_collision_increase + 0.001
-        checks.append({"name": "safety_non_regression", "passed": g2,
-                       "detail": f"collision_rate_delta={col_delta:.3f} (need <= {self.max_collision_increase})"})
+        checks.append(
+            {
+                "name": "safety_non_regression",
+                "passed": g2,
+                "detail": f"collision_rate_delta={col_delta:.3f} (need <= {self.max_collision_increase})",
+            }
+        )
         if not g2:
             passed = False
 
         # Gate 3: robustness (std across seeds if available)
         if per_seed and len(per_seed) > 1:
-            srs = [s["candidate"]["success_rate"] for s in per_seed.values() if "candidate" in s and "success_rate" in s.get("candidate", {})]
+            srs = [
+                s["candidate"]["success_rate"]
+                for s in per_seed.values()
+                if "candidate" in s and "success_rate" in s.get("candidate", {})
+            ]
             if srs:
                 import statistics
+
                 sr_std = statistics.stdev(srs) if len(srs) > 1 else 0.0
                 g3 = sr_std <= self.max_success_std
-                checks.append({"name": "robustness", "passed": g3,
-                               "detail": f"success_rate_std={sr_std:.3f} (need <= {self.max_success_std})"})
+                checks.append(
+                    {
+                        "name": "robustness",
+                        "passed": g3,
+                        "detail": f"success_rate_std={sr_std:.3f} (need <= {self.max_success_std})",
+                    }
+                )
                 if not g3:
                     passed = False
             else:
-                checks.append({"name": "robustness", "passed": True, "detail": "skipped (no valid per_seed data)"})
+                checks.append(
+                    {
+                        "name": "robustness",
+                        "passed": True,
+                        "detail": "skipped (no valid per_seed data)",
+                    }
+                )
         else:
-            checks.append({"name": "robustness", "passed": True, "detail": "skipped (no per_seed data)"})
+            checks.append(
+                {"name": "robustness", "passed": True, "detail": "skipped (no per_seed data)"}
+            )
 
         # Gate 4: second_seed_confirmation (only if per_seed available)
         if per_seed:
             seed_count = len(per_seed)
             g4 = seed_count >= self.min_seeds
-            checks.append({"name": "second_seed_confirmation", "passed": g4,
-                           "detail": f"seeds={seed_count} (need >= {self.min_seeds})"})
+            checks.append(
+                {
+                    "name": "second_seed_confirmation",
+                    "passed": g4,
+                    "detail": f"seeds={seed_count} (need >= {self.min_seeds})",
+                }
+            )
             if not g4:
                 passed = False
         else:
-            checks.append({"name": "second_seed_confirmation", "passed": True, "detail": "skipped (no per_seed data)"})
+            checks.append(
+                {
+                    "name": "second_seed_confirmation",
+                    "passed": True,
+                    "detail": "skipped (no per_seed data)",
+                }
+            )
 
         # Gate 5: sandbox_clearance
         g5 = sandbox_risk_score < self.max_risk_score
-        checks.append({"name": "sandbox_clearance", "passed": g5,
-                       "detail": f"risk_score={sandbox_risk_score:.3f} (need < {self.max_risk_score})"})
+        checks.append(
+            {
+                "name": "sandbox_clearance",
+                "passed": g5,
+                "detail": f"risk_score={sandbox_risk_score:.3f} (need < {self.max_risk_score})",
+            }
+        )
         if not g5:
             passed = False
 
@@ -120,7 +175,9 @@ class PromotionGate:
 
         logger.info("PromotionGate: %s -> %s", decision, reason)
         return GateResult(
-            passed=passed, decision=decision, checks=checks,
+            passed=passed,
+            decision=decision,
+            checks=checks,
             next_level=next_level if passed else current_level,
             reason=reason,
         )

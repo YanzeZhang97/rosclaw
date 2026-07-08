@@ -5,6 +5,7 @@ Replaces pure random metrics with a physics-inspired lookup so that:
 - Different runners (local/sandbox/darwin) see consistent candidate behaviour.
 - Tests can assert on exact metric values given known patch parameters.
 """
+
 import math
 
 
@@ -65,16 +66,20 @@ class MockPhysicsModel:
         return params
 
     @classmethod
-    def evaluate(cls, patch_changes: list[dict],
-                 baseline_sr: float = 0.40,
-                 baseline_col: float = 0.10,
-                 seed: int | None = None,
-                 noise_scale: float = 0.02) -> dict:
+    def evaluate(
+        cls,
+        patch_changes: list[dict],
+        baseline_sr: float = 0.40,
+        baseline_col: float = 0.10,
+        seed: int | None = None,
+        noise_scale: float = 0.02,
+    ) -> dict:
         """Return deterministic metrics for a given patch.
 
         Returns {"success_rate": float, "collision_rate": float}
         """
         import random
+
         rng = random.Random(seed if seed is not None else 42)
         params = cls._extract_params(patch_changes)
 
@@ -117,11 +122,14 @@ class MockPhysicsModel:
         }
 
     @classmethod
-    def evaluate_multi_seed(cls, patch_changes: list[dict],
-                            seeds: list[int],
-                            baseline_sr: float = 0.40,
-                            baseline_col: float = 0.10,
-                            noise_scale: float = 0.02) -> dict[int, dict]:
+    def evaluate_multi_seed(
+        cls,
+        patch_changes: list[dict],
+        seeds: list[int],
+        baseline_sr: float = 0.40,
+        baseline_col: float = 0.10,
+        noise_scale: float = 0.02,
+    ) -> dict[int, dict]:
         """Evaluate across multiple seeds with isolated random state."""
         results = {}
         for seed in seeds:

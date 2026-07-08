@@ -13,6 +13,7 @@ from enum import Enum, auto
 
 class LifecycleState(Enum):
     """Standard lifecycle states for ROSClaw modules."""
+
     UNINITIALIZED = auto()
     INITIALIZING = auto()
     READY = auto()
@@ -97,7 +98,11 @@ class LifecycleMixin:
 
     def stop(self) -> None:
         """Stop the module gracefully."""
-        if self._lifecycle_state in (LifecycleState.RUNNING, LifecycleState.PAUSED, LifecycleState.READY):
+        if self._lifecycle_state in (
+            LifecycleState.RUNNING,
+            LifecycleState.PAUSED,
+            LifecycleState.READY,
+        ):
             self._lifecycle_state = LifecycleState.SHUTTING_DOWN
             try:
                 self._do_stop()

@@ -9,6 +9,7 @@ from typing import Any
 @dataclass
 class MCPServerManifest:
     """MCP Server manifest for ROSClaw."""
+
     name: str = "rosclaw-mcp"
     version: str = "1.0.0"
     description: str = "ROSClaw MCP Server for Physical Intelligence"
@@ -63,11 +64,13 @@ class MCPManifestBuilder:
 
     def add_robot_state_tool(self, robot_id: str, robot_name: str) -> None:
         """Add a standard robot state query tool."""
-        self._tools.append({
-            "name": f"robot_{robot_id}_state",
-            "description": f"Get current state of {robot_name}",
-            "inputSchema": {"type": "object", "properties": {}},
-        })
+        self._tools.append(
+            {
+                "name": f"robot_{robot_id}_state",
+                "description": f"Get current state of {robot_name}",
+                "inputSchema": {"type": "object", "properties": {}},
+            }
+        )
 
     def add_skill_tool(self, skill_name: str, description: str, parameters: dict[str, Any]) -> None:
         """Add a skill execution tool."""
@@ -77,16 +80,21 @@ class MCPManifestBuilder:
             "required": [],
         }
         for name, spec in parameters.items():
-            param_schema = {"type": spec.get("type", "string"), "description": spec.get("description", "")}
+            param_schema = {
+                "type": spec.get("type", "string"),
+                "description": spec.get("description", ""),
+            }
             schema["properties"][name] = param_schema
             if spec.get("required", False):
                 schema["required"].append(name)
 
-        self._tools.append({
-            "name": f"skill_{skill_name}",
-            "description": description,
-            "inputSchema": schema,
-        })
+        self._tools.append(
+            {
+                "name": f"skill_{skill_name}",
+                "description": description,
+                "inputSchema": schema,
+            }
+        )
 
     def build(self) -> MCPServerManifest:
         """Build and return the manifest."""

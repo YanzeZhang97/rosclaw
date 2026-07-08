@@ -1,4 +1,5 @@
 """SandboxRunner — safety-gated experiment runner via rosclaw-sandbox."""
+
 import logging
 from typing import Any
 
@@ -19,6 +20,7 @@ class SandboxRunner(BaseRunner):
     5. Execute episode in MuJoCo / e-URDF
     6. Return metrics + safety clearance
     """
+
     name = "sandbox"
 
     def __init__(self, config: dict | None = None):
@@ -54,6 +56,7 @@ class SandboxRunner(BaseRunner):
 
         if self._simulate:
             import random
+
             seed = self._fixed_seed if self._fixed_seed is not None else hash(candidate) % 10000
             rng = random.Random(seed)
 
@@ -78,7 +81,9 @@ class SandboxRunner(BaseRunner):
             if collision_count > max_collision:
                 return RunnerResult(
                     success=False,
-                    safety_violations=[f"Collision count {collision_count} exceeds limit {max_collision}"],
+                    safety_violations=[
+                        f"Collision count {collision_count} exceeds limit {max_collision}"
+                    ],
                     error="Sandbox rejected: collision check failed",
                 )
             if force_exceeded and max_force < 50:

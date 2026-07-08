@@ -95,9 +95,9 @@ class TestDeepSeekInfer:
         provider._api_key = "fake_key"
 
         mock_resp = MagicMock()
-        mock_resp.read.return_value = json.dumps({
-            "choices": [{"message": {"content": "plan result"}}]
-        }).encode()
+        mock_resp.read.return_value = json.dumps(
+            {"choices": [{"message": {"content": "plan result"}}]}
+        ).encode()
 
         with patch("urllib.request.urlopen", return_value=mock_resp):
             req = ProviderRequest(
@@ -117,9 +117,9 @@ class TestDeepSeekInfer:
         provider._api_key = "fake_key"
 
         mock_resp = MagicMock()
-        mock_resp.read.return_value = json.dumps({
-            "error": {"message": "rate limit exceeded"}
-        }).encode()
+        mock_resp.read.return_value = json.dumps(
+            {"error": {"message": "rate limit exceeded"}}
+        ).encode()
 
         with patch("urllib.request.urlopen", return_value=mock_resp):
             req = ProviderRequest(
@@ -173,9 +173,9 @@ class TestDeepSeekInfer:
         provider._api_key = "fake_key"
 
         mock_resp = MagicMock()
-        mock_resp.read.return_value = json.dumps({
-            "choices": [{"message": {"content": ""}}]
-        }).encode()
+        mock_resp.read.return_value = json.dumps(
+            {"choices": [{"message": {"content": ""}}]}
+        ).encode()
 
         with patch("urllib.request.urlopen", return_value=mock_resp):
             req = ProviderRequest(

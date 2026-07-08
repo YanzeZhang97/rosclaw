@@ -11,6 +11,7 @@ Design:
   - RecoveryHint includes confidence scoring and provenance tracking.
   - RetryPlan is a structured parameter patch for the next attempt.
 """
+
 from __future__ import annotations
 
 import logging
@@ -60,12 +61,8 @@ class RecoveryEngine:
             logger.debug("RecoveryEngine initialized without EventBus (passive mode)")
             return
 
-        self._event_bus.subscribe(
-            "rosclaw.sandbox.episode.failed", self._on_sandbox_episode_failed
-        )
-        self._event_bus.subscribe(
-            "rosclaw.sandbox.action.blocked", self._on_sandbox_action_blocked
-        )
+        self._event_bus.subscribe("rosclaw.sandbox.episode.failed", self._on_sandbox_episode_failed)
+        self._event_bus.subscribe("rosclaw.sandbox.action.blocked", self._on_sandbox_action_blocked)
         self._event_bus.subscribe(
             "rosclaw.runtime.execution.failed", self._on_runtime_execution_failed
         )
@@ -120,9 +117,7 @@ class RecoveryEngine:
             if error_log:
                 failure_type = error_log
             elif violations:
-                failure_type = "; ".join(
-                    v.get("description", "") for v in violations
-                )
+                failure_type = "; ".join(v.get("description", "") for v in violations)
 
         if not failure_type:
             return
@@ -134,14 +129,16 @@ class RecoveryEngine:
 
         from rosclaw.core.async_utils import run_sync
 
-        run_sync(self._handle_failure_async(
-            failure_type=failure_type,
-            request_id=request_id,
-            source=source,
-            payload=payload,
-            previous_scores=previous_scores if isinstance(previous_scores, list) else None,
-            current_iteration=current_iteration if isinstance(current_iteration, int) else None,
-        ))
+        run_sync(
+            self._handle_failure_async(
+                failure_type=failure_type,
+                request_id=request_id,
+                source=source,
+                payload=payload,
+                previous_scores=previous_scores if isinstance(previous_scores, list) else None,
+                current_iteration=current_iteration if isinstance(current_iteration, int) else None,
+            )
+        )
 
     async def _handle_failure_async(
         self,
@@ -171,26 +168,30 @@ class RecoveryEngine:
                 event_payload = self.format_for_eventbus(hint, request_id=request_id)
                 from rosclaw.core.event_bus import Event, EventPriority
 
-                self._event_bus.publish(Event(
-                    topic="rosclaw.how.recovery_hint.generated",
-                    payload=event_payload,
-                    source="recovery_engine",
-                    priority=EventPriority.HIGH,
-                ))
+                self._event_bus.publish(
+                    Event(
+                        topic="rosclaw.how.recovery_hint.generated",
+                        payload=event_payload,
+                        source="recovery_engine",
+                        priority=EventPriority.HIGH,
+                    )
+                )
                 logger.info("Published recovery hint for %s (req=%s)", failure_type, request_id)
             else:
                 from rosclaw.core.event_bus import Event, EventPriority
 
-                self._event_bus.publish(Event(
-                    topic="rosclaw.how.recovery_hint.failed",
-                    payload={
-                        "request_id": request_id,
-                        "failure_type": failure_type,
-                        "reason": "no_matching_rule",
-                    },
-                    source="recovery_engine",
-                    priority=EventPriority.HIGH,
-                ))
+                self._event_bus.publish(
+                    Event(
+                        topic="rosclaw.how.recovery_hint.failed",
+                        payload={
+                            "request_id": request_id,
+                            "failure_type": failure_type,
+                            "reason": "no_matching_rule",
+                        },
+                        source="recovery_engine",
+                        priority=EventPriority.HIGH,
+                    )
+                )
                 logger.warning("No recovery hint for %s (req=%s)", failure_type, request_id)
         except Exception as exc:
             logger.error("RecoveryEngine handler failed: %s", exc)
@@ -236,8 +237,10 @@ class RecoveryEngine:
 
         # Multi-rule matching: get all matching rules, rank by confidence
         candidates = await self._find_all_candidates(
-            failure_type, ctx,
-            previous_scores=previous_scores, current_iteration=current_iteration,
+            failure_type,
+            ctx,
+            previous_scores=previous_scores,
+            current_iteration=current_iteration,
         )
         if not candidates:
             return None
@@ -265,16 +268,20 @@ class RecoveryEngine:
         }
         logger.info(
             "RecoveryHint for %s: confidence=%.2f, candidates=%d",
-            failure_type, confidence, len(candidates)
+            failure_type,
+            confidence,
+            len(candidates),
         )
 
         # Publish recovery_hint.generated to EventBus
         if event_bus is not None:
             try:
-                event_bus.publish({
-                    "topic": "rosclaw.how.recovery_hint.generated",
-                    "payload": self.format_for_eventbus(hint, request_id=request_id),
-                })
+                event_bus.publish(
+                    {
+                        "topic": "rosclaw.how.recovery_hint.generated",
+                        "payload": self.format_for_eventbus(hint, request_id=request_id),
+                    }
+                )
             except Exception as exc:
                 logger.warning("Failed to publish recovery_hint event: %s", exc)
 
@@ -296,8 +303,10 @@ class RecoveryEngine:
 
         try:
             rule = await self._how.suggest_recovery(
-                failure_type, context=context,
-                previous_scores=previous_scores, current_iteration=current_iteration,
+                failure_type,
+                context=context,
+                previous_scores=previous_scores,
+                current_iteration=current_iteration,
             )
             if rule:
                 rule["_confidence"] = self._compute_confidence(rule)
@@ -439,16 +448,15 @@ class RecoveryFormatter:
         """Best-effort trajectory adjustment based on suggestion text."""
         suggestion_lower = suggestion.lower()
 
-        if "reduce" in suggestion_lower and ("velocity" in suggestion_lower or "kp" in suggestion_lower):
+        if "reduce" in suggestion_lower and (
+            "velocity" in suggestion_lower or "kp" in suggestion_lower
+        ):
             factor = 0.5 if "50" in suggestion_lower else 0.7
             return [[v * factor for v in wp] for wp in trajectory]
 
         if "grip" in suggestion_lower and "force" in suggestion_lower:
             offset = 0.2 if "20" in suggestion_lower else 0.1
-            return [
-                wp[:-1] + [wp[-1] + offset] if wp else wp
-                for wp in trajectory
-            ]
+            return [wp[:-1] + [wp[-1] + offset] if wp else wp for wp in trajectory]
 
         return list(trajectory)
 

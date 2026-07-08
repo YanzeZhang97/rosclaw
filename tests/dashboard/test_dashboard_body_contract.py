@@ -19,7 +19,11 @@ def linked_workspace(tmp_path: Path, monkeypatch) -> Path:
     workspace = tmp_path / ".rosclaw"
     monkeypatch.setenv("HOME", str(tmp_path))
     BodyInstanceService().create_or_init(
-        robot="unitree-g1", name="g1-dashboard", mode="registry", update_registry=True, switch_active=True
+        robot="unitree-g1",
+        name="g1-dashboard",
+        mode="registry",
+        update_registry=True,
+        switch_active=True,
     )
     return workspace
 

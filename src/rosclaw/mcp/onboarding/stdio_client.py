@@ -68,7 +68,9 @@ class McpStdioClient:
         # Send initialized notification.
         self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
 
-    def call_tool(self, tool_name: str, arguments: dict[str, Any], timeout: float = 30.0) -> dict[str, Any]:
+    def call_tool(
+        self, tool_name: str, arguments: dict[str, Any], timeout: float = 30.0
+    ) -> dict[str, Any]:
         """Call an MCP tool and return the JSON-RPC result."""
         if self._proc is None:
             raise McpStdioError("MCP server not started")
@@ -262,7 +264,9 @@ def list_server_tools(
             client.stop()
 
 
-def health_smoke(server_name: str, home: Path | str | None = None, timeout: float = 20.0) -> dict[str, Any]:
+def health_smoke(
+    server_name: str, home: Path | str | None = None, timeout: float = 20.0
+) -> dict[str, Any]:
     """Run a lightweight health smoke test: handshake and list tools."""
     try:
         tools = list_server_tools(server_name, home=home, timeout=timeout)
@@ -288,7 +292,9 @@ class McpServerSession:
     server process alive for the duration of the ``with`` block.
     """
 
-    def __init__(self, server_name: str, home: Path | str | None = None, start_timeout: float = 10.0):
+    def __init__(
+        self, server_name: str, home: Path | str | None = None, start_timeout: float = 10.0
+    ):
         config = load_runtime_config(server_name, home=home)
         transport = config.get("transport", {})
         self.command = transport.get("command")
@@ -309,7 +315,9 @@ class McpServerSession:
             self._client.stop()
             self._client = None
 
-    def call(self, tool_name: str, arguments: dict[str, Any] | None = None, timeout: float = 30.0) -> dict[str, Any]:
+    def call(
+        self, tool_name: str, arguments: dict[str, Any] | None = None, timeout: float = 30.0
+    ) -> dict[str, Any]:
         if self._client is None:
             raise McpStdioError("Session not started")
         response = self._client.call_tool(tool_name, arguments or {}, timeout=timeout)

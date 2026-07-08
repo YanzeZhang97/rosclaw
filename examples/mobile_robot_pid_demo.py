@@ -247,8 +247,7 @@ def main() -> int:
     # 6. Final pose summary
     final = driver.get_pose()
     print(
-        f"6. Final pose: x={final.x:.2f}, y={final.y:.2f}, "
-        f"theta={math.degrees(final.theta):.1f}°"
+        f"6. Final pose: x={final.x:.2f}, y={final.y:.2f}, theta={math.degrees(final.theta):.1f}°"
     )
 
     # Cleanup

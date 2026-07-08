@@ -56,22 +56,28 @@ def snapshot_to_runtime_state(snapshot: RosGraphSnapshot) -> dict[str, Any]:
     command_topics = [t.name for t in snapshot.topics if t.is_command]
 
     # Per-sensor categories used by downstream skill manifests.
-    camera_topics = [t.name for t in snapshot.topics if t.is_sensor and "image" in t.msg_type.lower()]
+    camera_topics = [
+        t.name for t in snapshot.topics if t.is_sensor and "image" in t.msg_type.lower()
+    ]
     joint_state_topics = [
-        t.name for t in snapshot.topics
-        if t.is_sensor and t.msg_type.lower() in {"sensor_msgs/jointstate", "sensor_msgs/joint_state"}
+        t.name
+        for t in snapshot.topics
+        if t.is_sensor
+        and t.msg_type.lower() in {"sensor_msgs/jointstate", "sensor_msgs/joint_state"}
     ]
     point_cloud_topics = [
-        t.name for t in snapshot.topics
+        t.name
+        for t in snapshot.topics
         if t.is_sensor and "pointcloud" in t.msg_type.lower().replace("_", "")
     ]
-    lidar_topics = [t.name for t in snapshot.topics if t.is_sensor and "laserscan" in t.msg_type.lower()]
-    odometry_topics = [t.name for t in snapshot.topics if t.is_sensor and "odom" in t.msg_type.lower()]
-
-    motion_services = [
-        s.name for s in snapshot.services
-        if s.risk_hint in {"medium", "high"}
+    lidar_topics = [
+        t.name for t in snapshot.topics if t.is_sensor and "laserscan" in t.msg_type.lower()
     ]
+    odometry_topics = [
+        t.name for t in snapshot.topics if t.is_sensor and "odom" in t.msg_type.lower()
+    ]
+
+    motion_services = [s.name for s in snapshot.services if s.risk_hint in {"medium", "high"}]
 
     return {
         "online": True,

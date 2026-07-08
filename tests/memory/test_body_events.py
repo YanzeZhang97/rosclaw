@@ -17,7 +17,9 @@ from rosclaw.memory.body_events import BodyMemoryEventWriter
 @pytest.fixture
 def linked_workspace(tmp_path: Path, monkeypatch) -> Path:
     monkeypatch.setenv("HOME", str(tmp_path))
-    BodyInstanceService(workspace=tmp_path).create_or_init(robot="unitree-g1", name="g1-memory", mode="single")
+    BodyInstanceService(workspace=tmp_path).create_or_init(
+        robot="unitree-g1", name="g1-memory", mode="single"
+    )
     return tmp_path
 
 

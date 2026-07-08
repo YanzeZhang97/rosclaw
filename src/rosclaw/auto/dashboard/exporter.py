@@ -1,4 +1,5 @@
 """DashboardExporter — export Auto evolution data for rosclaw-dashboard."""
+
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -61,39 +62,47 @@ class DashboardExporter:
             tasks = [t for t in tasks if t.id == task_id]
         result = []
         for t in tasks:
-            result.append({
-                "id": t.id,
-                "name": t.name,
-                "status": t.status,
-                "robot_id": t.robot_id,
-                "target_skill_id": t.target_skill_id,
-                "proposals": len(self._engine.list_proposals(t.name)),
-                "champions": len(self._engine.list_champions(t.id)),
-                "deadends": len(self._engine.list_deadends(t.id)),
-            })
+            result.append(
+                {
+                    "id": t.id,
+                    "name": t.name,
+                    "status": t.status,
+                    "robot_id": t.robot_id,
+                    "target_skill_id": t.target_skill_id,
+                    "proposals": len(self._engine.list_proposals(t.name)),
+                    "champions": len(self._engine.list_champions(t.id)),
+                    "deadends": len(self._engine.list_deadends(t.id)),
+                }
+            )
         return result
 
     def _build_champions(self, task_id: str | None = None) -> list[dict]:
         champs = self._engine.list_champions(task_id)
-        return [{
-            "id": c.id,
-            "skill_id": c.skill_id,
-            "level": c.level,
-            "task_id": c.task_id,
-            "metrics": c.metrics,
-            "parent_skill_id": c.parent_skill_id,
-            "promotion_date": c.created_at,
-        } for c in champs]
+        return [
+            {
+                "id": c.id,
+                "skill_id": c.skill_id,
+                "level": c.level,
+                "task_id": c.task_id,
+                "metrics": c.metrics,
+                "parent_skill_id": c.parent_skill_id,
+                "promotion_date": c.created_at,
+            }
+            for c in champs
+        ]
 
     def _build_deadends(self, task_id: str | None = None) -> list[dict]:
         des = self._engine.list_deadends(task_id)
-        return [{
-            "id": d.id,
-            "task_id": d.task_id,
-            "direction": d.direction,
-            "rejection_reason": d.rejection_reason,
-            "evidence": d.evidence,
-        } for d in des]
+        return [
+            {
+                "id": d.id,
+                "task_id": d.task_id,
+                "direction": d.direction,
+                "rejection_reason": d.rejection_reason,
+                "evidence": d.evidence,
+            }
+            for d in des
+        ]
 
     def _build_lineage(self, task_id: str | None = None) -> list[dict]:
         """Export lineage as nodes + edges graph format."""
@@ -106,30 +115,37 @@ class DashboardExporter:
         for champ in champs:
             if champ.skill_id not in seen_skills:
                 seen_skills.add(champ.skill_id)
-                nodes.append({
-                    "id": champ.skill_id,
-                    "level": champ.level,
-                    "metrics": champ.metrics,
-                })
+                nodes.append(
+                    {
+                        "id": champ.skill_id,
+                        "level": champ.level,
+                        "metrics": champ.metrics,
+                    }
+                )
             if champ.parent_skill_id and champ.parent_skill_id not in seen_skills:
                 seen_skills.add(champ.parent_skill_id)
-                nodes.append({
-                    "id": champ.parent_skill_id,
-                    "level": "baseline",
-                    "metrics": {},
-                })
+                nodes.append(
+                    {
+                        "id": champ.parent_skill_id,
+                        "level": "baseline",
+                        "metrics": {},
+                    }
+                )
             if champ.parent_skill_id:
-                edges.append({
-                    "from": champ.parent_skill_id,
-                    "to": champ.skill_id,
-                    "patch_id": champ.patch_id,
-                    "experiment_id": champ.experiment_id,
-                })
+                edges.append(
+                    {
+                        "from": champ.parent_skill_id,
+                        "to": champ.skill_id,
+                        "patch_id": champ.patch_id,
+                        "experiment_id": champ.experiment_id,
+                    }
+                )
         return {"nodes": nodes, "edges": edges}
 
     def _build_timeline(self, task_id: str | None = None) -> list[dict]:
         """Build experiment timeline for dashboard charts."""
         from ..core.experiment import ExperimentSpec
+
         timeline = []
         # Build set of matching task identifiers (id or name)
         matching_tasks = set()
@@ -142,12 +158,14 @@ class DashboardExporter:
             exp = ExperimentSpec.from_dict(raw)
             if task_id and exp.task not in matching_tasks:
                 continue
-            timeline.append({
-                "experiment_id": exp.id,
-                "task": exp.task,
-                "status": exp.status,
-                "baseline_skill": exp.baseline_skill_id,
-                "candidate_skill": exp.candidate_skill_id,
-                "created_at": exp.created_at,
-            })
+            timeline.append(
+                {
+                    "experiment_id": exp.id,
+                    "task": exp.task,
+                    "status": exp.status,
+                    "baseline_skill": exp.baseline_skill_id,
+                    "candidate_skill": exp.candidate_skill_id,
+                    "created_at": exp.created_at,
+                }
+            )
         return sorted(timeline, key=lambda x: x["created_at"])

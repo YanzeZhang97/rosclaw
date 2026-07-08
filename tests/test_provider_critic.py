@@ -20,7 +20,9 @@ def _make_manifest(**kwargs):
 class TestMockCriticProviderSuccessDetection:
     @pytest.fixture
     def provider(self):
-        return MockCriticProvider(_make_manifest(capabilities=["critic.success_detection", "critic.retry_advice"]))
+        return MockCriticProvider(
+            _make_manifest(capabilities=["critic.success_detection", "critic.retry_advice"])
+        )
 
     @pytest.mark.asyncio
     async def test_reach_success(self, provider):
@@ -176,7 +178,9 @@ class TestMockCriticProviderSuccessDetection:
         )
         resp = await provider.infer(req)
         assert resp.result["success"] is False
-        assert any(c["check"] == "orientation_error" and not c["passed"] for c in resp.result["checks"])
+        assert any(
+            c["check"] == "orientation_error" and not c["passed"] for c in resp.result["checks"]
+        )
 
     @pytest.mark.asyncio
     async def test_no_checks_empty_inputs(self, provider):
@@ -195,7 +199,9 @@ class TestMockCriticProviderSuccessDetection:
 class TestMockCriticProviderRetryAdvice:
     @pytest.fixture
     def provider(self):
-        return MockCriticProvider(_make_manifest(capabilities=["critic.success_detection", "critic.retry_advice"]))
+        return MockCriticProvider(
+            _make_manifest(capabilities=["critic.success_detection", "critic.retry_advice"])
+        )
 
     @pytest.mark.asyncio
     async def test_position_error_advice(self, provider):

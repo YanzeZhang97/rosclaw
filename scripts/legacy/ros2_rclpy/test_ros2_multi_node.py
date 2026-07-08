@@ -46,12 +46,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 def spin_nodes(nodes, iterations: int = 20, timeout: float = 0.05):
     for _ in range(iterations):
@@ -72,6 +74,7 @@ def next_name(base: str) -> str:
 # ------------------------------------------------------------------
 # Tests
 # ------------------------------------------------------------------
+
 
 @test("Two drivers run simultaneously without interference")
 def test_two_drivers_no_crosstalk():
@@ -245,6 +248,7 @@ def test_driver_state_isolation():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     if not rclpy.ok():

@@ -49,9 +49,7 @@ def test_digital_twin():
     }
 
     firewall = DigitalTwinFirewall(
-        model_path=str(model_path),
-        joint_limits=joint_limits,
-        sim_steps_per_check=10
+        model_path=str(model_path), joint_limits=joint_limits, sim_steps_per_check=10
     )
 
     # Test 1: Valid trajectory (within limits) - zero position (no self-collision)
@@ -118,10 +116,7 @@ def test_firewall_decorator():
         "wrist_3_joint": (-6.2831853, 6.2831853),
     }
 
-    @mujoco_firewall(
-        model_path=str(model_path),
-        joint_limits=joint_limits
-    )
+    @mujoco_firewall(model_path=str(model_path), joint_limits=joint_limits)
     def execute_motion(trajectory_points: list):
         """Simulated motion execution."""
         return {"status": "executed", "points": len(trajectory_points)}
@@ -129,10 +124,12 @@ def test_firewall_decorator():
     # Test valid motion - zero position (no self-collision)
     print("\nTest 2a: Valid motion via decorator")
     try:
-        result = execute_motion([
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
-        ])
+        result = execute_motion(
+            [
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+            ]
+        )
         print(f"  ✓ Motion executed: {result}")
     except SafetyViolationError as e:
         print(f"  ✗ Unexpected failure: {e}")
@@ -158,9 +155,9 @@ def test_mcp_protocol():
             "arguments": {
                 "joint_positions": [0.0, -1.57, 1.57, 0.0, 0.0, 0.0],
                 "duration": 2.0,
-                "validate": True
-            }
-        }
+                "validate": True,
+            },
+        },
     }
 
     print("\nMCP Request:")
@@ -174,14 +171,16 @@ def test_mcp_protocol():
             "content": [
                 {
                     "type": "text",
-                    "text": json.dumps({
-                        "success": True,
-                        "message": "Motion completed",
-                        "actual_positions": [0.0, -1.57, 1.57, 0.0, 0.0, 0.0]
-                    })
+                    "text": json.dumps(
+                        {
+                            "success": True,
+                            "message": "Motion completed",
+                            "actual_positions": [0.0, -1.57, 1.57, 0.0, 0.0, 0.0],
+                        }
+                    ),
                 }
             ]
-        }
+        },
     }
 
     print("\nMCP Response:")
@@ -200,6 +199,7 @@ async def test_mcp_server():
     # Import and check server structure
     try:
         import importlib.util
+
         if not importlib.util.find_spec("rosclaw.mcp.ur5_server"):
             print("\n⚠ Skipping MCP server test - ROS 2 not available")
             print("(This is expected in non-ROS environments)")

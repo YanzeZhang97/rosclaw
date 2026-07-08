@@ -41,22 +41,26 @@ class ActionGuard(Guard):
             ]
             norm = sum(d * d for d in deltas) ** 0.5
             if norm > max_delta:
-                checks.append({
-                    "name": "action_bound",
-                    "status": "fail",
-                    "detail": f"Pose delta norm {norm:.4f} > max {max_delta}",
-                })
+                checks.append(
+                    {
+                        "name": "action_bound",
+                        "status": "fail",
+                        "detail": f"Pose delta norm {norm:.4f} > max {max_delta}",
+                    }
+                )
                 return {
                     "pass": False,
                     "checks": checks,
                     "reason": f"Action exceeds safe delta bound: {norm:.4f} > {max_delta}",
                     "recommended_action": "replan",
                 }
-            checks.append({
-                "name": "action_bound",
-                "status": "pass",
-                "detail": f"Pose delta norm {norm:.4f} within bound",
-            })
+            checks.append(
+                {
+                    "name": "action_bound",
+                    "status": "pass",
+                    "detail": f"Pose delta norm {norm:.4f} within bound",
+                }
+            )
 
         return {
             "pass": True,

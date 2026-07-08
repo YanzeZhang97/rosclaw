@@ -97,9 +97,7 @@ class SenseExplainer:
 
         lines.append(f"{task} is {item.status} because:")
         for req in item.failed_requirements:
-            lines.append(
-                f"  - {req.name}: current={req.current}, required={req.required}"
-            )
+            lines.append(f"  - {req.name}: current={req.current}, required={req.required}")
         if item.allowed_alternatives:
             lines.append("Allowed alternatives:")
             for alt in item.allowed_alternatives:

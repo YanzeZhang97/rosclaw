@@ -70,17 +70,19 @@ async def main() -> int:
     failure_reason = "joint limit exceeded during reach"
     print(f"  Failure: {failure_reason}")
 
-    runtime.event_bus.publish(Event(
-        topic="rosclaw.sandbox.episode.failed",
-        payload={
-            "episode_id": "ep_fail_001",
-            "robot_id": "ur5e",
-            "failure_type": "joint_limit_exceeded",
-            "error_log": failure_reason,
-            "params": {"approach_z": 0.3, "speed": 0.5},
-        },
-        source="demo",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="rosclaw.sandbox.episode.failed",
+            payload={
+                "episode_id": "ep_fail_001",
+                "robot_id": "ur5e",
+                "failure_type": "joint_limit_exceeded",
+                "error_log": failure_reason,
+                "params": {"approach_z": 0.3, "speed": 0.5},
+            },
+            source="demo",
+        )
+    )
 
     # ------------------------------------------------------------------
     # 4. How generates recovery hint
@@ -112,16 +114,18 @@ async def main() -> int:
     print(f"  Patched params:  {patched_params}")
 
     # Simulate success with patched params
-    runtime.event_bus.publish(Event(
-        topic="rosclaw.sandbox.episode.succeeded",
-        payload={
-            "episode_id": "ep_retry_001",
-            "robot_id": "ur5e",
-            "params": patched_params,
-            "reward": 0.95,
-        },
-        source="demo",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="rosclaw.sandbox.episode.succeeded",
+            payload={
+                "episode_id": "ep_retry_001",
+                "robot_id": "ur5e",
+                "params": patched_params,
+                "reward": 0.95,
+            },
+            source="demo",
+        )
+    )
     print("  Retry: SUCCESS")
 
     # ------------------------------------------------------------------

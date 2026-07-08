@@ -136,9 +136,7 @@ class RosbridgeTransport:
             return conn
 
         with self._lock:
-            actual_timeout = (
-                timeout_sec if timeout_sec is not None else self.endpoint.timeout_sec
-            )
+            actual_timeout = timeout_sec if timeout_sec is not None else self.endpoint.timeout_sec
             try:
                 self._ws.settimeout(actual_timeout)
                 raw = self._ws.recv()
@@ -296,9 +294,7 @@ class RosbridgeTransport:
 
                 with contextlib.suppress(Exception):
                     self.send({"op": "unsubscribe", "id": request_id, "topic": topic})
-                return RosTransportResult(
-                    ok=True, data=data, raw=result.raw, request_id=request_id
-                )
+                return RosTransportResult(ok=True, data=data, raw=result.raw, request_id=request_id)
 
         # Best-effort unsubscribe; do not block result on it.
         import contextlib

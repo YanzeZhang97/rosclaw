@@ -22,11 +22,14 @@ class ROS2Runtime(RuntimeAdapter):
         service_name: str = "",
         timeout_sec: float = 30.0,
     ):
-        super().__init__(name, config={
-            "action_name": action_name,
-            "service_name": service_name,
-            "timeout": timeout_sec,
-        })
+        super().__init__(
+            name,
+            config={
+                "action_name": action_name,
+                "service_name": service_name,
+                "timeout": timeout_sec,
+            },
+        )
         self.action_name = action_name
         self.service_name = service_name
         self.timeout_sec = timeout_sec

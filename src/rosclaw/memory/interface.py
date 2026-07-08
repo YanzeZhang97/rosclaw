@@ -36,6 +36,7 @@ try:
         Vec3Like,
         WorldObjectLike,
     )
+
     _HAS_POWERMEM_PROTOCOLS = True
 except ImportError:
     _HAS_POWERMEM_PROTOCOLS = False
@@ -50,6 +51,7 @@ except ImportError:
 # Conditional import: BM25 ranking for semantic search
 try:
     from rank_bm25 import BM25Okapi
+
     _HAS_BM25 = True
 except ImportError:
     _HAS_BM25 = False
@@ -58,6 +60,7 @@ except ImportError:
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.metrics.pairwise import cosine_similarity
+
     _HAS_SKLEARN = True
 except ImportError:
     _HAS_SKLEARN = False
@@ -129,11 +132,10 @@ class MemoryInterface(LifecycleMixin):
                         limit=200,
                     )
                     if all_experiences:
-                        self._search_cache = self._build_search_cache(
-                            all_experiences, filters
+                        self._search_cache = self._build_search_cache(all_experiences, filters)
+                        logger.debug(
+                            "Preloaded semantic index (%d experiences)", len(all_experiences)
                         )
-                        logger.debug("Preloaded semantic index (%d experiences)",
-                                     len(all_experiences))
                 except Exception as exc:
                     logger.debug("Preload failed: %s", exc)
 
@@ -146,10 +148,18 @@ class MemoryInterface(LifecycleMixin):
         if self.event_bus is not None:
             self.event_bus.subscribe("praxis.recorded", self._on_praxis_recorded)
             # Sprint 8 — Knowledge Plane event subscriptions
-            self.event_bus.subscribe("rosclaw.practice.event.created", self._on_practice_event_created)
-            self.event_bus.subscribe("rosclaw.sandbox.episode.failed", self._on_sandbox_episode_failed)
-            self.event_bus.subscribe("rosclaw.sandbox.episode.succeeded", self._on_sandbox_episode_succeeded)
-            self.event_bus.subscribe("rosclaw.how.recovery_hint.generated", self._on_recovery_hint_generated)
+            self.event_bus.subscribe(
+                "rosclaw.practice.event.created", self._on_practice_event_created
+            )
+            self.event_bus.subscribe(
+                "rosclaw.sandbox.episode.failed", self._on_sandbox_episode_failed
+            )
+            self.event_bus.subscribe(
+                "rosclaw.sandbox.episode.succeeded", self._on_sandbox_episode_succeeded
+            )
+            self.event_bus.subscribe(
+                "rosclaw.how.recovery_hint.generated", self._on_recovery_hint_generated
+            )
             self.event_bus.subscribe("firewall.action_blocked", self._on_firewall_action_blocked)
 
         logger.info("Initialized for %s, backend=%s", self._robot_id, type(self._client).__name__)
@@ -164,16 +174,18 @@ class MemoryInterface(LifecycleMixin):
             self._preload_thread.start()
 
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="memory.status",
-                payload={
-                    "state": "running",
-                    "robot_id": self._robot_id,
-                    "experience_count": self._client.count("experience_graph"),
-                    "embodied_memory": self._embodied is not None,
-                },
-                source="memory_interface",
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="memory.status",
+                    payload={
+                        "state": "running",
+                        "robot_id": self._robot_id,
+                        "experience_count": self._client.count("experience_graph"),
+                        "embodied_memory": self._embodied is not None,
+                    },
+                    source="memory_interface",
+                )
+            )
 
     def _do_stop(self) -> None:
         # Signal and join background preloader
@@ -184,10 +196,18 @@ class MemoryInterface(LifecycleMixin):
 
         if self.event_bus is not None:
             self.event_bus.unsubscribe("praxis.recorded", self._on_praxis_recorded)
-            self.event_bus.unsubscribe("rosclaw.practice.event.created", self._on_practice_event_created)
-            self.event_bus.unsubscribe("rosclaw.sandbox.episode.failed", self._on_sandbox_episode_failed)
-            self.event_bus.unsubscribe("rosclaw.sandbox.episode.succeeded", self._on_sandbox_episode_succeeded)
-            self.event_bus.unsubscribe("rosclaw.how.recovery_hint.generated", self._on_recovery_hint_generated)
+            self.event_bus.unsubscribe(
+                "rosclaw.practice.event.created", self._on_practice_event_created
+            )
+            self.event_bus.unsubscribe(
+                "rosclaw.sandbox.episode.failed", self._on_sandbox_episode_failed
+            )
+            self.event_bus.unsubscribe(
+                "rosclaw.sandbox.episode.succeeded", self._on_sandbox_episode_succeeded
+            )
+            self.event_bus.unsubscribe(
+                "rosclaw.how.recovery_hint.generated", self._on_recovery_hint_generated
+            )
             self.event_bus.unsubscribe("firewall.action_blocked", self._on_firewall_action_blocked)
         self._client.disconnect()
 
@@ -207,6 +227,7 @@ class MemoryInterface(LifecycleMixin):
         if sense_runtime is not None:
             try:
                 from rosclaw.sense.adapters.memory_writer import MemoryWriterAdapter
+
                 self._memory_writer_adapter = MemoryWriterAdapter(sense_runtime)
             except Exception:
                 logger.warning("Failed to initialize MemoryWriterAdapter", exc_info=True)
@@ -247,29 +268,33 @@ class MemoryInterface(LifecycleMixin):
     def _on_practice_event_created(self, event: Event) -> None:
         """Auto-ingest practice events into praxis_events table."""
         payload = event.payload
-        self.write_praxis_event(PraxisEvent(
-            event_id=payload.get("event_id", ""),
-            robot_id=payload.get("robot_id", self._robot_id),
-            event_type=payload.get("event_type", "practice"),
-            episode_id=payload.get("episode_id"),
-            task_id=payload.get("task_id"),
-            payload=payload,
-        ))
+        self.write_praxis_event(
+            PraxisEvent(
+                event_id=payload.get("event_id", ""),
+                robot_id=payload.get("robot_id", self._robot_id),
+                event_type=payload.get("event_type", "practice"),
+                episode_id=payload.get("episode_id"),
+                task_id=payload.get("task_id"),
+                payload=payload,
+            )
+        )
 
     def _on_sandbox_episode_failed(self, event: Event) -> None:
         """Auto-ingest sandbox failures into failures table."""
         payload = event.payload
-        self.write_failure_memory(FailureMemory(
-            failure_id=payload.get("failure_id", ""),
-            robot_id=payload.get("robot_id", self._robot_id),
-            episode_id=payload.get("episode_id"),
-            task_id=payload.get("task_id"),
-            failure_type=payload.get("failure_type", "unknown"),
-            root_cause=payload.get("root_cause", ""),
-            recovery_hint=payload.get("recovery_hint", ""),
-            sandbox_intervened=payload.get("sandbox_intervened", False),
-            category=payload.get("category", ""),
-        ))
+        self.write_failure_memory(
+            FailureMemory(
+                failure_id=payload.get("failure_id", ""),
+                robot_id=payload.get("robot_id", self._robot_id),
+                episode_id=payload.get("episode_id"),
+                task_id=payload.get("task_id"),
+                failure_type=payload.get("failure_type", "unknown"),
+                root_cause=payload.get("root_cause", ""),
+                recovery_hint=payload.get("recovery_hint", ""),
+                sandbox_intervened=payload.get("sandbox_intervened", False),
+                category=payload.get("category", ""),
+            )
+        )
 
     def _on_sandbox_episode_succeeded(self, event: Event) -> None:
         """Auto-ingest success patterns from sandbox episodes."""
@@ -296,16 +321,18 @@ class MemoryInterface(LifecycleMixin):
     def _on_firewall_action_blocked(self, event: Event) -> None:
         """Auto-ingest firewall-blocked actions into failures table."""
         payload = event.payload
-        self.write_failure_memory(FailureMemory(
-            failure_id=payload.get("episode_id", ""),
-            robot_id=self._robot_id,
-            episode_id=payload.get("episode_id"),
-            failure_type="firewall_blocked",
-            root_cause=payload.get("reason", "firewall"),
-            recovery_hint="Check joint limits, workspace boundaries, and trajectory safety.",
-            sandbox_intervened=True,
-            category="safety",
-        ))
+        self.write_failure_memory(
+            FailureMemory(
+                failure_id=payload.get("episode_id", ""),
+                robot_id=self._robot_id,
+                episode_id=payload.get("episode_id"),
+                failure_type="firewall_blocked",
+                root_cause=payload.get("reason", "firewall"),
+                recovery_hint="Check joint limits, workspace boundaries, and trajectory safety.",
+                sandbox_intervened=True,
+                category="safety",
+            )
+        )
 
     # ------------------------------------------------------------------
     # SeekDB Experience APIs
@@ -344,16 +371,24 @@ class MemoryInterface(LifecycleMixin):
         self._invalidate_search_cache()
 
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="memory.experience.stored",
-                payload={"experience_id": record_id, "event_type": event_type},
-                source="memory_interface",
-            ))
-            self.event_bus.publish(Event(
-                topic="rosclaw.memory.write.completed",
-                payload={"table": "experience_graph", "record_id": record_id, "robot_id": self._robot_id},
-                source="memory_interface",
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="memory.experience.stored",
+                    payload={"experience_id": record_id, "event_type": event_type},
+                    source="memory_interface",
+                )
+            )
+            self.event_bus.publish(
+                Event(
+                    topic="rosclaw.memory.write.completed",
+                    payload={
+                        "table": "experience_graph",
+                        "record_id": record_id,
+                        "robot_id": self._robot_id,
+                    },
+                    source="memory_interface",
+                )
+            )
 
         # Periodic capacity check (every ~100 inserts to avoid overhead)
         self._insert_count = getattr(self, "_insert_count", 0) + 1
@@ -369,7 +404,8 @@ class MemoryInterface(LifecycleMixin):
         Lowercases, splits on whitespace and punctuation, removes short tokens.
         """
         import re
-        tokens = re.findall(r'[a-z0-9一-鿿]+', text.lower())
+
+        tokens = re.findall(r"[a-z0-9一-鿿]+", text.lower())
         return [t for t in tokens if len(t) >= 2]
 
     def _invalidate_search_cache(self) -> None:
@@ -443,27 +479,19 @@ class MemoryInterface(LifecycleMixin):
         experiences = cache["experiences"]
 
         if vectorizer is None or tfidf_matrix is None:
-            return self._keyword_search(
-                experiences, self._tokenize(query), limit
-            )
+            return self._keyword_search(experiences, self._tokenize(query), limit)
 
         try:
             query_vec = vectorizer.transform([query])
             similarities = cosine_similarity(query_vec, tfidf_matrix)[0]
         except Exception:
-            return self._keyword_search(
-                experiences, self._tokenize(query), limit
-            )
+            return self._keyword_search(experiences, self._tokenize(query), limit)
 
         scored = [
-            (sim, exp)
-            for sim, exp in zip(similarities, experiences, strict=False)
-            if sim > 0
+            (sim, exp) for sim, exp in zip(similarities, experiences, strict=False) if sim > 0
         ]
         if not scored:
-            return self._keyword_search(
-                experiences, self._tokenize(query), limit
-            )
+            return self._keyword_search(experiences, self._tokenize(query), limit)
 
         scored.sort(key=lambda x: x[0], reverse=True)
         return [exp for _, exp in scored[:limit]]
@@ -483,9 +511,7 @@ class MemoryInterface(LifecycleMixin):
 
         scores = bm25.get_scores(query_tokens)
         scored = [
-            (score, exp)
-            for score, exp in zip(scores, experiences, strict=False)
-            if score > 0
+            (score, exp) for score, exp in zip(scores, experiences, strict=False) if score > 0
         ]
 
         if not scored:
@@ -617,22 +643,16 @@ class MemoryInterface(LifecycleMixin):
                 max_df=1.0,
             )
             tfidf_matrix = vectorizer.fit_transform(texts + [query])
-            similarities = cosine_similarity(
-                tfidf_matrix[-1:], tfidf_matrix[:-1]
-            )[0]
+            similarities = cosine_similarity(tfidf_matrix[-1:], tfidf_matrix[:-1])[0]
         except Exception:
             # TF-IDF can fail on very small corpora — fall back to keywords
             return self._keyword_search(experiences, self._tokenize(query), limit)
 
         scored = [
-            (sim, exp)
-            for sim, exp in zip(similarities, experiences, strict=False)
-            if sim > 0
+            (sim, exp) for sim, exp in zip(similarities, experiences, strict=False) if sim > 0
         ]
         if not scored:
-            return self._keyword_search(
-                experiences, self._tokenize(query), limit
-            )
+            return self._keyword_search(experiences, self._tokenize(query), limit)
 
         scored.sort(key=lambda x: x[0], reverse=True)
         return [exp for _, exp in scored[:limit]]
@@ -657,9 +677,7 @@ class MemoryInterface(LifecycleMixin):
         scores = bm25.get_scores(query_tokens)
 
         scored = [
-            (score, exp)
-            for score, exp in zip(scores, experiences, strict=False)
-            if score > 0
+            (score, exp) for score, exp in zip(scores, experiences, strict=False) if score > 0
         ]
 
         if not scored:
@@ -848,7 +866,9 @@ class MemoryInterface(LifecycleMixin):
         return deleted
 
     def enforce_capacity(self, max_experiences: int | None = None) -> int:
-        max_experiences = self.DEFAULT_MAX_EXPERIENCES if max_experiences is None else max_experiences
+        max_experiences = (
+            self.DEFAULT_MAX_EXPERIENCES if max_experiences is None else max_experiences
+        )
         """Evict oldest experiences when capacity is exceeded.
 
         Removes the oldest experiences until the total count is at or below
@@ -857,8 +877,7 @@ class MemoryInterface(LifecycleMixin):
         Returns:
             Number of experiences evicted.
         """
-        total = self._client.count("experience_graph",
-                                   {"robot_id": self._robot_id})
+        total = self._client.count("experience_graph", {"robot_id": self._robot_id})
         if total <= max_experiences:
             return 0
 
@@ -888,8 +907,7 @@ class MemoryInterface(LifecycleMixin):
             dict with total, max_experiences, utilization, and oldest/newest
             timestamps.
         """
-        total = self._client.count("experience_graph",
-                                   {"robot_id": self._robot_id})
+        total = self._client.count("experience_graph", {"robot_id": self._robot_id})
 
         # Find oldest and newest
         oldest_list = self._client.query(
@@ -913,7 +931,8 @@ class MemoryInterface(LifecycleMixin):
             "total_experiences": total,
             "max_experiences": self.DEFAULT_MAX_EXPERIENCES,
             "utilization": total / self.DEFAULT_MAX_EXPERIENCES
-            if self.DEFAULT_MAX_EXPERIENCES > 0 else 0.0,
+            if self.DEFAULT_MAX_EXPERIENCES > 0
+            else 0.0,
             "oldest_timestamp": oldest_ts,
             "newest_timestamp": newest_ts,
             "age_span_days": round(age_days, 1),
@@ -1061,13 +1080,12 @@ class MemoryInterface(LifecycleMixin):
 
         task = episode.get("task", {}) or {}
         task_label = (
-            task.get("skill_id")
-            or task.get("task_name")
-            or task.get("task_id")
-            or "unknown"
+            task.get("skill_id") or task.get("task_name") or task.get("task_id") or "unknown"
         )
         instruction = f"Practice episode {episode_id}: {task_label}"
-        outcome = str(episode.get("outcome", episode.get("status", {}).get("outcome", "unknown"))).lower()
+        outcome = str(
+            episode.get("outcome", episode.get("status", {}).get("outcome", "unknown"))
+        ).lower()
         duration_ms = episode.get("duration_ms", 0)
         duration_sec = duration_ms / 1000.0 if isinstance(duration_ms, (int, float)) else 0.0
 
@@ -1304,17 +1322,13 @@ class MemoryInterface(LifecycleMixin):
             return []
         return self._embodied.search_world_objects(center, radius, scene_id)
 
-    def get_scene_graph(
-        self, scene_id: str
-    ) -> tuple[list[WorldObjectLike], list[Any]]:
+    def get_scene_graph(self, scene_id: str) -> tuple[list[WorldObjectLike], list[Any]]:
         """Get scene graph: (objects, relations)."""
         if self._embodied is None:
             return [], []
         return self._embodied.get_scene_graph(scene_id)
 
-    def compute_relations(
-        self, scene_id: str, spatial_tolerance: float = 0.05
-    ) -> list[Any]:
+    def compute_relations(self, scene_id: str, spatial_tolerance: float = 0.05) -> list[Any]:
         """Compute spatial relations for a scene."""
         if self._embodied is None:
             return []
@@ -1359,9 +1373,7 @@ class MemoryInterface(LifecycleMixin):
         """Search for similar trajectories using DTW."""
         if self._embodied is None:
             return []
-        return self._embodied.search_similar_trajectories(
-            query_waypoints, top_k, max_dtw_distance
-        )
+        return self._embodied.search_similar_trajectories(query_waypoints, top_k, max_dtw_distance)
 
     # -- Cognitive Search --
 

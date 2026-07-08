@@ -15,10 +15,14 @@ class TestSkillLoaderDirectory:
 
         # Valid JSON file
         valid = tmp_path / "valid.json"
-        valid.write_text(json.dumps({
-            "name": "valid_skill",
-            "description": "A valid skill",
-        }))
+        valid.write_text(
+            json.dumps(
+                {
+                    "name": "valid_skill",
+                    "description": "A valid skill",
+                }
+            )
+        )
 
         # Invalid JSON file
         invalid = tmp_path / "invalid.json"
@@ -70,9 +74,7 @@ class TestSkillLoaderCreateFromDemonstration:
         loader = SkillLoader(registry)
         demo = {"trajectory": [[0.0]]}
 
-        entry = loader.create_from_demonstration(
-            "place_demo", demo, description="Custom desc"
-        )
+        entry = loader.create_from_demonstration("place_demo", demo, description="Custom desc")
 
         assert entry.description == "Custom desc"
 
@@ -83,9 +85,7 @@ class TestSkillLoaderCreateProgrammed:
         loader = SkillLoader(registry)
         handler = MagicMock()
 
-        entry = loader.create_programmed_skill(
-            "move_arm", "Move arm to target", handler
-        )
+        entry = loader.create_programmed_skill("move_arm", "Move arm to target", handler)
 
         assert entry.name == "move_arm"
         assert entry.skill_type == "programmed"

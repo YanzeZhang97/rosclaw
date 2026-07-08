@@ -69,9 +69,13 @@ class ROSClawMinimalMCPServer:
                     result = await self._handle_system_tool(name, arguments)
                 else:
                     result = await self.hub.handle_tool_call(name, arguments)
-                return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
+                return [
+                    TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))
+                ]
             except Exception as e:
-                return [TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
+                return [
+                    TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))
+                ]
 
     def _system_tools(self) -> list[Tool]:
         return [
@@ -91,10 +95,24 @@ class ROSClawMinimalMCPServer:
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "robot_id": {"type": "string", "description": "Robot identifier (e.g., ur5e, g1, turtlebot)"},
-                        "task": {"type": "string", "description": "Task name (e.g., pid_move, reach, g1_walk)"},
-                        "world": {"type": "string", "description": "Sandbox world (mock, mujoco, tabletop)", "default": "mock"},
-                        "parameters": {"type": "object", "description": "Task parameters", "default": {}},
+                        "robot_id": {
+                            "type": "string",
+                            "description": "Robot identifier (e.g., ur5e, g1, turtlebot)",
+                        },
+                        "task": {
+                            "type": "string",
+                            "description": "Task name (e.g., pid_move, reach, g1_walk)",
+                        },
+                        "world": {
+                            "type": "string",
+                            "description": "Sandbox world (mock, mujoco, tabletop)",
+                            "default": "mock",
+                        },
+                        "parameters": {
+                            "type": "object",
+                            "description": "Task parameters",
+                            "default": {},
+                        },
                     },
                     "required": ["robot_id", "task"],
                 },
@@ -105,8 +123,15 @@ class ROSClawMinimalMCPServer:
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "query": {"type": "string", "description": "Natural language query or task description"},
-                        "query_type": {"type": "string", "enum": ["experience", "failure", "success_pattern", "similar"], "default": "similar"},
+                        "query": {
+                            "type": "string",
+                            "description": "Natural language query or task description",
+                        },
+                        "query_type": {
+                            "type": "string",
+                            "enum": ["experience", "failure", "success_pattern", "similar"],
+                            "default": "similar",
+                        },
                         "limit": {"type": "integer", "description": "Max results", "default": 5},
                     },
                     "required": ["query"],
@@ -129,9 +154,16 @@ class ROSClawMinimalMCPServer:
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "sdk_doc": {"type": "string", "description": "SDK documentation or capability description"},
+                        "sdk_doc": {
+                            "type": "string",
+                            "description": "SDK documentation or capability description",
+                        },
                         "bundle_name": {"type": "string", "description": "Name for the new bundle"},
-                        "staging": {"type": "boolean", "description": "Install to staging only", "default": True},
+                        "staging": {
+                            "type": "boolean",
+                            "description": "Install to staging only",
+                            "default": True,
+                        },
                     },
                     "required": ["sdk_doc", "bundle_name"],
                 },
@@ -147,6 +179,7 @@ class ROSClawMinimalMCPServer:
         if name == "system.list_robots":
             try:
                 from rosclaw.runtime import RobotRegistry
+
                 reg = RobotRegistry()
                 robots = reg.list_available()
                 return {"robots": robots, "count": len(robots)}
@@ -155,6 +188,7 @@ class ROSClawMinimalMCPServer:
         elif name == "system.list_providers":
             try:
                 from rosclaw.provider.core.registry import ProviderRegistry
+
                 reg = ProviderRegistry()
                 providers = reg.list_providers() if hasattr(reg, "list_providers") else []
                 return {"providers": providers, "count": len(providers)}
@@ -190,6 +224,7 @@ class ROSClawMinimalMCPServer:
         # Step 1: Firewall validation
         try:
             from rosclaw.sandbox.firewall.gate import FirewallGate
+
             gate = FirewallGate(robot_id=robot_id, world_id=world)
             action = {"type": task, "parameters": parameters, "robot_id": robot_id}
             decision = gate.check(action)
@@ -207,12 +242,16 @@ class ROSClawMinimalMCPServer:
 
         # Step 2: Simulate execution
         import time
+
         start_time = time.time()
         try:
             if task == "pid_move":
                 result = {"final_position": parameters.get("target", 1.0), "error": 0.02}
             elif task == "reach":
-                result = {"final_pose": parameters.get("target_pose", [0.5, 0.0, 0.3]), "success": True}
+                result = {
+                    "final_pose": parameters.get("target_pose", [0.5, 0.0, 0.3]),
+                    "success": True,
+                }
             elif task == "g1_walk":
                 result = {"distance": parameters.get("distance", 3.0), "falls": 0}
             else:
@@ -226,24 +265,35 @@ class ROSClawMinimalMCPServer:
         try:
             from rosclaw.core.event_bus import Event, EventBus
             from rosclaw.practice.episode_recorder import EpisodeRecorder
+
             bus = EventBus()
             recorder = EpisodeRecorder(robot_id, event_bus=bus)
             recorder._do_initialize()
-            bus.publish(Event(
-                topic="skill.execution.start",
-                payload={"episode_id": episode_id, "skill_name": task, "parameters": parameters},
-                source="mcp_sandbox",
-            ))
-            bus.publish(Event(
-                topic="skill.execution.complete",
-                payload={"episode_id": episode_id, "result": result, "duration_sec": duration},
-                source="mcp_sandbox",
-            ))
-            bus.publish(Event(
-                topic="praxis.completed",
-                payload={"episode_id": episode_id, "outcome": {"reward": 1.0}},
-                source="mcp_sandbox",
-            ))
+            bus.publish(
+                Event(
+                    topic="skill.execution.start",
+                    payload={
+                        "episode_id": episode_id,
+                        "skill_name": task,
+                        "parameters": parameters,
+                    },
+                    source="mcp_sandbox",
+                )
+            )
+            bus.publish(
+                Event(
+                    topic="skill.execution.complete",
+                    payload={"episode_id": episode_id, "result": result, "duration_sec": duration},
+                    source="mcp_sandbox",
+                )
+            )
+            bus.publish(
+                Event(
+                    topic="praxis.completed",
+                    payload={"episode_id": episode_id, "outcome": {"reward": 1.0}},
+                    source="mcp_sandbox",
+                )
+            )
         except Exception as e:
             return {"status": "error", "phase": "recording", "error": str(e)}
 
@@ -255,7 +305,7 @@ class ROSClawMinimalMCPServer:
             "duration_sec": round(duration, 3),
             "episode_id": episode_id,
             "firewall": "ALLOWED",
-            "risk_score": decision.risk_score if 'decision' in dir() else 0.0,
+            "risk_score": decision.risk_score if "decision" in dir() else 0.0,
             "result": result,
         }
 
@@ -266,6 +316,7 @@ class ROSClawMinimalMCPServer:
         limit = arguments.get("limit", 5)
         try:
             from rosclaw.memory.interface import MemoryInterface
+
             mem = MemoryInterface("mcp")
             mem._do_initialize()
             if query_type == "failure":
@@ -273,7 +324,12 @@ class ROSClawMinimalMCPServer:
                 return {"query": query, "type": query_type, "result": result}
             elif query_type == "similar":
                 results = mem.find_similar_experiences(query, limit=limit)
-                return {"query": query, "type": query_type, "results": results, "count": len(results)}
+                return {
+                    "query": query,
+                    "type": query_type,
+                    "results": results,
+                    "count": len(results),
+                }
             else:
                 stats = mem.get_statistics()
                 return {"query": query, "type": query_type, "statistics": stats}
@@ -285,6 +341,7 @@ class ROSClawMinimalMCPServer:
         task_id = arguments.get("task_id")
         try:
             from rosclaw.memory.interface import MemoryInterface
+
             mem = MemoryInterface("mcp")
             mem._do_initialize()
             failure = mem.explain_last_failure(task_id=task_id)
@@ -308,6 +365,7 @@ class ROSClawMinimalMCPServer:
         staging = arguments.get("staging", True)
         try:
             from rosclaw.forge.bundle_compiler import BundleCompiler
+
             compiler = BundleCompiler()
             bundle = compiler.compile(sdk_doc, bundle_name)
             return {

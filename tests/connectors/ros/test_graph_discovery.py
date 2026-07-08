@@ -22,10 +22,13 @@ def _make_profile(version: RosVersion = RosVersion.ROS2, distro: str = "humble")
 def test_list_topics_with_types_and_risk():
     transport = MockTransport()
     transport.queue_json(
-        {"op": "service_response", "values": {
-            "topics": ["/turtle1/cmd_vel", "/turtle1/pose", "/camera/image_raw"],
-            "types": ["geometry_msgs/msg/Twist", "turtlesim/msg/Pose", "sensor_msgs/msg/Image"],
-        }}
+        {
+            "op": "service_response",
+            "values": {
+                "topics": ["/turtle1/cmd_vel", "/turtle1/pose", "/camera/image_raw"],
+                "types": ["geometry_msgs/msg/Twist", "turtlesim/msg/Pose", "sensor_msgs/msg/Image"],
+            },
+        }
     )
     discovery = RosGraphDiscovery(transport, profile=_make_profile())
     topics = discovery.list_topics()
@@ -56,7 +59,12 @@ def test_get_topic_details_aggregates_publishers_and_subscribers():
 
 def test_list_services_classifies_risk():
     transport = MockTransport()
-    transport.queue_json({"op": "service_response", "values": {"services": ["/go2/move", "/go2/stand_up", "/rosout/get_loggers"]}})
+    transport.queue_json(
+        {
+            "op": "service_response",
+            "values": {"services": ["/go2/move", "/go2/stand_up", "/rosout/get_loggers"]},
+        }
+    )
     transport.queue_json({"op": "service_response", "values": {"type": "go2_interfaces/srv/Move"}})
     transport.queue_json({"op": "service_response", "values": {"type": "std_srvs/srv/Trigger"}})
     transport.queue_json({"op": "service_response", "values": {"type": "roscpp/srv/GetLoggers"}})
@@ -72,7 +80,9 @@ def test_list_services_classifies_risk():
 
 def test_list_nodes():
     transport = MockTransport()
-    transport.queue_json({"op": "service_response", "values": {"nodes": ["/turtlesim", "/rosbridge_websocket"]}})
+    transport.queue_json(
+        {"op": "service_response", "values": {"nodes": ["/turtlesim", "/rosbridge_websocket"]}}
+    )
     discovery = RosGraphDiscovery(transport, profile=_make_profile())
     nodes = discovery.list_nodes()
     assert [n["name"] for n in nodes] == ["/turtlesim", "/rosbridge_websocket"]
@@ -80,7 +90,9 @@ def test_list_nodes():
 
 def test_list_params():
     transport = MockTransport()
-    transport.queue_json({"op": "service_response", "values": {"params": ["/rosdistro", "/use_sim_time"]}})
+    transport.queue_json(
+        {"op": "service_response", "values": {"params": ["/rosdistro", "/use_sim_time"]}}
+    )
     discovery = RosGraphDiscovery(transport, profile=_make_profile())
     params = discovery.list_params()
     assert "/rosdistro" in params
@@ -90,7 +102,12 @@ def test_discover_returns_snapshot():
     transport = MockTransport()
     profile = _make_profile()
     # resolver already provided, so no rosapi version calls needed.
-    transport.queue_json({"op": "service_response", "values": {"topics": ["/turtle1/cmd_vel"], "types": ["geometry_msgs/msg/Twist"]}})
+    transport.queue_json(
+        {
+            "op": "service_response",
+            "values": {"topics": ["/turtle1/cmd_vel"], "types": ["geometry_msgs/msg/Twist"]},
+        }
+    )
     transport.queue_json({"op": "service_response", "values": {"services": []}})
     transport.queue_json({"op": "service_response", "values": {"actions": []}})
     transport.queue_json({"op": "service_response", "values": {"nodes": []}})
@@ -106,7 +123,12 @@ def test_discover_returns_snapshot():
 
 def test_get_message_details_parses_json():
     transport = MockTransport()
-    transport.queue_json({"op": "service_response", "values": {"message": '{"fields": {"linear": {"x": "float64"}}}'}})
+    transport.queue_json(
+        {
+            "op": "service_response",
+            "values": {"message": '{"fields": {"linear": {"x": "float64"}}}'},
+        }
+    )
     discovery = RosGraphDiscovery(transport, profile=_make_profile())
     details = discovery.get_message_details("geometry_msgs/msg/Twist")
     assert "linear" in details.get("fields", {})
@@ -122,12 +144,16 @@ def test_get_message_details_invalid_json_returns_error():
 
 def test_normalizer_ros1():
     from rosclaw.connectors.ros.discovery import normalize_msg_type
+
     assert normalize_msg_type("geometry_msgs/Twist", RosVersion.ROS1) == "geometry_msgs/msg/Twist"
 
 
 def test_normalizer_ros2():
     from rosclaw.connectors.ros.discovery import normalize_msg_type
-    assert normalize_msg_type("geometry_msgs/msg/Twist", RosVersion.ROS2) == "geometry_msgs/msg/Twist"
+
+    assert (
+        normalize_msg_type("geometry_msgs/msg/Twist", RosVersion.ROS2) == "geometry_msgs/msg/Twist"
+    )
 
 
 def test_service_type_caching():

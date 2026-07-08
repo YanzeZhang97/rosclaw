@@ -96,7 +96,7 @@ def test_firstboot_preview_custom_command(client: TestClient) -> None:
 
 
 def test_firstboot_preview_rejects_non_object(client: TestClient) -> None:
-    response = client.post("/api/firstboot/preview", content=b"\"not-an-object\"")
+    response = client.post("/api/firstboot/preview", content=b'"not-an-object"')
     assert response.status_code == 400
 
 

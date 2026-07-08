@@ -12,7 +12,13 @@ def test_robot_model_creation():
 
 
 def test_joint_spec():
-    joint = JointSpec(name="j1", joint_type="revolute", parent="base", child="link1", limits={"lower": -3.14, "upper": 3.14})
+    joint = JointSpec(
+        name="j1",
+        joint_type="revolute",
+        parent="base",
+        child="link1",
+        limits={"lower": -3.14, "upper": 3.14},
+    )
     assert joint.joint_type == "revolute"
     assert joint.limits["lower"] == -3.14
     assert joint.limits["upper"] == 3.14
@@ -43,7 +49,13 @@ def test_eurdf_parser_mock():
 
 def test_to_llm_context():
     model = RobotModel(name="test_bot")
-    model.joints["j1"] = JointSpec(name="j1", joint_type="revolute", parent="base", child="l1", limits={"lower": -1.0, "upper": 1.0})
+    model.joints["j1"] = JointSpec(
+        name="j1",
+        joint_type="revolute",
+        parent="base",
+        child="l1",
+        limits={"lower": -1.0, "upper": 1.0},
+    )
     model.links["l1"] = LinkSpec(name="l1", mass=0.5)
     ctx = model.to_llm_context()
     assert "test_bot" in ctx

@@ -11,12 +11,14 @@ from rosclaw.provider.loader import ProviderLoader
 
 class MyTestProvider(Provider):
     """Custom provider subclass for loader testing."""
+
     name = "my_test"
     version = "0.1.0"
     capabilities = ["vlm.test"]
 
     async def infer(self, request):
         from rosclaw.provider.core.response import ProviderResponse
+
         return ProviderResponse(
             request_id=request.request_id,
             provider=self.name,
@@ -146,17 +148,19 @@ async def test_generic_provider_http_runtime_creation():
     """GenericProvider creates HTTPRuntime from manifest."""
     from rosclaw.provider.core.manifest import ProviderManifest
 
-    manifest = ProviderManifest.from_dict({
-        "name": "generic_http",
-        "version": "0.1.0",
-        "type": "vlm",
-        "capabilities": ["vlm.object_grounding"],
-        "runtime": {
-            "backend": "http",
-            "endpoint": "http://localhost:11434/api/generate",
-            "env": {"timeout_sec": "5.0", "retries": "2"},
-        },
-    })
+    manifest = ProviderManifest.from_dict(
+        {
+            "name": "generic_http",
+            "version": "0.1.0",
+            "type": "vlm",
+            "capabilities": ["vlm.object_grounding"],
+            "runtime": {
+                "backend": "http",
+                "endpoint": "http://localhost:11434/api/generate",
+                "env": {"timeout_sec": "5.0", "retries": "2"},
+            },
+        }
+    )
 
     provider = GenericProvider(manifest)
     assert provider.name == "generic_http"
@@ -169,13 +173,15 @@ async def test_generic_provider_python_runtime_creation():
     """GenericProvider creates PythonRuntime from manifest."""
     from rosclaw.provider.core.manifest import ProviderManifest
 
-    manifest = ProviderManifest.from_dict({
-        "name": "generic_python",
-        "version": "0.1.0",
-        "type": "skill",
-        "capabilities": ["skill.grasp"],
-        "runtime": {"backend": "python"},
-    })
+    manifest = ProviderManifest.from_dict(
+        {
+            "name": "generic_python",
+            "version": "0.1.0",
+            "type": "skill",
+            "capabilities": ["skill.grasp"],
+            "runtime": {"backend": "python"},
+        }
+    )
 
     provider = GenericProvider(manifest)
     assert provider.name == "generic_python"
@@ -187,18 +193,21 @@ async def test_generic_provider_no_runtime():
     """GenericProvider handles manifest with no runtime backend."""
     from rosclaw.provider.core.manifest import ProviderManifest
 
-    manifest = ProviderManifest.from_dict({
-        "name": "meta_only",
-        "version": "0.1.0",
-        "type": "critic",
-        "capabilities": ["critic.success_detection"],
-    })
+    manifest = ProviderManifest.from_dict(
+        {
+            "name": "meta_only",
+            "version": "0.1.0",
+            "type": "critic",
+            "capabilities": ["critic.success_detection"],
+        }
+    )
 
     provider = GenericProvider(manifest)
     assert provider._runtime is None
 
     # infer() should fail gracefully
     from rosclaw.provider.core.request import ProviderRequest
+
     req = ProviderRequest(request_id="r1", capability="critic.success_detection", inputs={})
     with pytest.raises(RuntimeAdapterError):  # noqa: B017
         await provider.infer(req)
@@ -234,6 +243,7 @@ capabilities: [vlm.scene_understanding]
 def test_provider_loader_manifest_parse_error(tmp_path, caplog):
     """Invalid YAML is handled gracefully."""
     import logging
+
     registry = ProviderRegistry()
     loader = ProviderLoader(registry)
 
@@ -250,6 +260,7 @@ def test_provider_loader_register_exception(tmp_path, caplog):
     """Registry.register exception is handled gracefully."""
     import logging
     from unittest.mock import patch
+
     registry = ProviderRegistry()
     loader = ProviderLoader(registry)
 
@@ -261,7 +272,10 @@ type: vlm
 capabilities: [vlm.scene_understanding]
 """)
 
-    with caplog.at_level(logging.WARNING, logger="rosclaw.provider.loader"), patch.object(registry, "register", side_effect=RuntimeError("register boom")):
+    with (
+        caplog.at_level(logging.WARNING, logger="rosclaw.provider.loader"),
+        patch.object(registry, "register", side_effect=RuntimeError("register boom")),
+    ):
         result = loader.load_file(yaml_path)
     assert result is None
     assert "Failed to register" in caplog.text
@@ -270,12 +284,15 @@ capabilities: [vlm.scene_understanding]
 def test_provider_loader_custom_class_not_provider_subclass():
     """provider_class that is not a Provider subclass falls back."""
     from rosclaw.provider.core.manifest import ProviderManifest
-    manifest = ProviderManifest.from_dict({
-        "name": "not_provider",
-        "version": "0.1.0",
-        "type": "vlm",
-        "capabilities": ["vlm.scene_understanding"],
-    })
+
+    manifest = ProviderManifest.from_dict(
+        {
+            "name": "not_provider",
+            "version": "0.1.0",
+            "type": "vlm",
+            "capabilities": ["vlm.scene_understanding"],
+        }
+    )
     manifest.extra = {"provider_class": "builtins.str"}
     cls = ProviderLoader._resolve_provider_class(manifest)
     assert cls is GenericProvider
@@ -284,12 +301,15 @@ def test_provider_loader_custom_class_not_provider_subclass():
 def test_provider_loader_custom_class_import_error():
     """provider_class that cannot be imported falls back."""
     from rosclaw.provider.core.manifest import ProviderManifest
-    manifest = ProviderManifest.from_dict({
-        "name": "bad_class",
-        "version": "0.1.0",
-        "type": "vlm",
-        "capabilities": ["vlm.scene_understanding"],
-    })
+
+    manifest = ProviderManifest.from_dict(
+        {
+            "name": "bad_class",
+            "version": "0.1.0",
+            "type": "vlm",
+            "capabilities": ["vlm.scene_understanding"],
+        }
+    )
     manifest.extra = {"provider_class": "nonexistent.module.Class"}
     cls = ProviderLoader._resolve_provider_class(manifest)
     assert cls is GenericProvider
@@ -298,6 +318,7 @@ def test_provider_loader_custom_class_import_error():
 def test_provider_loader_custom_class_valid(monkeypatch):
     """provider_class that is a valid Provider subclass is used."""
     from rosclaw.provider.core.manifest import ProviderManifest
+
     # Allow test to run when tests module is importable OR when running directly
     try:
         import tests
@@ -305,15 +326,15 @@ def test_provider_loader_custom_class_valid(monkeypatch):
     except ImportError:
         pytest.skip("tests module not importable")
     # Temporarily allow tests. prefix for provider class loading
-    monkeypatch.setattr(
-        ProviderLoader, "_ALLOWED_MODULE_PREFIXES", ("rosclaw.", "tests.")
+    monkeypatch.setattr(ProviderLoader, "_ALLOWED_MODULE_PREFIXES", ("rosclaw.", "tests."))
+    manifest = ProviderManifest.from_dict(
+        {
+            "name": "custom_provider",
+            "version": "0.1.0",
+            "type": "vlm",
+            "capabilities": ["vlm.test"],
+        }
     )
-    manifest = ProviderManifest.from_dict({
-        "name": "custom_provider",
-        "version": "0.1.0",
-        "type": "vlm",
-        "capabilities": ["vlm.test"],
-    })
     manifest.extra = {"provider_class": "tests.test_provider_loader.MyTestProvider"}
     cls = ProviderLoader._resolve_provider_class(manifest)
     assert cls is not GenericProvider

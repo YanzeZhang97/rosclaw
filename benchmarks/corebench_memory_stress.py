@@ -38,6 +38,7 @@ from rosclaw.memory.seekdb_client import SeekDBMemoryClient, SeekDBSQLiteClient
 # Harness
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class BenchMetrics:
     name: str
@@ -79,6 +80,7 @@ def random_instruction() -> str:
 # ---------------------------------------------------------------------------
 # Phase 1 — Concurrency Stress
 # ---------------------------------------------------------------------------
+
 
 def bench_concurrency() -> dict[str, Any]:
     print("\n[Phase 1] Concurrency Stress — 4 writers + 4 readers, 5s burst")
@@ -141,11 +143,15 @@ def bench_concurrency() -> dict[str, Any]:
 # Phase 2 — Backend Comparison
 # ---------------------------------------------------------------------------
 
+
 def bench_backend(n: int = 5000) -> dict[str, Any]:
     print(f"\n[Phase 2] Backend Comparison — {n} records")
     results = {}
 
-    for backend_name, client in [("Memory", SeekDBMemoryClient()), ("SQLite", SeekDBSQLiteClient("/tmp/bench_seekdb.sqlite"))]:
+    for backend_name, client in [
+        ("Memory", SeekDBMemoryClient()),
+        ("SQLite", SeekDBSQLiteClient("/tmp/bench_seekdb.sqlite")),
+    ]:
         mem = MemoryInterface("back_bot", seekdb_client=client)
         mem.initialize()
 
@@ -183,6 +189,7 @@ def bench_backend(n: int = 5000) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Phase 3 — Scale Test
 # ---------------------------------------------------------------------------
+
 
 def bench_scale() -> dict[str, Any]:
     print("\n[Phase 3] Scale Test — 10K → 50K → 100K → 500K")
@@ -228,6 +235,7 @@ def bench_scale() -> dict[str, Any]:
 # Phase 4 — Memory Leak Detection
 # ---------------------------------------------------------------------------
 
+
 def bench_memory_leak(duration_sec: int = 30) -> dict[str, Any]:
     print(f"\n[Phase 4] Memory Leak Detection — {duration_sec}s continuous load")
     mem = MemoryInterface("leak_bot")
@@ -265,7 +273,9 @@ def bench_memory_leak(duration_sec: int = 30) -> dict[str, Any]:
         x = [s[0] for s in samples]
         y = [s[1] for s in samples]
         n = len(x)
-        slope = (n * sum(xi * yi for xi, yi in zip(x, y, strict=False)) - sum(x) * sum(y)) / (n * sum(xi * xi for xi in x) - sum(x) ** 2)
+        slope = (n * sum(xi * yi for xi, yi in zip(x, y, strict=False)) - sum(x) * sum(y)) / (
+            n * sum(xi * xi for xi in x) - sum(x) ** 2
+        )
     else:
         slope = 0.0
 
@@ -280,6 +290,7 @@ def bench_memory_leak(duration_sec: int = 30) -> dict[str, Any]:
 # Phase 5 — RecoveryLoop Stress
 # ---------------------------------------------------------------------------
 
+
 def bench_recovery_loop_stress() -> dict[str, Any]:
     print("\n[Phase 5] RecoveryLoop Stress — 500 rapid failure/success events")
     bus = EventBus()
@@ -291,37 +302,49 @@ def bench_recovery_loop_stress() -> dict[str, Any]:
 
     # Seed rules
     for i in range(10):
-        he._seekdb.insert("heuristic_rules", {
-            "id": f"rule_{i}", "condition": f"fail_{i}",
-            "action": "retry", "priority": 1,
-            "success_count": 0, "failure_count": 0,
-        })
+        he._seekdb.insert(
+            "heuristic_rules",
+            {
+                "id": f"rule_{i}",
+                "condition": f"fail_{i}",
+                "action": "retry",
+                "priority": 1,
+                "success_count": 0,
+                "failure_count": 0,
+            },
+        )
 
     latencies = []
     for i in range(500):
         t0 = timing()
         # Alternate failure and success
-        bus.publish(Event(
-            topic="rosclaw.how.recovery_hint.generated",
-            payload={
-                "request_id": f"req_{i}",
-                "failure_type": f"fail_{i % 10}",
-                "retry_plan": {"rule_id": f"rule_{i % 10}", "max_retries": 3},
-            },
-            source="stress",
-        ))
+        bus.publish(
+            Event(
+                topic="rosclaw.how.recovery_hint.generated",
+                payload={
+                    "request_id": f"req_{i}",
+                    "failure_type": f"fail_{i % 10}",
+                    "retry_plan": {"rule_id": f"rule_{i % 10}", "max_retries": 3},
+                },
+                source="stress",
+            )
+        )
         if i % 2 == 0:
-            bus.publish(Event(
-                topic="rosclaw.sandbox.episode.succeeded",
-                payload={"request_id": f"req_{i}", "episode_id": f"ep_{i}"},
-                source="stress",
-            ))
+            bus.publish(
+                Event(
+                    topic="rosclaw.sandbox.episode.succeeded",
+                    payload={"request_id": f"req_{i}", "episode_id": f"ep_{i}"},
+                    source="stress",
+                )
+            )
         else:
-            bus.publish(Event(
-                topic="rosclaw.sandbox.episode.failed",
-                payload={"request_id": f"req_{i}", "episode_id": f"ep_{i}"},
-                source="stress",
-            ))
+            bus.publish(
+                Event(
+                    topic="rosclaw.sandbox.episode.failed",
+                    payload={"request_id": f"req_{i}", "episode_id": f"ep_{i}"},
+                    source="stress",
+                )
+            )
         latencies.append(timing() - t0)
 
     # Verify bookkeeping
@@ -342,6 +365,7 @@ def bench_recovery_loop_stress() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Phase 6 — EventBus Throughput
 # ---------------------------------------------------------------------------
+
 
 def bench_eventbus() -> dict[str, Any]:
     print("\n[Phase 6] EventBus Throughput — 10K events")
@@ -375,6 +399,7 @@ def bench_eventbus() -> dict[str, Any]:
 # Phase 7 — Index Efficiency
 # ---------------------------------------------------------------------------
 
+
 def bench_index_efficiency() -> dict[str, Any]:
     print("\n[Phase 7] Index Efficiency — indexed vs full-scan")
     mem = MemoryInterface("idx_bot")
@@ -383,7 +408,9 @@ def bench_index_efficiency() -> dict[str, Any]:
     # Populate
     for i in range(5000):
         mem.store_experience(
-            f"ie_{i}", "praxis", random_instruction(),
+            f"ie_{i}",
+            "praxis",
+            random_instruction(),
             outcome=random.choice(["success", "failure"]),
             tags=[random.choice(["grasp", "navigate", "scan"])],
         )
@@ -391,7 +418,9 @@ def bench_index_efficiency() -> dict[str, Any]:
     # Indexed query (robot_id + outcome)
     t0 = timing()
     for _ in range(100):
-        mem._client.query("experience_graph", filters={"robot_id": "idx_bot", "outcome": "success"}, limit=50)
+        mem._client.query(
+            "experience_graph", filters={"robot_id": "idx_bot", "outcome": "success"}, limit=50
+        )
     indexed_ms = timing() - t0
 
     # Non-indexed query (instruction — not indexed)
@@ -411,6 +440,7 @@ def bench_index_efficiency() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Phase 8 — Capacity Boundary
 # ---------------------------------------------------------------------------
+
 
 def bench_capacity_boundary() -> dict[str, Any]:
     print("\n[Phase 8] Capacity Boundary — extreme configurations")
@@ -445,7 +475,11 @@ def bench_capacity_boundary() -> dict[str, Any]:
         mem.store_experience(f"c2_{i}", "praxis", "task")
         mem.delete_experience(f"c2_{i}")
     cycle_ms = timing() - t0
-    results["insert_delete_cycle"] = {"cycles": cycles, "total_ms": cycle_ms, "per_op_ms": cycle_ms / (cycles * 2)}
+    results["insert_delete_cycle"] = {
+        "cycles": cycles,
+        "total_ms": cycle_ms,
+        "per_op_ms": cycle_ms / (cycles * 2),
+    }
     mem.stop()
 
     return results
@@ -454,6 +488,7 @@ def bench_capacity_boundary() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Report
 # ---------------------------------------------------------------------------
+
 
 def main():
     print("=" * 70)
@@ -475,23 +510,29 @@ def main():
 
     print("\n[Phase 1] Concurrency Stress (4W + 4R, 5s)")
     for name, m in [("Write", p1["write"]), ("Read", p1["read"])]:
-        print(f"  {name:6s}  p50={fmt_ms(m.p50)}  p99={fmt_ms(m.p99)}  "
-              f"throughput={m.throughput:.1f} hz  errors={m.errors}")
+        print(
+            f"  {name:6s}  p50={fmt_ms(m.p50)}  p99={fmt_ms(m.p99)}  "
+            f"throughput={m.throughput:.1f} hz  errors={m.errors}"
+        )
 
     print("\n[Phase 2] Backend Comparison (5K records)")
     for name, m in p2.items():
-        print(f"  {name:8s}  write p50={fmt_ms(m['write_p50'])}  query p50={fmt_ms(m['query_p50'])}  "
-              f"count={fmt_ms(m['count_lat_ms'])}")
+        print(
+            f"  {name:8s}  write p50={fmt_ms(m['write_p50'])}  query p50={fmt_ms(m['query_p50'])}  "
+            f"count={fmt_ms(m['count_lat_ms'])}"
+        )
 
     print("\n[Phase 3] Scale Test")
     for scale, m in p3.items():
-        print(f"  {scale:8d}  ingest={m['ingest_total_sec']:.1f}s  query={fmt_ms(m['query_ms'])}  "
-              f"throughput={m['throughput_hz']:.0f} hz")
+        print(
+            f"  {scale:8d}  ingest={m['ingest_total_sec']:.1f}s  query={fmt_ms(m['query_ms'])}  "
+            f"throughput={m['throughput_hz']:.0f} hz"
+        )
 
     print("\n[Phase 4] Memory Leak Detection (30s)")
     print(f"  Slope: {p4['slope_mb_per_iter']:.3f} MB/iter")
     print(f"  Leak detected: {'YES ⚠️' if p4['leak_detected'] else 'NO ✅'}")
-    if p4['samples']:
+    if p4["samples"]:
         print(f"  First sample: {p4['samples'][0][1]:.2f} MB")
         print(f"  Last sample:  {p4['samples'][-1][1]:.2f} MB")
 
@@ -509,8 +550,12 @@ def main():
     print(f"  Speedup:     {p7['speedup']:.1f}x")
 
     print("\n[Phase 8] Capacity Boundary")
-    print(f"  Evict to 0:     evicted={p8['evict_to_zero']['evicted']}  remaining={p8['evict_to_zero']['remaining']}")
-    print(f"  Forget age 0:   deleted={p8['forget_age_zero']['deleted']}  remaining={p8['forget_age_zero']['remaining']}")
+    print(
+        f"  Evict to 0:     evicted={p8['evict_to_zero']['evicted']}  remaining={p8['evict_to_zero']['remaining']}"
+    )
+    print(
+        f"  Forget age 0:   deleted={p8['forget_age_zero']['deleted']}  remaining={p8['forget_age_zero']['remaining']}"
+    )
     print(f"  Insert/delete:  {p8['insert_delete_cycle']['per_op_ms']:.3f} ms/op")
 
     print("\n" + "=" * 70)

@@ -93,7 +93,11 @@ async def test_scenario_c_runtime_executes_with_real_physics(runtime_with_physic
     runtime = runtime_with_physics
 
     events = []
-    for topic in ["rosclaw.provider.inference.completed", "rosclaw.sandbox.action.allowed", "rosclaw.dashboard.trace.updated"]:
+    for topic in [
+        "rosclaw.provider.inference.completed",
+        "rosclaw.sandbox.action.allowed",
+        "rosclaw.dashboard.trace.updated",
+    ]:
         runtime.event_bus.subscribe(topic, lambda e, t=topic: events.append(t))
 
     result = runtime.execute(
@@ -157,7 +161,9 @@ async def test_scenario_c_how_recovery_on_blocked(runtime_with_physics):
     """Step 7: How generates recovery hint when action is blocked."""
     runtime = runtime_with_physics
     how_events = []
-    runtime.event_bus.subscribe("rosclaw.how.recovery_hint.generated", lambda e: how_events.append(e))
+    runtime.event_bus.subscribe(
+        "rosclaw.how.recovery_hint.generated", lambda e: how_events.append(e)
+    )
 
     result = runtime.execute(
         action={
@@ -175,7 +181,11 @@ async def test_scenario_c_full_closed_loop(runtime_with_physics):
     runtime = runtime_with_physics
 
     all_events = []
-    for topic in ["rosclaw.provider.inference.completed", "rosclaw.sandbox.action.allowed", "rosclaw.dashboard.trace.updated"]:
+    for topic in [
+        "rosclaw.provider.inference.completed",
+        "rosclaw.sandbox.action.allowed",
+        "rosclaw.dashboard.trace.updated",
+    ]:
         runtime.event_bus.subscribe(topic, lambda e, t=topic: all_events.append(t))
 
     vlm_result = await runtime.capability_router.invoke(

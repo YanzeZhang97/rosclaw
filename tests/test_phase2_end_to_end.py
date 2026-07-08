@@ -32,7 +32,9 @@ class TestPhase2CLI:
     def test_cli_version(self):
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw.cli", "--version"],
-            capture_output=True, text=True, cwd=REPO_ROOT
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
         )
         assert result.returncode == 0
         assert "rosclaw" in result.stdout.lower()
@@ -41,8 +43,9 @@ class TestPhase2CLI:
         with tempfile.TemporaryDirectory() as tmpdir:
             result = subprocess.run(
                 [sys.executable, "-m", "rosclaw.cli", "init", tmpdir],
-                capture_output=True, text=True,
-                cwd=REPO_ROOT
+                capture_output=True,
+                text=True,
+                cwd=REPO_ROOT,
             )
             assert result.returncode == 0, result.stderr
             assert (Path(tmpdir) / "rosclaw.yaml").exists()
@@ -50,8 +53,9 @@ class TestPhase2CLI:
     def test_cli_doctor(self):
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw.cli", "doctor"],
-            capture_output=True, text=True,
-            cwd=REPO_ROOT
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
         )
         assert result.returncode in (0, 1)  # may warn about missing rosclaw.yaml
         assert "Doctor" in result.stdout
@@ -59,8 +63,9 @@ class TestPhase2CLI:
     def test_cli_status(self):
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw.cli", "status"],
-            capture_output=True, text=True,
-            cwd=REPO_ROOT
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
         )
         assert result.returncode in (0, 1)
         assert "Status" in result.stdout
@@ -68,8 +73,9 @@ class TestPhase2CLI:
     def test_cli_robot_list(self):
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw.cli", "robot", "list"],
-            capture_output=True, text=True,
-            cwd=REPO_ROOT
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
         )
         assert result.returncode == 0, result.stderr
         assert "Robot Registry" in result.stdout
@@ -77,8 +83,9 @@ class TestPhase2CLI:
     def test_cli_provider_list(self):
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw.cli", "provider", "list"],
-            capture_output=True, text=True,
-            cwd=REPO_ROOT
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
         )
         assert result.returncode == 0, result.stderr
         assert "Provider Registry" in result.stdout
@@ -86,8 +93,9 @@ class TestPhase2CLI:
     def test_cli_skill_list(self):
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw.cli", "skill", "list"],
-            capture_output=True, text=True,
-            cwd=REPO_ROOT
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
         )
         assert result.returncode == 0, result.stderr
         assert "Skill Registry" in result.stdout
@@ -95,8 +103,9 @@ class TestPhase2CLI:
     def test_cli_sandbox_list_worlds(self):
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw.cli", "sandbox", "list-worlds"],
-            capture_output=True, text=True,
-            cwd=REPO_ROOT
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
         )
         assert result.returncode == 0, result.stderr
         assert "Sandbox Worlds" in result.stdout
@@ -104,8 +113,9 @@ class TestPhase2CLI:
     def test_cli_memory_status(self):
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw.cli", "memory", "status"],
-            capture_output=True, text=True,
-            cwd=REPO_ROOT
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
         )
         assert result.returncode == 0, result.stderr
         assert "Memory Status" in result.stdout
@@ -113,8 +123,9 @@ class TestPhase2CLI:
     def test_cli_events_tail(self):
         result = subprocess.run(
             [sys.executable, "-m", "rosclaw.cli", "events", "--tail", "5"],
-            capture_output=True, text=True,
-            cwd=REPO_ROOT
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
         )
         assert result.returncode == 0, result.stderr
         assert "EventBus" in result.stdout
@@ -125,61 +136,88 @@ class TestPhase2MCPTools:
 
     def test_mcp_list_robots(self):
         from rosclaw.mcp.minimal_server import ROSClawMinimalMCPServer
+
         server = ROSClawMinimalMCPServer()
         import asyncio
+
         result = asyncio.run(server._handle_system_tool("system.list_robots", {}))
         assert "robots" in result
         assert "count" in result
 
     def test_mcp_list_providers(self):
         from rosclaw.mcp.minimal_server import ROSClawMinimalMCPServer
+
         server = ROSClawMinimalMCPServer()
         import asyncio
+
         result = asyncio.run(server._handle_system_tool("system.list_providers", {}))
         assert "providers" in result
         assert "count" in result
 
     def test_mcp_run_sandbox_task_success(self):
         from rosclaw.mcp.minimal_server import ROSClawMinimalMCPServer
+
         server = ROSClawMinimalMCPServer()
         import asyncio
-        result = asyncio.run(server._handle_system_tool("system.run_sandbox_task", {
-            "robot_id": "turtlebot",
-            "task": "pid_move",
-            "world": "mock",
-            "parameters": {"target": 1.0},
-        }))
+
+        result = asyncio.run(
+            server._handle_system_tool(
+                "system.run_sandbox_task",
+                {
+                    "robot_id": "turtlebot",
+                    "task": "pid_move",
+                    "world": "mock",
+                    "parameters": {"target": 1.0},
+                },
+            )
+        )
         assert result["status"] == "SUCCESS"
         assert "episode_id" in result
         assert "firewall" in result
 
     def test_mcp_query_memory(self):
         from rosclaw.mcp.minimal_server import ROSClawMinimalMCPServer
+
         server = ROSClawMinimalMCPServer()
         import asyncio
-        result = asyncio.run(server._handle_system_tool("system.query_memory", {
-            "query": "PID movement",
-            "query_type": "similar",
-            "limit": 3,
-        }))
+
+        result = asyncio.run(
+            server._handle_system_tool(
+                "system.query_memory",
+                {
+                    "query": "PID movement",
+                    "query_type": "similar",
+                    "limit": 3,
+                },
+            )
+        )
         assert "count" in result or "statistics" in result or "error" in result
 
     def test_mcp_explain_failure(self):
         from rosclaw.mcp.minimal_server import ROSClawMinimalMCPServer
+
         server = ROSClawMinimalMCPServer()
         import asyncio
+
         result = asyncio.run(server._handle_system_tool("system.explain_failure", {}))
         assert "status" in result
 
     def test_mcp_compile_asset_bundle(self):
         from rosclaw.mcp.minimal_server import ROSClawMinimalMCPServer
+
         server = ROSClawMinimalMCPServer()
         import asyncio
-        result = asyncio.run(server._handle_system_tool("system.compile_asset_bundle", {
-            "sdk_doc": "Simple sensor SDK",
-            "bundle_name": "test_sensor",
-            "staging": True,
-        }))
+
+        result = asyncio.run(
+            server._handle_system_tool(
+                "system.compile_asset_bundle",
+                {
+                    "sdk_doc": "Simple sensor SDK",
+                    "bundle_name": "test_sensor",
+                    "staging": True,
+                },
+            )
+        )
         assert result["status"] == "generated"
         assert "files" in result
         assert "validation" in result
@@ -197,9 +235,17 @@ class TestPhase2EventBus:
         recorder._do_initialize()
 
         # Simulate a task execution
-        bus.publish(Event(topic="skill.execution.start", payload={"skill_name": "pid_move"}, source="test"))
-        bus.publish(Event(topic="skill.execution.complete", payload={"result": {"error": 0.02}}, source="test"))
-        bus.publish(Event(topic="praxis.completed", payload={"outcome": {"reward": 1.0}}, source="test"))
+        bus.publish(
+            Event(topic="skill.execution.start", payload={"skill_name": "pid_move"}, source="test")
+        )
+        bus.publish(
+            Event(
+                topic="skill.execution.complete", payload={"result": {"error": 0.02}}, source="test"
+            )
+        )
+        bus.publish(
+            Event(topic="praxis.completed", payload={"outcome": {"reward": 1.0}}, source="test")
+        )
 
         history = bus.get_history(limit=10)
         topics = [h.topic for h in history]
@@ -220,21 +266,35 @@ class TestPhase2PracticeArtifacts:
         recorder._do_initialize()
 
         # Simulate full task lifecycle
-        bus.publish(Event(
-            topic="skill.execution.start",
-            payload={"episode_id": "ep_test_001", "skill_name": "pid_move", "parameters": {"target": 1.0}},
-            source="test",
-        ))
-        bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"episode_id": "ep_test_001", "result": {"error": 0.02}, "duration_sec": 2.5},
-            source="test",
-        ))
-        bus.publish(Event(
-            topic="praxis.completed",
-            payload={"episode_id": "ep_test_001", "outcome": {"reward": 1.0}},
-            source="test",
-        ))
+        bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={
+                    "episode_id": "ep_test_001",
+                    "skill_name": "pid_move",
+                    "parameters": {"target": 1.0},
+                },
+                source="test",
+            )
+        )
+        bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "episode_id": "ep_test_001",
+                    "result": {"error": 0.02},
+                    "duration_sec": 2.5,
+                },
+                source="test",
+            )
+        )
+        bus.publish(
+            Event(
+                topic="praxis.completed",
+                payload={"episode_id": "ep_test_001", "outcome": {"reward": 1.0}},
+                source="test",
+            )
+        )
 
         episode_dir = tmp_path / "episodes" / "ep_test_001"
         assert episode_dir.exists()
@@ -275,16 +335,20 @@ class TestPhase2PracticeArtifacts:
         recorder = EpisodeRecorder("test_bot", event_bus=bus, artifact_base_dir=str(tmp_path))
         recorder._do_initialize()
 
-        bus.publish(Event(
-            topic="skill.execution.start",
-            payload={"episode_id": "ep_test_002", "skill_name": "reach"},
-            source="test",
-        ))
-        bus.publish(Event(
-            topic="praxis.completed",
-            payload={"episode_id": "ep_test_002", "outcome": {"reward": 0.8}},
-            source="test",
-        ))
+        bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={"episode_id": "ep_test_002", "skill_name": "reach"},
+                source="test",
+            )
+        )
+        bus.publish(
+            Event(
+                topic="praxis.completed",
+                payload={"episode_id": "ep_test_002", "outcome": {"reward": 0.8}},
+                source="test",
+            )
+        )
 
         episodes = recorder.list_episodes()
         assert len(episodes) >= 1
@@ -302,12 +366,14 @@ class TestPhase2MemoryHow:
         mem = MemoryInterface("test_bot")
         mem._do_initialize()
         # Store a failure
-        mem.write_failure_memory({
-            "failure_id": "fail_001",
-            "failure_type": "pid_oscillation",
-            "root_cause": "Kp too high",
-            "recovery_hint": "Reduce Kp by 20%",
-        })
+        mem.write_failure_memory(
+            {
+                "failure_id": "fail_001",
+                "failure_type": "pid_oscillation",
+                "root_cause": "Kp too high",
+                "recovery_hint": "Reduce Kp by 20%",
+            }
+        )
         explanation = mem.explain_last_failure()
         assert explanation is not None
         assert explanation["failure_type"] == "pid_oscillation"
@@ -337,11 +403,14 @@ class TestPhase2MemoryHow:
         loop.subscribe()
         # Verify subscription by publishing an event
         from rosclaw.core.event_bus import Event
-        bus.publish(Event(
-            topic="rosclaw.how.recovery_hint.generated",
-            payload={"request_id": "req_001", "failure_type": "test", "retry_plan": {}},
-            source="test",
-        ))
+
+        bus.publish(
+            Event(
+                topic="rosclaw.how.recovery_hint.generated",
+                payload={"request_id": "req_001", "failure_type": "test", "retry_plan": {}},
+                source="test",
+            )
+        )
         # If no exception, subscription worked
         loop.unsubscribe()
 
@@ -366,9 +435,35 @@ class TestPhase2Scenarios:
         recorder = EpisodeRecorder("turtlebot", event_bus=bus, artifact_base_dir=str(tmp_path))
         recorder._do_initialize()
 
-        bus.publish(Event(topic="skill.execution.start", payload={"episode_id": "ep_a", "skill_name": "pid_move", "parameters": action["parameters"]}, source="scenario_a"))
-        bus.publish(Event(topic="skill.execution.complete", payload={"episode_id": "ep_a", "result": {"final_position": 1.02, "error": 0.02}, "duration_sec": 3.0}, source="scenario_a"))
-        bus.publish(Event(topic="praxis.completed", payload={"episode_id": "ep_a", "outcome": {"reward": 1.0}}, source="scenario_a"))
+        bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={
+                    "episode_id": "ep_a",
+                    "skill_name": "pid_move",
+                    "parameters": action["parameters"],
+                },
+                source="scenario_a",
+            )
+        )
+        bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "episode_id": "ep_a",
+                    "result": {"final_position": 1.02, "error": 0.02},
+                    "duration_sec": 3.0,
+                },
+                source="scenario_a",
+            )
+        )
+        bus.publish(
+            Event(
+                topic="praxis.completed",
+                payload={"episode_id": "ep_a", "outcome": {"reward": 1.0}},
+                source="scenario_a",
+            )
+        )
 
         # 3. Validate episode
         ep_dir = tmp_path / "episodes" / "ep_a"
@@ -392,8 +487,23 @@ class TestPhase2Scenarios:
         recorder = EpisodeRecorder("ur5e", event_bus=bus, artifact_base_dir=str(tmp_path))
         recorder._do_initialize()
 
-        bus.publish(Event(topic="skill.execution.start", payload={"episode_id": "ep_b", "skill_name": "reach"}, source="scenario_b"))
-        bus.publish(Event(topic="firewall.action_blocked", payload={"episode_id": "ep_b", "violations": [{"description": "workspace_boundary"}]}, source="scenario_b"))
+        bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={"episode_id": "ep_b", "skill_name": "reach"},
+                source="scenario_b",
+            )
+        )
+        bus.publish(
+            Event(
+                topic="firewall.action_blocked",
+                payload={
+                    "episode_id": "ep_b",
+                    "violations": [{"description": "workspace_boundary"}],
+                },
+                source="scenario_b",
+            )
+        )
 
         ep_dir = tmp_path / "episodes" / "ep_b"
         assert (ep_dir / "metadata.json").exists()
@@ -410,9 +520,35 @@ class TestPhase2Scenarios:
         recorder = EpisodeRecorder("g1", event_bus=bus, artifact_base_dir=str(tmp_path))
         recorder._do_initialize()
 
-        bus.publish(Event(topic="skill.execution.start", payload={"episode_id": "ep_e", "skill_name": "g1_walk", "parameters": {"distance": 3.0, "speed": 0.5}}, source="scenario_e"))
-        bus.publish(Event(topic="skill.execution.complete", payload={"episode_id": "ep_e", "result": {"distance": 3.0, "falls": 0}, "duration_sec": 10.0}, source="scenario_e"))
-        bus.publish(Event(topic="praxis.completed", payload={"episode_id": "ep_e", "outcome": {"reward": 1.0}}, source="scenario_e"))
+        bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={
+                    "episode_id": "ep_e",
+                    "skill_name": "g1_walk",
+                    "parameters": {"distance": 3.0, "speed": 0.5},
+                },
+                source="scenario_e",
+            )
+        )
+        bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "episode_id": "ep_e",
+                    "result": {"distance": 3.0, "falls": 0},
+                    "duration_sec": 10.0,
+                },
+                source="scenario_e",
+            )
+        )
+        bus.publish(
+            Event(
+                topic="praxis.completed",
+                payload={"episode_id": "ep_e", "outcome": {"reward": 1.0}},
+                source="scenario_e",
+            )
+        )
 
         ep_dir = tmp_path / "episodes" / "ep_e"
         assert (ep_dir / "metadata.json").exists()

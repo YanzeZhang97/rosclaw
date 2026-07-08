@@ -21,6 +21,7 @@ The reactive HeuristicEngine continues to own ``record_outcome`` and the
 EventBus subscription. The intervention layer adds a richer decision; the
 engine wraps it with outcome tracking via ``HeuristicEngine.decide_recovery``.
 """
+
 from __future__ import annotations
 
 from .intervention_policy import COOLDOWN_WINDOW, decide_strategy, is_blocking

@@ -88,7 +88,9 @@ class FleetCompatibilityAggregator:
             for skill_key, result in report.skills.items():
                 current = skill_status.get(skill_key)
                 candidate = result.status
-                if current is None or status_priority.get(candidate, 1) < status_priority.get(current, 1):
+                if current is None or status_priority.get(candidate, 1) < status_priority.get(
+                    current, 1
+                ):
                     skill_status[skill_key] = candidate
 
         summary = {
@@ -96,9 +98,7 @@ class FleetCompatibilityAggregator:
             for status in ("compatible", "degraded", "blocked", "unknown")
         }
 
-        compatible_with_all = [
-            k for k, s in skill_status.items() if s == "compatible"
-        ]
+        compatible_with_all = [k for k, s in skill_status.items() if s == "compatible"]
         blocked_on_any = [k for k, s in skill_status.items() if s == "blocked"]
         degraded_on_any = [k for k, s in skill_status.items() if s == "degraded"]
         unknown_on_any = [k for k, s in skill_status.items() if s == "unknown"]

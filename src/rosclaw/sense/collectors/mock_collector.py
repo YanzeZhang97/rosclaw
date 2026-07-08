@@ -18,19 +18,21 @@ from rosclaw.sense.schemas import (
     PerceptionHealth,
 )
 
-SCENARIOS = frozenset({
-    "normal",
-    "low_battery",
-    "critical_battery",
-    "hot_knee",
-    "overheat_joint",
-    "unstable_support",
-    "camera_degraded",
-    "dds_latency_high",
-    "kick_not_ready",
-    "compute_overload",
-    "unknown_partial",
-})
+SCENARIOS = frozenset(
+    {
+        "normal",
+        "low_battery",
+        "critical_battery",
+        "hot_knee",
+        "overheat_joint",
+        "unstable_support",
+        "camera_degraded",
+        "dds_latency_high",
+        "kick_not_ready",
+        "compute_overload",
+        "unknown_partial",
+    }
+)
 
 
 class MockCollector(BodyStateCollector):

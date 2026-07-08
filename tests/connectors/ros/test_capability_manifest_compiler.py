@@ -26,9 +26,16 @@ def _snapshot(topics=None, services=None, actions=None) -> RosGraphSnapshot:
 
 
 def test_camera_topic_becomes_observation_capability():
-    snapshot = _snapshot(topics=[
-        RosTopicInfo(name="/camera/image_raw", msg_type="sensor_msgs/msg/Image", is_sensor=True, risk_hint="low"),
-    ])
+    snapshot = _snapshot(
+        topics=[
+            RosTopicInfo(
+                name="/camera/image_raw",
+                msg_type="sensor_msgs/msg/Image",
+                is_sensor=True,
+                risk_hint="low",
+            ),
+        ]
+    )
     compiler = CapabilityManifestCompiler(robot_id="turtlebot")
     manifest = compiler.compile(snapshot)
     cap = manifest.get_capability("turtlebot.observe.camera.rgb")
@@ -39,9 +46,16 @@ def test_camera_topic_becomes_observation_capability():
 
 
 def test_cmd_vel_becomes_high_risk_actuation():
-    snapshot = _snapshot(topics=[
-        RosTopicInfo(name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist", is_command=True, risk_hint="high"),
-    ])
+    snapshot = _snapshot(
+        topics=[
+            RosTopicInfo(
+                name="/turtle1/cmd_vel",
+                msg_type="geometry_msgs/msg/Twist",
+                is_command=True,
+                risk_hint="high",
+            ),
+        ]
+    )
     compiler = CapabilityManifestCompiler(robot_id="turtlesim")
     manifest = compiler.compile(snapshot)
     cap = manifest.get_capability("turtlesim.base.velocity_command")
@@ -56,10 +70,17 @@ def test_cmd_vel_becomes_high_risk_actuation():
 def test_preferred_service_suppresses_command_topic():
     snapshot = _snapshot(
         services=[
-            RosServiceInfo(name="/go2/move", srv_type="go2_interfaces/srv/Move", risk_hint="medium"),
+            RosServiceInfo(
+                name="/go2/move", srv_type="go2_interfaces/srv/Move", risk_hint="medium"
+            ),
         ],
         topics=[
-            RosTopicInfo(name="/cmd_vel", msg_type="geometry_msgs/msg/Twist", is_command=True, risk_hint="high"),
+            RosTopicInfo(
+                name="/cmd_vel",
+                msg_type="geometry_msgs/msg/Twist",
+                is_command=True,
+                risk_hint="high",
+            ),
         ],
     )
     spec = {
@@ -73,9 +94,16 @@ def test_preferred_service_suppresses_command_topic():
 
 
 def test_robot_spec_safety_defaults_override():
-    snapshot = _snapshot(topics=[
-        RosTopicInfo(name="/cmd_vel", msg_type="geometry_msgs/msg/Twist", is_command=True, risk_hint="high"),
-    ])
+    snapshot = _snapshot(
+        topics=[
+            RosTopicInfo(
+                name="/cmd_vel",
+                msg_type="geometry_msgs/msg/Twist",
+                is_command=True,
+                risk_hint="high",
+            ),
+        ]
+    )
     spec = {
         "safety_defaults": {
             "max_linear_velocity": 0.1,
@@ -92,9 +120,13 @@ def test_robot_spec_safety_defaults_override():
 
 
 def test_service_compiled_with_medium_risk():
-    snapshot = _snapshot(services=[
-        RosServiceInfo(name="/go2/stand_up", srv_type="std_srvs/srv/Trigger", risk_hint="medium"),
-    ])
+    snapshot = _snapshot(
+        services=[
+            RosServiceInfo(
+                name="/go2/stand_up", srv_type="std_srvs/srv/Trigger", risk_hint="medium"
+            ),
+        ]
+    )
     compiler = CapabilityManifestCompiler(robot_id="go2")
     manifest = compiler.compile(snapshot)
     cap = manifest.get_capability("go2.go2.stand_up")
@@ -104,9 +136,15 @@ def test_service_compiled_with_medium_risk():
 
 
 def test_action_compiled():
-    snapshot = _snapshot(actions=[
-        RosActionInfo(name="/navigate_to_pose", action_type="nav2_msgs/action/NavigateToPose", risk_hint="medium"),
-    ])
+    snapshot = _snapshot(
+        actions=[
+            RosActionInfo(
+                name="/navigate_to_pose",
+                action_type="nav2_msgs/action/NavigateToPose",
+                risk_hint="medium",
+            ),
+        ]
+    )
     compiler = CapabilityManifestCompiler(robot_id="turtlebot")
     manifest = compiler.compile(snapshot)
     cap = manifest.get_capability("turtlebot.action.navigate_to_pose")
@@ -115,9 +153,16 @@ def test_action_compiled():
 
 
 def test_discouraged_command_topic_disabled_when_no_preferred_service():
-    snapshot = _snapshot(topics=[
-        RosTopicInfo(name="/cmd_vel", msg_type="geometry_msgs/msg/Twist", is_command=True, risk_hint="high"),
-    ])
+    snapshot = _snapshot(
+        topics=[
+            RosTopicInfo(
+                name="/cmd_vel",
+                msg_type="geometry_msgs/msg/Twist",
+                is_command=True,
+                risk_hint="high",
+            ),
+        ]
+    )
     spec = {
         "discouraged_interfaces": [{"ros_kind": "topic", "ros_name": "/cmd_vel"}],
     }
@@ -130,9 +175,13 @@ def test_discouraged_command_topic_disabled_when_no_preferred_service():
 
 
 def test_discouraged_service_is_disabled():
-    snapshot = _snapshot(services=[
-        RosServiceInfo(name="/go2/stand_up", srv_type="std_srvs/srv/Trigger", risk_hint="medium"),
-    ])
+    snapshot = _snapshot(
+        services=[
+            RosServiceInfo(
+                name="/go2/stand_up", srv_type="std_srvs/srv/Trigger", risk_hint="medium"
+            ),
+        ]
+    )
     spec = {
         "discouraged_interfaces": [{"ros_kind": "service", "ros_name": "/go2/stand_up"}],
     }
@@ -144,9 +193,11 @@ def test_discouraged_service_is_disabled():
 
 
 def test_manifest_to_dict_roundtrip():
-    snapshot = _snapshot(topics=[
-        RosTopicInfo(name="/turtle1/pose", msg_type="turtlesim/msg/Pose"),
-    ])
+    snapshot = _snapshot(
+        topics=[
+            RosTopicInfo(name="/turtle1/pose", msg_type="turtlesim/msg/Pose"),
+        ]
+    )
     compiler = CapabilityManifestCompiler(robot_id="turtlesim")
     manifest = compiler.compile(snapshot)
     data = manifest.to_dict()

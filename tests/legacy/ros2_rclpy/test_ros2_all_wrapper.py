@@ -77,7 +77,13 @@ def test_ros2_ur5_server_unit():
 def test_ros2_mcp_drivers_init():
     """Run test_mcp_drivers_init_ros2.py in subprocess."""
     result = subprocess.run(
-        [sys.executable, "-m", "pytest", "tests/legacy/ros2_rclpy/test_mcp_drivers_init_ros2.py", "-q"],
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/legacy/ros2_rclpy/test_mcp_drivers_init_ros2.py",
+            "-q",
+        ],
         capture_output=True,
         text=True,
         cwd=repo_root(),
@@ -87,4 +93,6 @@ def test_ros2_mcp_drivers_init():
     print(result.stdout)
     if result.stderr:
         print(result.stderr)
-    assert result.returncode == 0, f"MCP drivers init tests failed:\n{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, (
+        f"MCP drivers init tests failed:\n{result.stdout}\n{result.stderr}"
+    )

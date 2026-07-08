@@ -157,7 +157,7 @@ class TestRuntimeFailurePaths:
         runtime.initialize()
 
         assert runtime.state.name == "READY"
-        assert not hasattr(runtime, '_knowledge') or runtime._knowledge is None
+        assert not hasattr(runtime, "_knowledge") or runtime._knowledge is None
 
     def test_runtime_init_without_how(self):
         """Runtime initializes without HOW module."""
@@ -224,6 +224,7 @@ class TestRuntimeFailurePaths:
 
         # Second initialize should not crash
         import contextlib
+
         with contextlib.suppress(Exception):
             runtime.initialize()
 

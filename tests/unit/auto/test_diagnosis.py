@@ -1,4 +1,5 @@
 """L6: Diagnosis / Proposal / Patch tests."""
+
 from rosclaw.auto.core.failure import FailureCase
 from rosclaw.auto.diagnosis.rule_diagnoser import RuleDiagnoser
 
@@ -10,8 +11,11 @@ class TestRuleDiagnoser:
         """AUTO-DIAG-001: missed_grasp diagnosis correct."""
         diagnoser = RuleDiagnoser()
         fc = FailureCase(
-            id="f1", praxis_event_id="e1", task_id="pick_cube",
-            skill_id="pick_v1", failure_mode="missed_grasp",
+            id="f1",
+            praxis_event_id="e1",
+            task_id="pick_cube",
+            skill_id="pick_v1",
+            failure_mode="missed_grasp",
         )
         diag = diagnoser.diagnose(fc)
         assert "low_pregrasp_height" in diag.root_cause_candidates
@@ -23,8 +27,11 @@ class TestRuleDiagnoser:
         """AUTO-DIAG-002: collision diagnosis correct."""
         diagnoser = RuleDiagnoser()
         fc = FailureCase(
-            id="f2", praxis_event_id="e2", task_id="pick_cube",
-            skill_id="pick_v1", failure_mode="collision",
+            id="f2",
+            praxis_event_id="e2",
+            task_id="pick_cube",
+            skill_id="pick_v1",
+            failure_mode="collision",
         )
         diag = diagnoser.diagnose(fc)
         assert "approach_speed_too_fast" in diag.root_cause_candidates
@@ -35,8 +42,11 @@ class TestRuleDiagnoser:
         """AUTO-DIAG-003: perception_lost is high risk, not auto-repairable."""
         diagnoser = RuleDiagnoser()
         fc = FailureCase(
-            id="f3", praxis_event_id="e3", task_id="pick_cube",
-            skill_id="pick_v1", failure_mode="perception_lost",
+            id="f3",
+            praxis_event_id="e3",
+            task_id="pick_cube",
+            skill_id="pick_v1",
+            failure_mode="perception_lost",
         )
         diag = diagnoser.diagnose(fc)
         assert diag.auto_repairable is False
@@ -46,8 +56,11 @@ class TestRuleDiagnoser:
         """AUTO-DIAG-004: Unknown failure mode falls back gracefully."""
         diagnoser = RuleDiagnoser()
         fc = FailureCase(
-            id="f4", praxis_event_id="e4", task_id="pick_cube",
-            skill_id="pick_v1", failure_mode="alien_abduction",
+            id="f4",
+            praxis_event_id="e4",
+            task_id="pick_cube",
+            skill_id="pick_v1",
+            failure_mode="alien_abduction",
         )
         diag = diagnoser.diagnose(fc)
         assert diag.root_cause_candidates == ["unknown"]

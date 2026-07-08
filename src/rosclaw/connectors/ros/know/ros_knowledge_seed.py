@@ -34,14 +34,17 @@ def seed_ros_capabilities(knowledge_interface: Any, robot_id: str, capabilities:
                 )
             elif hasattr(knowledge_interface, "_client"):
                 client = knowledge_interface._client
-                client.insert("knowledge_graph", {
-                    "id": f"{robot_id}_cap_{cap_id.replace('.', '_')}",
-                    "subject": robot_id,
-                    "predicate": "has_capability",
-                    "object": cap_id,
-                    "confidence": 1.0,
-                    "source": "ros_connector_discovery",
-                })
+                client.insert(
+                    "knowledge_graph",
+                    {
+                        "id": f"{robot_id}_cap_{cap_id.replace('.', '_')}",
+                        "subject": robot_id,
+                        "predicate": "has_capability",
+                        "object": cap_id,
+                        "confidence": 1.0,
+                        "source": "ros_connector_discovery",
+                    },
+                )
             inserted += 1
         except Exception:
             pass

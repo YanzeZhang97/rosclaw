@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any, Literal
-from uuid import uuid4
 
 from pydantic import BaseModel, Field
+
+from rosclaw.practice.ids import generate_event_id
 
 SCHEMA_VERSION = "practice.event.v1"
 
@@ -30,13 +31,20 @@ class PracticeEventEnvelope(BaseModel):
 
     Large or binary payloads should be written to files and referenced via
     ``payload_ref``; only small serializable metadata belongs in ``payload``.
+
+    The optional ``body_id`` and ``episode_id`` fields let a single practice
+    session track multiple bodies and/or episodes (e.g. RH56 left/right hand
+    or repeated skill trials). ``policy_id`` links candidate/promotion events
+    to a specific policy version.
     """
 
     schema_version: str = SCHEMA_VERSION
 
     practice_id: str
     session_id: str | None = None
+    episode_id: str | None = None
     robot_id: str
+    body_id: str | None = None
 
     source: Literal[
         "dds",
@@ -58,12 +66,13 @@ class PracticeEventEnvelope(BaseModel):
 
     trace_id: str | None = None
     parent_event_id: str | None = None
-    event_id: str = Field(default_factory=lambda: str(uuid4()))
+    event_id: str = Field(default_factory=generate_event_id)
 
     frame_id: str | None = None
     task_id: str | None = None
     skill_id: str | None = None
     action_id: str | None = None
+    policy_id: str | None = None
 
     payload: dict[str, Any] = Field(default_factory=dict)
     payload_ref: dict[str, str] = Field(default_factory=dict)
@@ -215,3 +224,188 @@ class HumanFeedbackPayload(BaseModel):
     related_event_ids: list[str] = Field(default_factory=list)
     related_action_id: str | None = None
     operator_id: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Body-agnostic physical feedback / contact / failure / intervention payloads
+# ---------------------------------------------------------------------------
+
+
+class PhysicalFeedbackPayload(BaseModel):
+    """Payload for ``physical_feedback_event``.
+
+    Mirrors the generic ``PhysicalFeedbackFrame`` but is expressed as a Pydantic
+    model so it can be validated and serialized inside a Practice event envelope.
+    """
+
+    frame_id: str
+    body_id: str
+    timestamp: float
+
+    target: dict[str, float | None] = Field(default_factory=dict)
+    actual: dict[str, float | None] = Field(default_factory=dict)
+    position_error: dict[str, float | None] = Field(default_factory=dict)
+
+    force_raw: dict[str, float | None] = Field(default_factory=dict)
+    force_baseline: dict[str, float | None] = Field(default_factory=dict)
+    force_net: dict[str, float | None] = Field(default_factory=dict)
+    force_delta: dict[str, float | None] = Field(default_factory=dict)
+    force_derivative: dict[str, float | None] = Field(default_factory=dict)
+
+    current: dict[str, float | None] = Field(default_factory=dict)
+    status: dict[str, Any] = Field(default_factory=dict)
+    error: dict[str, Any] = Field(default_factory=dict)
+    temperature: dict[str, float | None] = Field(default_factory=dict)
+
+    primary_event: str = "unknown"
+    secondary_tags: list[str] = Field(default_factory=list)
+    serial_timeout: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ContactEventPayload(BaseModel):
+    """Payload for ``contact_event``.
+
+    Represents a single inferred contact event produced by a body-specific
+    detector and mapped to the generic ``ContactEvent`` semantics.
+    """
+
+    contact_id: str
+    event_type: str
+    confidence: float = 1.0
+    dofs: list[str] = Field(default_factory=list)
+    timestamp: float
+    force_net: dict[str, float | None] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class FailureEventPayload(BaseModel):
+    """Payload for ``failure_event``.
+
+    A structured failure observation that can be distilled into SeekDB
+    ``failures`` and linked to ``how_intervention`` records.
+    """
+
+    failure_id: str
+    failure_type: str
+    severity: Literal["low", "medium", "high", "critical"]
+    source: Literal["auto", "human", "sandbox", "runtime", "critic"]
+    description: str
+    related_action_id: str | None = None
+    related_event_ids: list[str] = Field(default_factory=list)
+    related_contact_id: str | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
+    suggested_fix: dict[str, Any] | None = None
+    extra: dict[str, Any] = Field(default_factory=dict)
+
+
+class HowInterventionPayload(BaseModel):
+    """Payload for ``how_intervention_event``.
+
+    Captures the compensating action taken in response to a failure, e.g.
+    increasing force setpoint, backing off, or switching pose.
+    """
+
+    intervention_id: str
+    failure_id: str
+    episode_id: str | None = None
+    description: str
+    action_taken: dict[str, Any]
+    outcome: Literal["pending", "resolved", "partial", "failed"] = "pending"
+    before_state_ref: str | None = None
+    after_state_ref: str | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CandidatePolicyPayload(BaseModel):
+    """Payload for ``candidate_policy_event``.
+
+    Records a candidate policy discovered during practice (e.g. an OK-contact
+    pose found by asymmetric search) along with the evidence that supports it.
+    """
+
+    candidate_id: str
+    policy_id: str | None = None
+    skill_id: str | None = None
+    policy_type: str
+    policy_params: dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: list[str] = Field(default_factory=list)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    promoted: bool | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class PromotionResultPayload(BaseModel):
+    """Payload for ``promotion_result_event``.
+
+    Records the outcome of a promotion gate evaluation. ``passed`` indicates
+    whether the candidate policy can be promoted to the active policy set.
+    """
+
+    promotion_id: str
+    candidate_id: str
+    policy_id: str
+    passed: bool
+    gate_name: str
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    failures: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    promoted_policy_ref: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class EpisodeSummaryPayload(BaseModel):
+    """Payload for ``episode_summary_event``.
+
+    Aggregates an episode into a compact summary that can be written to the
+    catalog and distilled into SeekDB without re-parsing the full JSONL.
+    """
+
+    episode_id: str
+    session_id: str | None = None
+    body_id: str | None = None
+    skill_id: str | None = None
+    policy_id: str | None = None
+    outcome: Literal["success", "failure", "partial", "unknown"] = "unknown"
+    success: bool | None = None
+    failure_labels: list[str] = Field(default_factory=list)
+    event_count: int = 0
+    contact_event_distribution: dict[str, int] = Field(default_factory=dict)
+    primary_event_distribution: dict[str, int] = Field(default_factory=dict)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    artifact_refs: dict[str, str] = Field(default_factory=dict)
+
+
+class BodyCognitionPayload(BaseModel):
+    """Payload for ``body_cognition_event``.
+
+    Distilled body knowledge such as force-model updates, thermal limits, or
+    sim2real deltas. Can be written both as an artifact and as a Practice event.
+    """
+
+    body_id: str
+    cognition_id: str
+    cognition_type: str
+    data: dict[str, Any] = Field(default_factory=dict)
+    source_event_ids: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class Sim2RealDeltaPayload(BaseModel):
+    """Payload for ``sim2real_delta_event``.
+
+    Captures a measured delta between simulation expectation and real-body
+    observation for one or more DOFs.
+    """
+
+    delta_id: str
+    body_id: str
+    dofs: list[str] = Field(default_factory=list)
+    sim_value: dict[str, float | None] = Field(default_factory=dict)
+    real_value: dict[str, float | None] = Field(default_factory=dict)
+    delta: dict[str, float | None] = Field(default_factory=dict)
+    unit: str = ""
+    source_event_ids: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)

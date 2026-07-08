@@ -201,6 +201,7 @@ class RosGraphDiscovery:
         """Capture a full snapshot of the ROS graph."""
         if self._profile is None:
             from rosclaw.connectors.ros.discovery import RosApiResolver
+
             self._profile = RosApiResolver(self._transport).resolve()
 
         endpoint = getattr(self._transport, "endpoint", None)
@@ -293,6 +294,7 @@ class RosGraphDiscovery:
         details = values.get("message") or values.get("details") or "{}"
         try:
             import json
+
             parsed = json.loads(details) if isinstance(details, str) else details
         except Exception as exc:
             return {"type": message_type, "error": str(exc), "fields": {}}
@@ -488,8 +490,20 @@ class RosGraphDiscovery:
     def _classify_service(self, info: RosServiceInfo) -> None:
         name_lower = info.name.lower()
         motion_tokens = [
-            "move", "execute", "command", "control", "grip", "stand", "sit", "recover",
-            "balance", "walk", "navigate", "stop", "halt", "reset",
+            "move",
+            "execute",
+            "command",
+            "control",
+            "grip",
+            "stand",
+            "sit",
+            "recover",
+            "balance",
+            "walk",
+            "navigate",
+            "stop",
+            "halt",
+            "reset",
         ]
         if any(tok in name_lower for tok in motion_tokens):
             info.risk_hint = "medium"

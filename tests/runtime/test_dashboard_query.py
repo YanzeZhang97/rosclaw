@@ -64,9 +64,7 @@ def test_realsense_latest_frame_queries_runtime(
     assert data["frame_url"] == "/api/artifacts/ep_latest/frames/rgb/frame_0001.png"
 
 
-def test_realsense_streams_queries_runtime(
-    client: TestClient, runtime_bus: RuntimeBus
-) -> None:
+def test_realsense_streams_queries_runtime(client: TestClient, runtime_bus: RuntimeBus) -> None:
     _publish_rgbd_frame(
         runtime_bus,
         episode_id="ep_streams",
@@ -87,9 +85,7 @@ def test_realsense_streams_queries_runtime(
     assert streams["depth"]["type"] == "depth"
 
 
-def test_realsense_frames_queries_runtime(
-    client: TestClient, runtime_bus: RuntimeBus
-) -> None:
+def test_realsense_frames_queries_runtime(client: TestClient, runtime_bus: RuntimeBus) -> None:
     for i in range(3):
         _publish_rgbd_frame(
             runtime_bus,

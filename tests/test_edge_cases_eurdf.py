@@ -11,6 +11,7 @@ from rosclaw.runtime.eurdf_loader import EURDFLoader, RobotRegistry
 
 # ── parser edge cases ──
 
+
 def test_joint_spec_defaults():
     """JointSpec with minimal args defaults correctly."""
     j = JointSpec(name="j")
@@ -47,7 +48,9 @@ def test_robot_model_joint_limits_incomplete():
     model = RobotModel(name="m")
     model.joints["j1"] = JointSpec(name="j1", joint_type="revolute", limits={"lower": -1.0})
     model.joints["j2"] = JointSpec(name="j2", joint_type="revolute", limits={"upper": 1.0})
-    model.joints["j3"] = JointSpec(name="j3", joint_type="revolute", limits={"lower": -1.0, "upper": 1.0})
+    model.joints["j3"] = JointSpec(
+        name="j3", joint_type="revolute", limits={"lower": -1.0, "upper": 1.0}
+    )
     limits = model.get_joint_limits()
     assert "j1" not in limits
     assert "j2" not in limits
@@ -71,6 +74,7 @@ def test_eurdf_parser_empty_file():
 
 
 # ── loader edge cases ──
+
 
 def test_loader_empty_robot_id():
     """Empty robot_id should be handled gracefully."""
@@ -105,4 +109,3 @@ def test_loader_validate_empty_robot_id(tmp_path):
 def test_loader_load_yaml_missing():
     """_load_yaml with missing file returns None."""
     assert EURDFLoader._load_yaml(Path("/tmp/nonexistent.yaml")) is None
-

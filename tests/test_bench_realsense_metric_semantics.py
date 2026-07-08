@@ -32,6 +32,7 @@ class TestBenchRealSenseMetricSemantics:
         """When frame counts come from a backend without per-stream fps, bench
         should compute per-stream fps using the requested duration.
         """
+
         # Simulate a backend that only gives counts.
         def _fake_capture(_duration):
             return {

@@ -135,7 +135,11 @@ class TestSandboxCreateFactory:
 class TestSandboxLoadModelImportError:
     def test_mujoco_import_error(self, caplog):
         import logging
-        with patch.dict("sys.modules", {"mujoco": None}), caplog.at_level(logging.WARNING, logger="rosclaw.sandbox.sandbox_api"):
+
+        with (
+            patch.dict("sys.modules", {"mujoco": None}),
+            caplog.at_level(logging.WARNING, logger="rosclaw.sandbox.sandbox_api"),
+        ):
             sandbox = Sandbox("ur5e", "empty")
         assert not sandbox.has_physics
         assert "MuJoCo not installed" in caplog.text
@@ -144,6 +148,7 @@ class TestSandboxLoadModelImportError:
 class TestSandboxLoadModelCandidateFailures:
     def test_all_candidates_fail(self, tmp_path, caplog):
         import logging
+
         # Create a fake robot directory with unreadable XML
         zoo = tmp_path / "e-urdf-zoo"
         robot_dir = zoo / "fake_robot"

@@ -12,13 +12,16 @@ def test_memory_client_crud():
     client = SeekDBMemoryClient()
     client.connect()
 
-    record_id = client.insert("experience_graph", {
-        "id": "exp1",
-        "event_type": "praxis",
-        "robot_id": "r1",
-        "timestamp": 1.0,
-        "instruction": "pick up block",
-    })
+    record_id = client.insert(
+        "experience_graph",
+        {
+            "id": "exp1",
+            "event_type": "praxis",
+            "robot_id": "r1",
+            "timestamp": 1.0,
+            "instruction": "pick up block",
+        },
+    )
     assert record_id == "exp1"
 
     results = client.query("experience_graph", filters={"robot_id": "r1"})
@@ -44,15 +47,18 @@ def test_sqlite_client_crud():
     client = SeekDBSQLiteClient(db_path)
     client.connect()
 
-    record_id = client.insert("experience_graph", {
-        "id": "exp2",
-        "event_type": "praxis",
-        "robot_id": "r2",
-        "timestamp": 2.0,
-        "instruction": "move arm",
-        "cot_trace": ["step1", "step2"],
-        "tags": ["grasp", "red"],
-    })
+    record_id = client.insert(
+        "experience_graph",
+        {
+            "id": "exp2",
+            "event_type": "praxis",
+            "robot_id": "r2",
+            "timestamp": 2.0,
+            "instruction": "move arm",
+            "cot_trace": ["step1", "step2"],
+            "tags": ["grasp", "red"],
+        },
+    )
     assert record_id is not None
 
     results = client.query("experience_graph", filters={"robot_id": "r2"})
@@ -100,7 +106,9 @@ def test_similarity_search():
 
     memory.store_experience("e1", "praxis", "pick up red block", outcome="success", tags=["grasp"])
     memory.store_experience("e2", "praxis", "pick up blue block", outcome="failure", tags=["grasp"])
-    memory.store_experience("e3", "praxis", "place block on table", outcome="success", tags=["place"])
+    memory.store_experience(
+        "e3", "praxis", "place block on table", outcome="success", tags=["place"]
+    )
 
     results = memory.find_similar_experiences("pick up block")
     assert len(results) >= 2
@@ -120,16 +128,18 @@ def test_praxis_auto_ingestion():
     stored_events = []
     bus.subscribe("memory.experience.stored", lambda e: stored_events.append(e.payload))
 
-    bus.publish(Event(
-        topic="praxis.recorded",
-        payload={
-            "event_id": "auto1",
-            "event_type": "success",
-            "instruction": "auto-ingested task",
-            "duration_sec": 1.5,
-        },
-        source="test",
-    ))
+    bus.publish(
+        Event(
+            topic="praxis.recorded",
+            payload={
+                "event_id": "auto1",
+                "event_type": "success",
+                "instruction": "auto-ingested task",
+                "duration_sec": 1.5,
+            },
+            source="test",
+        )
+    )
 
     assert len(stored_events) == 1
     assert stored_events[0]["experience_id"] == "auto1"

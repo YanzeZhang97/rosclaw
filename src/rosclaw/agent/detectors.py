@@ -99,7 +99,9 @@ def load_runtime_profile(profile_path: Path | None) -> dict[str, Any]:
         return {}
 
 
-def detect_robot_id(project_root: Path, runtime_profile: dict[str, Any], explicit_robot: str | None) -> str | None:
+def detect_robot_id(
+    project_root: Path, runtime_profile: dict[str, Any], explicit_robot: str | None
+) -> str | None:
     """Choose a robot_id from explicit input, profile, or filesystem heuristics."""
     if explicit_robot:
         return explicit_robot
@@ -114,7 +116,11 @@ def detect_robot_id(project_root: Path, runtime_profile: dict[str, Any], explici
     for subdir in ("robots", "urdf", "eurdf", "models"):
         robots_dir = project_root / subdir
         if robots_dir.is_dir():
-            entries = [p for p in robots_dir.iterdir() if p.is_dir() or p.suffix in (".urdf", ".xacro", ".yaml", ".xml")]
+            entries = [
+                p
+                for p in robots_dir.iterdir()
+                if p.is_dir() or p.suffix in (".urdf", ".xacro", ".yaml", ".xml")
+            ]
             if entries:
                 return entries[0].stem
     return None

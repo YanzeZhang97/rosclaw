@@ -35,9 +35,16 @@ class RuntimeReplay:
     ) -> list[RuntimeEvent]:
         """Replay skill.invoke and skill.complete events."""
         results: list[RuntimeEvent] = []
-        events = self.bus.replay(trace_id=episode_id, limit=limit) if episode_id else self.bus.replay(limit=limit)
+        events = (
+            self.bus.replay(trace_id=episode_id, limit=limit)
+            if episode_id
+            else self.bus.replay(limit=limit)
+        )
         for ev in events:
-            if ev.type in ("skill.invoke", "skill.complete") and ev.payload.get("skill_id") == skill_id:
+            if (
+                ev.type in ("skill.invoke", "skill.complete")
+                and ev.payload.get("skill_id") == skill_id
+            ):
                 results.append(ev)
         return results
 
@@ -46,7 +53,11 @@ class RuntimeReplay:
     ) -> list[RuntimeEvent]:
         """Replay provider.request and provider.result events."""
         results: list[RuntimeEvent] = []
-        events = self.bus.replay(trace_id=episode_id, limit=limit) if episode_id else self.bus.replay(limit=limit)
+        events = (
+            self.bus.replay(trace_id=episode_id, limit=limit)
+            if episode_id
+            else self.bus.replay(limit=limit)
+        )
         for ev in events:
             if ev.type in ("provider.request", "provider.result") and (
                 request_id is None or ev.payload.get("request_id") == request_id

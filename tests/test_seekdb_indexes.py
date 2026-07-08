@@ -40,15 +40,18 @@ class TestMemoryClientInvertedIndex:
         for i in range(100):
             robot = f"bot_{i % 3}"
             outcome = "success" if i % 4 != 0 else "failure"
-            client.insert("experience_graph", {
-                "id": f"exp_{i}",
-                "event_type": "praxis",
-                "robot_id": robot,
-                "timestamp": float(i),
-                "instruction": f"task {i}",
-                "outcome": outcome,
-                "tags": [],
-            })
+            client.insert(
+                "experience_graph",
+                {
+                    "id": f"exp_{i}",
+                    "event_type": "praxis",
+                    "robot_id": robot,
+                    "timestamp": float(i),
+                    "instruction": f"task {i}",
+                    "outcome": outcome,
+                    "tags": [],
+                },
+            )
         return client
 
     def test_indexes_created_on_connect(self, client):
@@ -62,13 +65,16 @@ class TestMemoryClientInvertedIndex:
 
     def test_insert_updates_index(self, client):
         """Inserting a record should update inverted indexes."""
-        client.insert("experience_graph", {
-            "id": "exp_1",
-            "robot_id": "bot_a",
-            "outcome": "success",
-            "event_type": "praxis",
-            "timestamp": 1.0,
-        })
+        client.insert(
+            "experience_graph",
+            {
+                "id": "exp_1",
+                "robot_id": "bot_a",
+                "outcome": "success",
+                "event_type": "praxis",
+                "timestamp": 1.0,
+            },
+        )
         idx = client._indices["experience_graph"]
         assert "exp_1" in idx["robot_id"]["bot_a"]
         assert "exp_1" in idx["outcome"]["success"]
@@ -85,8 +91,7 @@ class TestMemoryClientInvertedIndex:
     def test_compound_filter_query(self, populated_client):
         """Compound filter (robot_id + outcome) should work correctly."""
         c = populated_client
-        results = c.query("experience_graph",
-                          filters={"robot_id": "bot_1", "outcome": "success"})
+        results = c.query("experience_graph", filters={"robot_id": "bot_1", "outcome": "success"})
         assert len(results) > 0
         for r in results:
             assert r["robot_id"] == "bot_1"
@@ -95,10 +100,9 @@ class TestMemoryClientInvertedIndex:
     def test_indexed_query_with_ordering(self, populated_client):
         """Ordering should work after indexed filter."""
         c = populated_client
-        results = c.query("experience_graph",
-                          filters={"robot_id": "bot_0"},
-                          order_by="-timestamp",
-                          limit=5)
+        results = c.query(
+            "experience_graph", filters={"robot_id": "bot_0"}, order_by="-timestamp", limit=5
+        )
         assert len(results) <= 5
         # Verify descending order
         timestamps = [r["timestamp"] for r in results]
@@ -106,13 +110,16 @@ class TestMemoryClientInvertedIndex:
 
     def test_update_maintains_index(self, client):
         """Updating a record should update index entries."""
-        client.insert("experience_graph", {
-            "id": "exp_u",
-            "robot_id": "bot_a",
-            "outcome": "success",
-            "event_type": "praxis",
-            "timestamp": 1.0,
-        })
+        client.insert(
+            "experience_graph",
+            {
+                "id": "exp_u",
+                "robot_id": "bot_a",
+                "outcome": "success",
+                "event_type": "praxis",
+                "timestamp": 1.0,
+            },
+        )
         idx = client._indices["experience_graph"]
         assert "exp_u" in idx["outcome"]["success"]
 
@@ -126,30 +133,32 @@ class TestMemoryClientInvertedIndex:
         count = c.count("experience_graph", filters={"robot_id": "bot_0"})
         assert count > 0
         # Verify matches actual query
-        results = c.query("experience_graph", filters={"robot_id": "bot_0"},
-                          limit=10000)
+        results = c.query("experience_graph", filters={"robot_id": "bot_0"}, limit=10000)
         assert count == len(results)
 
     def test_non_indexed_filter_fallback(self, client):
         """Non-indexed filters should fall back to scan."""
-        client.insert("experience_graph", {
-            "id": "exp_x",
-            "robot_id": "bot_a",
-            "instruction": "unique instruction xyz",
-            "event_type": "praxis",
-            "timestamp": 1.0,
-            "outcome": "success",
-        })
+        client.insert(
+            "experience_graph",
+            {
+                "id": "exp_x",
+                "robot_id": "bot_a",
+                "instruction": "unique instruction xyz",
+                "event_type": "praxis",
+                "timestamp": 1.0,
+                "outcome": "success",
+            },
+        )
         # instruction is not indexed
-        results = client.query("experience_graph",
-                               filters={"instruction": "unique instruction xyz"})
+        results = client.query(
+            "experience_graph", filters={"instruction": "unique instruction xyz"}
+        )
         assert len(results) == 1
         assert results[0]["id"] == "exp_x"
 
     def test_empty_index_returns_empty(self, client):
         """Query against empty table should return []."""
-        results = client.query("experience_graph",
-                               filters={"robot_id": "nonexistent"})
+        results = client.query("experience_graph", filters={"robot_id": "nonexistent"})
         assert results == []
 
     def test_max_scan_limit(self):
@@ -176,18 +185,14 @@ class TestSQLiteClientCompositeIndexes:
 
     def test_tables_created(self, client):
         """All schema tables should exist."""
-        cursor = client._conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )
+        cursor = client._conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = {row[0] for row in cursor.fetchall()}
         for table_name in SEEKDB_SCHEMAS:
             assert table_name in tables
 
     def test_single_column_indexes_created(self, client):
         """Single-column indexes from schema should exist."""
-        cursor = client._conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='index'"
-        )
+        cursor = client._conn.execute("SELECT name FROM sqlite_master WHERE type='index'")
         indexes = {row[0] for row in cursor.fetchall()}
         for table_name, schema in SEEKDB_SCHEMAS.items():
             for col in schema.get("indices", []):
@@ -195,9 +200,7 @@ class TestSQLiteClientCompositeIndexes:
 
     def test_composite_indexes_created(self, client):
         """Composite indexes should be created."""
-        cursor = client._conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='index'"
-        )
+        cursor = client._conn.execute("SELECT name FROM sqlite_master WHERE type='index'")
         indexes = {row[0] for row in cursor.fetchall()}
         for _, idx_name, _ in SeekDBSQLiteClient._COMPOSITE_INDICES:
             assert idx_name in indexes, f"Composite index {idx_name} missing"
@@ -206,14 +209,17 @@ class TestSQLiteClientCompositeIndexes:
         """EXPLAIN QUERY PLAN should show index usage for robot_id+timestamp query."""
         # Insert test data
         for i in range(100):
-            client.insert("experience_graph", {
-                "id": f"exp_{i}",
-                "event_type": "praxis",
-                "robot_id": "bot_1",
-                "timestamp": float(i),
-                "instruction": f"task {i}",
-                "outcome": "success",
-            })
+            client.insert(
+                "experience_graph",
+                {
+                    "id": f"exp_{i}",
+                    "event_type": "praxis",
+                    "robot_id": "bot_1",
+                    "timestamp": float(i),
+                    "instruction": f"task {i}",
+                    "outcome": "success",
+                },
+            )
 
         # Check query plan uses composite index
         cursor = client._conn.execute(
@@ -223,9 +229,7 @@ class TestSQLiteClientCompositeIndexes:
         )
         plan_rows = cursor.fetchall()
         # sqlite3.Row needs dict conversion; extract 'detail' column
-        plan_text = " ".join(
-            dict(row).get("detail", str(dict(row))) for row in plan_rows
-        )
+        plan_text = " ".join(dict(row).get("detail", str(dict(row))) for row in plan_rows)
         # Should use an index (either idx_exp_robot_ts or idx_experience_graph_robot_id)
         assert "INDEX" in plan_text.upper() or "USING" in plan_text.upper()
 
@@ -233,19 +237,21 @@ class TestSQLiteClientCompositeIndexes:
         """Query results should be correct with composite index."""
         for i in range(50):
             robot = f"bot_{i % 2}"
-            client.insert("experience_graph", {
-                "id": f"exp_{i}",
-                "event_type": "praxis",
-                "robot_id": robot,
-                "timestamp": float(i),
-                "instruction": f"task {i}",
-                "outcome": "success" if i % 3 != 0 else "failure",
-            })
+            client.insert(
+                "experience_graph",
+                {
+                    "id": f"exp_{i}",
+                    "event_type": "praxis",
+                    "robot_id": robot,
+                    "timestamp": float(i),
+                    "instruction": f"task {i}",
+                    "outcome": "success" if i % 3 != 0 else "failure",
+                },
+            )
 
-        results = client.query("experience_graph",
-                               filters={"robot_id": "bot_0"},
-                               order_by="-timestamp",
-                               limit=10)
+        results = client.query(
+            "experience_graph", filters={"robot_id": "bot_0"}, order_by="-timestamp", limit=10
+        )
         assert len(results) <= 10
         for r in results:
             assert r["robot_id"] == "bot_0"
@@ -255,13 +261,16 @@ class TestSQLiteClientCompositeIndexes:
     def test_count_uses_index(self, client):
         """COUNT query should use index for filtered counts."""
         for i in range(20):
-            client.insert("experience_graph", {
-                "id": f"exp_{i}",
-                "event_type": "praxis",
-                "robot_id": "bot_x",
-                "timestamp": float(i),
-                "outcome": "success",
-            })
+            client.insert(
+                "experience_graph",
+                {
+                    "id": f"exp_{i}",
+                    "event_type": "praxis",
+                    "robot_id": "bot_x",
+                    "timestamp": float(i),
+                    "outcome": "success",
+                },
+            )
         count = client.count("experience_graph", filters={"robot_id": "bot_x"})
         assert count == 20
 
@@ -279,14 +288,17 @@ class TestSeekDBPerformance:
         c = SeekDBMemoryClient()
         c.connect()
         for i in range(1000):
-            c.insert("experience_graph", {
-                "id": f"exp_{i}",
-                "event_type": "praxis",
-                "robot_id": f"bot_{i % 10}",
-                "timestamp": float(i),
-                "instruction": f"task {i}",
-                "outcome": "success",
-            })
+            c.insert(
+                "experience_graph",
+                {
+                    "id": f"exp_{i}",
+                    "event_type": "praxis",
+                    "robot_id": f"bot_{i % 10}",
+                    "timestamp": float(i),
+                    "instruction": f"task {i}",
+                    "outcome": "success",
+                },
+            )
 
         # Indexed query (robot_id is indexed)
         t0 = time.time()
@@ -297,8 +309,7 @@ class TestSeekDBPerformance:
         # Non-indexed query (instruction is not indexed)
         t0 = time.time()
         for _ in range(100):
-            c.query("experience_graph",
-                    filters={"instruction": "task 500"}, limit=10)
+            c.query("experience_graph", filters={"instruction": "task 500"}, limit=10)
         scan_time = time.time() - t0
 
         # Indexed should generally be faster (allow some tolerance)
@@ -314,20 +325,22 @@ class TestSeekDBPerformance:
         c.connect()
 
         for i in range(1000):
-            c.insert("experience_graph", {
-                "id": f"exp_{i}",
-                "event_type": "praxis",
-                "robot_id": "bot_1",
-                "timestamp": float(i),
-                "instruction": f"task {i}",
-                "outcome": "success",
-            })
+            c.insert(
+                "experience_graph",
+                {
+                    "id": f"exp_{i}",
+                    "event_type": "praxis",
+                    "robot_id": "bot_1",
+                    "timestamp": float(i),
+                    "instruction": f"task {i}",
+                    "outcome": "success",
+                },
+            )
 
         t0 = time.time()
-        results = c.query("experience_graph",
-                          filters={"robot_id": "bot_1"},
-                          order_by="-timestamp",
-                          limit=10)
+        results = c.query(
+            "experience_graph", filters={"robot_id": "bot_1"}, order_by="-timestamp", limit=10
+        )
         query_time = time.time() - t0
 
         assert len(results) == 10

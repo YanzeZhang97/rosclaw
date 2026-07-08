@@ -69,6 +69,9 @@ class PracticeLayout:
     def timeline_jsonl_path(self, practice_id: str) -> Path:
         return self.session_dir(practice_id) / "timeline.jsonl"
 
+    def mcap_path(self, practice_id: str) -> Path:
+        return self.raw_dir(practice_id) / "events.mcap"
+
     def episode_json_path(self, practice_id: str) -> Path:
         return self.session_dir(practice_id) / "episode.json"
 
@@ -136,6 +139,7 @@ class PracticeLayout:
             "sources": sources or {},
             "artifacts": {
                 "events_jsonl": str(self.events_jsonl_path(session.practice_id)),
+                "mcap": str(self.mcap_path(session.practice_id)),
                 "timeline_jsonl": str(self.timeline_jsonl_path(session.practice_id)),
                 "episode_json": str(self.episode_json_path(session.practice_id)),
                 "frames": str(self.session_dir(session.practice_id) / "frames"),
@@ -165,6 +169,8 @@ class PracticeLayout:
             manifest["status"]["reward"] = summary.reward
             manifest["status"]["failure_labels"] = summary.failure_labels
             manifest["seekdb"]["committed"] = summary.seekdb_committed
+            if summary.mcap_path is not None:
+                manifest["artifacts"]["mcap"] = str(summary.mcap_path)
         path = self.manifest_path(session.practice_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
@@ -211,6 +217,7 @@ class PracticeLayout:
             "failure_labels": summary.failure_labels if summary else [],
             "artifacts": {
                 "events_jsonl": str(self.events_jsonl_path(practice_id)),
+                "mcap": str(self.mcap_path(practice_id)),
                 "timeline_jsonl": str(self.timeline_jsonl_path(practice_id)),
                 "manifest": str(self.manifest_path(practice_id)),
                 "frames": str(self.session_dir(practice_id) / "frames"),
@@ -221,6 +228,8 @@ class PracticeLayout:
                 "metrics": str(self.metrics_dir(practice_id)),
             },
         }
+        if summary is not None and summary.mcap_path is not None:
+            payload["artifacts"]["mcap"] = str(summary.mcap_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2, ensure_ascii=False)

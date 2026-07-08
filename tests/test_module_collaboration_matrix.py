@@ -26,6 +26,7 @@ from rosclaw.core.runtime import Runtime, RuntimeConfig
 # Helper fixtures
 # ------------------------------------------------------------------
 
+
 @pytest.fixture
 def event_bus():
     return EventBus()
@@ -50,6 +51,7 @@ def minimal_runtime(event_bus):
 # ------------------------------------------------------------------
 # Matrix: Runtime <-> EventBus
 # ------------------------------------------------------------------
+
 
 class TestRuntimeEventBus:
     def test_runtime_initializes_event_bus(self):
@@ -86,10 +88,12 @@ class TestRuntimeEventBus:
         rt.initialize()
         rt.start()
 
-        event_bus.publish(Event(
-            topic="agent.command",
-            payload={"action": "test", "request_id": "req_001"},
-        ))
+        event_bus.publish(
+            Event(
+                topic="agent.command",
+                payload={"action": "test", "request_id": "req_001"},
+            )
+        )
 
         assert len(captured) == 1
         assert captured[0].payload["action"] == "test"
@@ -99,6 +103,7 @@ class TestRuntimeEventBus:
 # ------------------------------------------------------------------
 # Matrix: Runtime <-> Sandbox
 # ------------------------------------------------------------------
+
 
 class TestRuntimeSandbox:
     def test_runtime_initializes_sandbox(self, event_bus):
@@ -142,6 +147,7 @@ class TestRuntimeSandbox:
 # Matrix: Runtime <-> Memory
 # ------------------------------------------------------------------
 
+
 class TestRuntimeMemory:
     def test_runtime_initializes_memory_when_enabled(self, event_bus):
         config = RuntimeConfig(
@@ -183,6 +189,7 @@ class TestRuntimeMemory:
 # Matrix: Runtime <-> Practice
 # ------------------------------------------------------------------
 
+
 class TestRuntimePractice:
     def test_runtime_initializes_practice_when_enabled(self, event_bus):
         config = RuntimeConfig(
@@ -217,13 +224,15 @@ class TestRuntimePractice:
         rt.initialize()
         rt.start()
 
-        event_bus.publish(Event(
-            topic="praxis.completed",
-            payload={
-                "practice_id": "test_001",
-                "outcome": {"status": "success", "reward": 1.0},
-            },
-        ))
+        event_bus.publish(
+            Event(
+                topic="praxis.completed",
+                payload={
+                    "practice_id": "test_001",
+                    "outcome": {"status": "success", "reward": 1.0},
+                },
+            )
+        )
 
         summary = rt._practice.get_summary()
         assert isinstance(summary, dict)
@@ -233,6 +242,7 @@ class TestRuntimePractice:
 # ------------------------------------------------------------------
 # Matrix: Runtime <-> HOW
 # ------------------------------------------------------------------
+
 
 class TestRuntimeHow:
     def test_runtime_initializes_how_when_enabled(self, event_bus):
@@ -268,10 +278,12 @@ class TestRuntimeHow:
         rt.initialize()
         rt.start()
 
-        event_bus.publish(Event(
-            topic="praxis.failed",
-            payload={"error": "joint_limit_exceeded", "practice_id": "test_002"},
-        ))
+        event_bus.publish(
+            Event(
+                topic="praxis.failed",
+                payload={"error": "joint_limit_exceeded", "practice_id": "test_002"},
+            )
+        )
 
         # Verify no crash
         rt.stop()
@@ -281,6 +293,7 @@ class TestRuntimeHow:
 # Matrix: EventBus <-> Provider
 # ------------------------------------------------------------------
 
+
 class TestEventBusProvider:
     def test_provider_request_routed_via_event_bus(self, event_bus):
         from rosclaw.provider.adapters.generic import GenericProvider
@@ -288,12 +301,14 @@ class TestEventBusProvider:
         from rosclaw.provider.core.registry import ProviderRegistry
 
         reg = ProviderRegistry(event_bus=event_bus)
-        manifest = ProviderManifest.from_dict({
-            "name": "test_provider",
-            "version": "1.0.0",
-            "type": "test",
-            "capabilities": ["test.capability"],
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "test_provider",
+                "version": "1.0.0",
+                "type": "test",
+                "capabilities": ["test.capability"],
+            }
+        )
         reg.register(manifest, GenericProvider, auto_load=False)
 
         assert "test_provider" in reg.list_providers()
@@ -302,10 +317,12 @@ class TestEventBusProvider:
         captured = []
         event_bus.subscribe("provider.*", lambda e: captured.append(e))
 
-        event_bus.publish(Event(
-            topic="provider.request",
-            payload={"capability": "test", "request_id": "req_1"},
-        ))
+        event_bus.publish(
+            Event(
+                topic="provider.request",
+                payload={"capability": "test", "request_id": "req_1"},
+            )
+        )
 
         assert len(captured) == 1
         assert captured[0].topic == "provider.request"
@@ -314,6 +331,7 @@ class TestEventBusProvider:
 # ------------------------------------------------------------------
 # Matrix: Sandbox <-> Firewall
 # ------------------------------------------------------------------
+
 
 class TestSandboxFirewall:
     def test_sandbox_validates_trajectory(self, event_bus):
@@ -336,6 +354,7 @@ class TestSandboxFirewall:
 # ------------------------------------------------------------------
 # Matrix: Memory <-> HOW
 # ------------------------------------------------------------------
+
 
 class TestMemoryHow:
     def test_how_queries_memory_for_patterns(self, event_bus):
@@ -392,18 +411,21 @@ class TestMemoryHow:
 # Matrix: Provider <-> Registry
 # ------------------------------------------------------------------
 
+
 class TestProviderRegistry:
     def test_registry_discoverability(self):
         from rosclaw.provider.core.manifest import ProviderManifest
         from rosclaw.provider.core.registry import ProviderRegistry
 
         reg = ProviderRegistry()
-        manifest = ProviderManifest.from_dict({
-            "name": "discoverable",
-            "version": "1.0.0",
-            "type": "llm",
-            "capabilities": ["chat"],
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "discoverable",
+                "version": "1.0.0",
+                "type": "llm",
+                "capabilities": ["chat"],
+            }
+        )
         reg.register(manifest, lambda m: MagicMock(), auto_load=False)
 
         assert "discoverable" in reg.list_providers()
@@ -413,18 +435,23 @@ class TestProviderRegistry:
         from rosclaw.provider.core.registry import ProviderRegistry
 
         reg = ProviderRegistry()
-        m1 = ProviderManifest.from_dict({
-            "name": "chat_bot",
-            "version": "1.0.0",
-            "type": "llm",
-            "capabilities": ["chat"],
-        })
-        m2 = ProviderManifest.from_dict({
-            "name": "vision_bot",
-            "version": "1.0.0",
-            "type": "vlm",
-            "capabilities": ["vision"],
-        })
+        m1 = ProviderManifest.from_dict(
+            {
+                "name": "chat_bot",
+                "version": "1.0.0",
+                "type": "llm",
+                "capabilities": ["chat"],
+            }
+        )
+        m2 = ProviderManifest.from_dict(
+            {
+                "name": "vision_bot",
+                "version": "1.0.0",
+                "type": "vlm",
+                "capabilities": ["vision"],
+            }
+        )
+
         class MockP1:
             name = "chat_bot"
             capabilities = ["chat"]
@@ -449,6 +476,7 @@ class TestProviderRegistry:
 # Matrix: Full Pipeline - Event flow
 # ------------------------------------------------------------------
 
+
 class TestFullPipelineEventFlow:
     def test_complete_event_pipeline(self, event_bus):
         """Verify the full event pipeline:
@@ -460,6 +488,7 @@ class TestFullPipelineEventFlow:
         def capture(topic):
             def handler(event):
                 events_captured[topic] = event.payload
+
             return handler
 
         for topic in [
@@ -470,22 +499,34 @@ class TestFullPipelineEventFlow:
         ]:
             event_bus.subscribe(topic, capture(topic))
 
-        event_bus.publish(Event(
-            topic="agent.command",
-            payload={"action": "grasp", "object": "red_cup", "request_id": "full_001"},
-        ))
-        event_bus.publish(Event(
-            topic="skill.execution.start",
-            payload={"skill_name": "grasp", "correlation_id": "full_001"},
-        ))
-        event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"skill_name": "grasp", "correlation_id": "full_001", "result": {"status": "success"}},
-        ))
-        event_bus.publish(Event(
-            topic="praxis.completed",
-            payload={"practice_id": "full_001", "outcome": {"reward": 1.0}},
-        ))
+        event_bus.publish(
+            Event(
+                topic="agent.command",
+                payload={"action": "grasp", "object": "red_cup", "request_id": "full_001"},
+            )
+        )
+        event_bus.publish(
+            Event(
+                topic="skill.execution.start",
+                payload={"skill_name": "grasp", "correlation_id": "full_001"},
+            )
+        )
+        event_bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "skill_name": "grasp",
+                    "correlation_id": "full_001",
+                    "result": {"status": "success"},
+                },
+            )
+        )
+        event_bus.publish(
+            Event(
+                topic="praxis.completed",
+                payload={"practice_id": "full_001", "outcome": {"reward": 1.0}},
+            )
+        )
 
         assert "agent.command" in events_captured
         assert events_captured["agent.command"]["action"] == "grasp"
@@ -500,17 +541,23 @@ class TestFullPipelineEventFlow:
         event_bus.subscribe("praxis.completed", lambda e: captured.append(e))
         event_bus.subscribe("firewall.action_blocked", lambda e: captured.append(e))
 
-        event_bus.publish(Event(
-            topic="firewall.action_blocked",
-            payload={"request_id": "block_001", "violations": [{"description": "collision"}]},
-        ))
-        event_bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={"correlation_id": "block_001", "result": {"status": "blocked"}},
-        ))
-        event_bus.publish(Event(
-            topic="praxis.completed",
-            payload={"practice_id": "block_001", "outcome": {"status": "BLOCKED"}},
-        ))
+        event_bus.publish(
+            Event(
+                topic="firewall.action_blocked",
+                payload={"request_id": "block_001", "violations": [{"description": "collision"}]},
+            )
+        )
+        event_bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={"correlation_id": "block_001", "result": {"status": "blocked"}},
+            )
+        )
+        event_bus.publish(
+            Event(
+                topic="praxis.completed",
+                payload={"practice_id": "block_001", "outcome": {"status": "BLOCKED"}},
+            )
+        )
 
         assert len(captured) >= 1

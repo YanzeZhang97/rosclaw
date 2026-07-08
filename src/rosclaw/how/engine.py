@@ -17,6 +17,7 @@ Design:
     never collide with reactive ``rule_<n>_<slug>`` IDs.
   - Outcome tracking: success_count / failure_count / priority.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -46,7 +47,11 @@ _TAXONOMY_RULE_PREFIX: Final[str] = "tax_"
 # S0 (info) → 0 … S4 (emergency stop) → 4. Hoisted to module level so the
 # dict is built once at import time, not per-call.
 _SEVERITY_PRIORITY: Final[dict[str, int]] = {
-    "S0": 0, "S1": 1, "S2": 2, "S3": 3, "S4": 4,
+    "S0": 0,
+    "S1": 1,
+    "S2": 2,
+    "S3": 3,
+    "S4": 4,
 }
 
 
@@ -92,6 +97,7 @@ class HeuristicEngine:
         if sense_runtime is not None:
             try:
                 from rosclaw.sense.adapters.how_context import HowContextAdapter
+
                 self._how_context_adapter = HowContextAdapter(sense_runtime)
             except Exception:
                 logger.warning("Failed to initialize HowContextAdapter", exc_info=True)
@@ -124,7 +130,9 @@ class HeuristicEngine:
                 self._event_bus.subscribe("praxis.failed", self._on_failure_sync_wrapper)
                 self._subscribed_topics.append(("praxis.failed", self._on_failure_sync_wrapper))
                 self._event_bus.subscribe("firewall.action_blocked", self._on_failure_sync_wrapper)
-                self._subscribed_topics.append(("firewall.action_blocked", self._on_failure_sync_wrapper))
+                self._subscribed_topics.append(
+                    ("firewall.action_blocked", self._on_failure_sync_wrapper)
+                )
                 self._event_bus.subscribe("safety.violation", self._on_failure_sync_wrapper)
                 self._subscribed_topics.append(("safety.violation", self._on_failure_sync_wrapper))
                 logger.info("HeuristicEngine subscribed to failure events")
@@ -276,9 +284,7 @@ class HeuristicEngine:
         rule = self._rule_cache.get(rule_id)
         if rule is None:
             # Try to fetch from DB
-            rows = self._seekdb.query(
-                self._table, filters={"id": rule_id}, limit=1
-            )
+            rows = self._seekdb.query(self._table, filters={"id": rule_id}, limit=1)
             if not rows:
                 return False
             rule = dict(rows[0])
@@ -319,7 +325,11 @@ class HeuristicEngine:
             ("joint overload", "Reduce payload and re-home joints; check current limits", 3),
             ("collision avoidance", "Switch to compliant mode and back off 5cm", 2),
             ("communication timeout", "Retry with exponential backoff; check ROS master", 1),
-            ("grasp slippage", "Increase gripper force by 15%, approach 2cm lower, reduce lateral speed", 2),
+            (
+                "grasp slippage",
+                "Increase gripper force by 15%, approach 2cm lower, reduce lateral speed",
+                2,
+            ),
             ("collision predicted", "Adjust trajectory and increase safety clearance", 2),
             ("object not found", "Adjust camera angle and expand search range", 1),
             ("force exceeded", "Switch to compliant mode and reduce contact force", 3),
@@ -333,18 +343,24 @@ class HeuristicEngine:
             rid = f"rule_{idx}_{condition.replace(' ', '_')[:40]}"
             try:
                 # Upsert via insert (SeekDBClient.insert is INSERT OR REPLACE)
-                self._seekdb.insert(self._table, {
+                self._seekdb.insert(
+                    self._table,
+                    {
+                        "id": rid,
+                        "condition": condition,
+                        "action": action,
+                        "priority": priority,
+                        "success_count": 0,
+                        "failure_count": 0,
+                    },
+                )
+                self._rule_cache[rid] = {
                     "id": rid,
                     "condition": condition,
                     "action": action,
                     "priority": priority,
                     "success_count": 0,
                     "failure_count": 0,
-                })
-                self._rule_cache[rid] = {
-                    "id": rid, "condition": condition,
-                    "action": action, "priority": priority,
-                    "success_count": 0, "failure_count": 0,
                 }
                 inserted += 1
             except Exception as exc:  # noqa: BLE001
@@ -362,14 +378,17 @@ class HeuristicEngine:
             action = _format_taxonomy_action(symptom, severity, strategy)
             priority = _severity_priority(severity)
             try:
-                self._seekdb.insert(self._table, {
-                    "id": rid,
-                    "condition": condition,
-                    "action": action,
-                    "priority": priority,
-                    "success_count": 0,
-                    "failure_count": 0,
-                })
+                self._seekdb.insert(
+                    self._table,
+                    {
+                        "id": rid,
+                        "condition": condition,
+                        "action": action,
+                        "priority": priority,
+                        "success_count": 0,
+                        "failure_count": 0,
+                    },
+                )
                 self._rule_cache[rid] = {
                     "id": rid,
                     "condition": condition,
@@ -433,7 +452,11 @@ class HeuristicEngine:
         best: dict[str, Any] | None = None
         best_pri = -999
 
-        rules = self._rule_cache.values() if self._cache_valid else self._seekdb.query(self._table, limit=1_000)
+        rules = (
+            self._rule_cache.values()
+            if self._cache_valid
+            else self._seekdb.query(self._table, limit=1_000)
+        )
 
         for rule in rules:
             rid = str(rule.get("id", ""))
@@ -519,10 +542,14 @@ class HeuristicEngine:
         # Persist best-effort so record_outcome can update counters across
         # restarts. The cache is the source of truth for the hot path.
         try:
-            self._seekdb.insert(self._table, {
-                k: v for k, v in row.items()
-                if k not in ("severity", "strategy", "source_taxonomy")
-            })
+            self._seekdb.insert(
+                self._table,
+                {
+                    k: v
+                    for k, v in row.items()
+                    if k not in ("severity", "strategy", "source_taxonomy")
+                },
+            )
         except Exception as exc:  # noqa: BLE001 — non-fatal on read path
             logger.debug("Lazy taxonomy insert failed for %s: %s", rid, exc)
         self._rule_cache[rid] = row
@@ -557,7 +584,9 @@ class HeuristicEngine:
         """
         state = diagnose(request)
         strategy, _reasons = decide_strategy(
-            request, state, recent_pattern_id=recent_pattern_id,
+            request,
+            state,
+            recent_pattern_id=recent_pattern_id,
         )
         # Software-resource symptoms (Memory_Exhaustion / Compile_Error) that
         # fell through the safety dispatch require a curated cluster match
@@ -616,8 +645,10 @@ class HeuristicEngine:
             except Exception:
                 logger.warning("HowContextAdapter failed for recovery hint", exc_info=True)
         rule = await self.suggest_recovery(
-            failure_type, enriched_context,
-            previous_scores=previous_scores, current_iteration=current_iteration,
+            failure_type,
+            enriched_context,
+            previous_scores=previous_scores,
+            current_iteration=current_iteration,
         )
         if rule is None:
             return None
@@ -655,8 +686,10 @@ class HeuristicEngine:
             } or None.
         """
         rule = await self.suggest_recovery(
-            failure_type, context,
-            previous_scores=previous_scores, current_iteration=current_iteration,
+            failure_type,
+            context,
+            previous_scores=previous_scores,
+            current_iteration=current_iteration,
         )
         if rule is None:
             return None
@@ -670,6 +703,7 @@ class HeuristicEngine:
     def _on_failure_sync_wrapper(self, event: Any) -> None:
         """Sync EventBus callback that schedules async recovery handling."""
         from rosclaw.core.async_utils import fire_and_forget
+
         fire_and_forget(self._on_failure_async(event))
 
     # CRITICAL FIX: EventBus failure event handler for active recovery
@@ -685,6 +719,7 @@ class HeuristicEngine:
             except Exception:
                 logger.warning("HowContextAdapter failed for failure event", exc_info=True)
         from rosclaw.how.recovery import RecoveryEngine
+
         re = RecoveryEngine(self, event_bus=self._event_bus)
         coro = re.generate_recovery_hint(
             failure_type,
@@ -693,16 +728,21 @@ class HeuristicEngine:
         )
         hint = await coro
         if hint and self._event_bus is not None:
-            event_payload = re.format_for_eventbus(hint, request_id=payload.get("request_id", payload.get("episode_id", "")))
+            event_payload = re.format_for_eventbus(
+                hint, request_id=payload.get("request_id", payload.get("episode_id", ""))
+            )
             event_payload["body_readiness"] = context.get("body_readiness")
             event_payload["body_block_reasons"] = context.get("body_block_reasons")
             from rosclaw.core.event_bus import Event, EventPriority
-            self._event_bus.publish(Event(
-                topic="rosclaw.how.recovery_hint.generated",
-                payload=event_payload,
-                source="heuristic_engine",
-                priority=EventPriority.HIGH,
-            ))
+
+            self._event_bus.publish(
+                Event(
+                    topic="rosclaw.how.recovery_hint.generated",
+                    payload=event_payload,
+                    source="heuristic_engine",
+                    priority=EventPriority.HIGH,
+                )
+            )
 
     # ── stats ────────────────────────────────────────────────────────────
 

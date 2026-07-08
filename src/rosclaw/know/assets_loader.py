@@ -21,6 +21,7 @@ new YAML, publish the event manually:
         source="cli",
     ))
 """
+
 from __future__ import annotations
 
 import logging
@@ -74,16 +75,16 @@ class AssetsLoader(LifecycleMixin):
                 self._reload_count += 1
                 logger.info(
                     "[AssetsLoader] reloaded bridge_index (#%d, reason=%s)",
-                    self._reload_count, reason,
+                    self._reload_count,
+                    reason,
                 )
             except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "[AssetsLoader] bridge_index reload failed: %s", exc
-                )
+                logger.warning("[AssetsLoader] bridge_index reload failed: %s", exc)
 
         # Invalidate the task-pack adapter cache if it's loaded.
         try:
             from rosclaw.know.task_pack_adapter import reload_assets
+
             reload_assets()
         except ImportError:
             pass

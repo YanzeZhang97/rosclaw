@@ -1,4 +1,5 @@
 """ReportGenerator — comprehensive evolution report generation."""
+
 import logging
 from typing import Any
 
@@ -40,26 +41,32 @@ class ReportGenerator:
         # Champions section
         champs = self._engine.list_champions(task_id)
         if champs:
-            lines.extend([
-                "## 🏆 Champions",
-                "",
-                "| Skill | Level | Metrics | Parent |",
-                "|-------|-------|---------|--------|",
-            ])
+            lines.extend(
+                [
+                    "## 🏆 Champions",
+                    "",
+                    "| Skill | Level | Metrics | Parent |",
+                    "|-------|-------|---------|--------|",
+                ]
+            )
             for c in champs:
                 metrics_str = ", ".join(f"{k}={v}" for k, v in c.metrics.items())
-                lines.append(f"| `{c.skill_id}` | {c.level} | {metrics_str} | {c.parent_skill_id or '-'} |")
+                lines.append(
+                    f"| `{c.skill_id}` | {c.level} | {metrics_str} | {c.parent_skill_id or '-'} |"
+                )
             lines.append("")
 
         # DeadEnds section
         des = self._engine.list_deadends(task_id)
         if des:
-            lines.extend([
-                "## 🚫 DeadEnds",
-                "",
-                "| Direction | Reason | Evidence |",
-                "|-----------|--------|----------|",
-            ])
+            lines.extend(
+                [
+                    "## 🚫 DeadEnds",
+                    "",
+                    "| Direction | Reason | Evidence |",
+                    "|-----------|--------|----------|",
+                ]
+            )
             for d in des:
                 ev = "; ".join(d.evidence[:3]) if d.evidence else "-"
                 lines.append(f"| {d.direction} | {d.rejection_reason} | {ev} |")
@@ -67,55 +74,72 @@ class ReportGenerator:
 
         # Lineage tree
         if champs:
-            lines.extend([
-                "## 🌳 Skill Lineage",
-                "",
-                "```",
-            ])
+            lines.extend(
+                [
+                    "## 🌳 Skill Lineage",
+                    "",
+                    "```",
+                ]
+            )
             # Find root skill
             root = champs[0].parent_skill_id or champs[0].skill_id
             tree = self._engine.render_lineage_tree(root)
             lines.append(tree)
-            lines.extend([
-                "```",
-                "",
-            ])
+            lines.extend(
+                [
+                    "```",
+                    "",
+                ]
+            )
 
         # Experiments timeline
         from rosclaw.auto.core.experiment import ExperimentSpec
+
         exps = [ExperimentSpec.from_dict(e) for e in self._engine.store.iterate("experiments")]
         exps = [e for e in exps if e.task == task_name or e.task == task_id]
         if exps:
-            lines.extend([
-                "## 🧪 Experiment Timeline",
-                "",
-                "| Experiment | Baseline | Candidate | Status |",
-                "|------------|----------|-----------|--------|",
-            ])
+            lines.extend(
+                [
+                    "## 🧪 Experiment Timeline",
+                    "",
+                    "| Experiment | Baseline | Candidate | Status |",
+                    "|------------|----------|-----------|--------|",
+                ]
+            )
             for e in exps:
-                lines.append(f"| `{e.id}` | {e.baseline_skill_id} | {e.candidate_skill_id} | {e.status} |")
+                lines.append(
+                    f"| `{e.id}` | {e.baseline_skill_id} | {e.candidate_skill_id} | {e.status} |"
+                )
             lines.append("")
 
         # Evaluation deltas
         from rosclaw.auto.core.evaluation import EvaluationResult
+
         evals = [EvaluationResult.from_dict(e) for e in self._engine.store.iterate("evaluations")]
         if evals:
-            lines.extend([
-                "## 📈 Evaluation Deltas",
-                "",
-                "| Eval | Decision | Delta |",
-                "|------|----------|-------|",
-            ])
+            lines.extend(
+                [
+                    "## 📈 Evaluation Deltas",
+                    "",
+                    "| Eval | Decision | Delta |",
+                    "|------|----------|-------|",
+                ]
+            )
             for ev in evals:
-                delta_str = ", ".join(f"{k}={v:.3f}" if isinstance(v, float) else f"{k}={v}"
-                                      for k, v in ev.delta.items() if isinstance(v, (int, float)))
+                delta_str = ", ".join(
+                    f"{k}={v:.3f}" if isinstance(v, float) else f"{k}={v}"
+                    for k, v in ev.delta.items()
+                    if isinstance(v, (int, float))
+                )
                 lines.append(f"| `{ev.id}` | {ev.decision} | {delta_str} |")
             lines.append("")
 
-        lines.extend([
-            "---",
-            "*Generated by rosclaw-auto v1.0*",
-        ])
+        lines.extend(
+            [
+                "---",
+                "*Generated by rosclaw-auto v1.0*",
+            ]
+        )
         return "\n".join(lines)
 
     def generate_champion_card_markdown(self, task_id: str, level: str | None = None) -> str:

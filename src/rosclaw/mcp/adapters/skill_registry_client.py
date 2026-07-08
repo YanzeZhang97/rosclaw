@@ -11,7 +11,9 @@ class SkillRegistryClient:
     def __init__(self, skill_manager: Any) -> None:
         self._skill_manager = skill_manager
 
-    def list_skills(self, *, skill_type: str | None = None, full_ids: bool = False) -> dict[str, Any]:
+    def list_skills(
+        self, *, skill_type: str | None = None, full_ids: bool = False
+    ) -> dict[str, Any]:
         """Return a typed response with skill entries from the registry.
 
         Falls back to the skill manager's own ``list_skills`` when no registry

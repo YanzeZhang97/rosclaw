@@ -21,11 +21,19 @@ def test_update_state_changes_hash(linked_body):
     resolver = BodyResolver()
     old_hash = resolver.get_effective_body_hash()
 
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "installed_components.sensors.head_camera.status=unavailable",
-        "--reason", "test",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "update-state",
+            "--set",
+            "installed_components.sensors.head_camera.status=unavailable",
+            "--reason",
+            "test",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     new_hash = resolver.get_effective_body_hash()
@@ -35,11 +43,19 @@ def test_update_state_changes_hash(linked_body):
 
 
 def test_update_state_maintenance_log(linked_body):
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "update-state",
-        "--set", "safety_overrides.max_base_speed_mps=0.2",
-        "--reason", "indoor environment",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "update-state",
+            "--set",
+            "safety_overrides.max_base_speed_mps=0.2",
+            "--reason",
+            "indoor environment",
+        ],
+    ):
         assert rosclaw_main() == 0
     resolver = BodyResolver()
     events = resolver.get_maintenance_events()
@@ -48,11 +64,19 @@ def test_update_state_maintenance_log(linked_body):
 
 def test_update_state_forbidden_field():
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"HOME": tmp}):
         with patch.object(sys, "argv", ["rosclaw", "body", "link-eurdf", "unitree-g1"]):
             assert rosclaw_main() == 0
-        with patch.object(sys, "argv", [
-            "rosclaw", "body", "update-state",
-            "--set", "model_ref.profile_id=other",
-        ]):
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "rosclaw",
+                "body",
+                "update-state",
+                "--set",
+                "model_ref.profile_id=other",
+            ],
+        ):
             assert rosclaw_main() == 1

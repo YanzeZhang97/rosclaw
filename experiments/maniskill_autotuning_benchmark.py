@@ -48,20 +48,21 @@ def _to_bool(val):
 # Pre-generate actions for fair comparison
 # ---------------------------------------------------------------------------
 
+
 def generate_action_sequences(env, num_episodes: int, max_steps: int, seed: int = 42):
     """Pre-generate random actions so all rounds use identical sequences."""
     np.random.seed(seed)
-    return [
-        [env.action_space.sample() for _ in range(max_steps)]
-        for _ in range(num_episodes)
-    ]
+    return [[env.action_space.sample() for _ in range(max_steps)] for _ in range(num_episodes)]
 
 
 # ---------------------------------------------------------------------------
 # Episode runner with scaled actions
 # ---------------------------------------------------------------------------
 
-def run_episodes(env, actions, scale: float, num_episodes: int, max_steps: int, round_seed: int = 0) -> list[dict]:
+
+def run_episodes(
+    env, actions, scale: float, num_episodes: int, max_steps: int, round_seed: int = 0
+) -> list[dict]:
     """Run episodes with given action scale."""
     results = []
 
@@ -89,13 +90,15 @@ def run_episodes(env, actions, scale: float, num_episodes: int, max_steps: int, 
             if _to_bool(terminated) or truncated:
                 break
 
-        results.append({
-            "episode": ep,
-            "total_reward": round(total_reward, 4),
-            "steps": steps,
-            "success": success,
-            "truncated": truncated,
-        })
+        results.append(
+            {
+                "episode": ep,
+                "total_reward": round(total_reward, 4),
+                "steps": steps,
+                "success": success,
+                "truncated": truncated,
+            }
+        )
 
     return results
 
@@ -103,6 +106,7 @@ def run_episodes(env, actions, scale: float, num_episodes: int, max_steps: int, 
 # ---------------------------------------------------------------------------
 # ROSClaw Memory + How (simplified)
 # ---------------------------------------------------------------------------
+
 
 def analyze_round(results: list[dict], scale: float) -> dict:
     """Analyze episode results and suggest parameter patch."""
@@ -119,7 +123,11 @@ def analyze_round(results: list[dict], scale: float) -> dict:
             "diagnosis": f"{truncated_count}/{len(results)} episodes truncated — actions too small",
             "recommendation": f"Increase scale from {scale:.2f} to {new_scale:.2f}",
             "patch": {"scale": new_scale},
-            "metrics": {"truncated": truncated_count, "avg_reward": avg_reward, "avg_steps": avg_steps},
+            "metrics": {
+                "truncated": truncated_count,
+                "avg_reward": avg_reward,
+                "avg_steps": avg_steps,
+            },
         }
 
     if avg_reward < 0.1:
@@ -128,7 +136,11 @@ def analyze_round(results: list[dict], scale: float) -> dict:
             "diagnosis": f"Low reward ({avg_reward:.4f}) — insufficient progress",
             "recommendation": f"Increase scale from {scale:.2f} to {new_scale:.2f}",
             "patch": {"scale": new_scale},
-            "metrics": {"truncated": truncated_count, "avg_reward": avg_reward, "avg_steps": avg_steps},
+            "metrics": {
+                "truncated": truncated_count,
+                "avg_reward": avg_reward,
+                "avg_steps": avg_steps,
+            },
         }
 
     # Already performing well
@@ -144,11 +156,12 @@ def analyze_round(results: list[dict], scale: float) -> dict:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
     import gymnasium as gym
     import mani_skill.envs  # noqa: F401
 
-    num_episodes = 50   # More episodes for statistical significance
+    num_episodes = 50  # More episodes for statistical significance
     max_steps = 100
 
     env = gym.make(
@@ -176,14 +189,18 @@ def main():
     # ------------------------------------------------------------------
     baseline_scale = 0.1
     print(f"[Baseline] Fixed parameters: scale={baseline_scale:.2f}")
-    baseline_results = run_episodes(env, actions, baseline_scale, num_episodes, max_steps, round_seed=0)
+    baseline_results = run_episodes(
+        env, actions, baseline_scale, num_episodes, max_steps, round_seed=0
+    )
 
     baseline_success = sum(1 for r in baseline_results if r["success"])
     baseline_reward = sum(r["total_reward"] for r in baseline_results) / num_episodes
     baseline_steps = sum(r["steps"] for r in baseline_results) / num_episodes
     baseline_truncated = sum(1 for r in baseline_results if r["truncated"])
 
-    print(f"           Success: {baseline_success}/{num_episodes} = {baseline_success/num_episodes*100:.1f}%")
+    print(
+        f"           Success: {baseline_success}/{num_episodes} = {baseline_success / num_episodes * 100:.1f}%"
+    )
     print(f"           Avg reward: {baseline_reward:.4f}")
     print(f"           Avg steps:  {baseline_steps:.1f}")
     print(f"           Truncated:  {baseline_truncated}/{num_episodes}")
@@ -198,14 +215,18 @@ def main():
     for round_num in range(1, 5):
         print(f"[Round {round_num}] ROSClaw: scale={current_scale:.2f}")
 
-        results = run_episodes(env, actions, current_scale, num_episodes, max_steps, round_seed=round_num * 1000)
+        results = run_episodes(
+            env, actions, current_scale, num_episodes, max_steps, round_seed=round_num * 1000
+        )
 
         success_count = sum(1 for r in results if r["success"])
         avg_reward = sum(r["total_reward"] for r in results) / num_episodes
         avg_steps = sum(r["steps"] for r in results) / num_episodes
         truncated_count = sum(1 for r in results if r["truncated"])
 
-        print(f"           Success: {success_count}/{num_episodes} = {success_count/num_episodes*100:.1f}%")
+        print(
+            f"           Success: {success_count}/{num_episodes} = {success_count / num_episodes * 100:.1f}%"
+        )
         print(f"           Avg reward: {avg_reward:.4f}")
         print(f"           Avg steps:  {avg_steps:.1f}")
         print(f"           Truncated:  {truncated_count}/{num_episodes}")
@@ -223,17 +244,19 @@ def main():
 
         print()
 
-        all_rounds.append({
-            "round": round_num,
-            "scale": patch.get("scale", current_scale),
-            "actual_scale": current_scale,
-            "success_count": success_count,
-            "success_rate": round(success_count / num_episodes * 100, 2),
-            "avg_reward": round(avg_reward, 4),
-            "avg_steps": round(avg_steps, 2),
-            "truncated_count": truncated_count,
-            "diagnosis": analysis["diagnosis"],
-        })
+        all_rounds.append(
+            {
+                "round": round_num,
+                "scale": patch.get("scale", current_scale),
+                "actual_scale": current_scale,
+                "success_count": success_count,
+                "success_rate": round(success_count / num_episodes * 100, 2),
+                "avg_reward": round(avg_reward, 4),
+                "avg_steps": round(avg_steps, 2),
+                "truncated_count": truncated_count,
+                "diagnosis": analysis["diagnosis"],
+            }
+        )
 
         # Stop if we've reached optimal
         if not patch:
@@ -251,17 +274,21 @@ def main():
     print()
 
     print("Baseline (fixed suboptimal):")
-    print(f"  scale={baseline_scale:.2f}  →  reward={baseline_reward:.4f}  steps={baseline_steps:.1f}  "
-          f"truncated={baseline_truncated}/{num_episodes}")
+    print(
+        f"  scale={baseline_scale:.2f}  →  reward={baseline_reward:.4f}  steps={baseline_steps:.1f}  "
+        f"truncated={baseline_truncated}/{num_episodes}"
+    )
     print()
 
     print("ROSClaw (auto-tuning rounds):")
     best_round = max(all_rounds, key=lambda r: r["avg_reward"])
     for rd in all_rounds:
         marker = " ★ BEST" if rd is best_round else ""
-        print(f"  Round {rd['round']}: scale={rd['actual_scale']:.2f}  →  "
-              f"reward={rd['avg_reward']:.4f}  steps={rd['avg_steps']:.1f}  "
-              f"truncated={rd['truncated_count']}/{num_episodes}{marker}")
+        print(
+            f"  Round {rd['round']}: scale={rd['actual_scale']:.2f}  →  "
+            f"reward={rd['avg_reward']:.4f}  steps={rd['avg_steps']:.1f}  "
+            f"truncated={rd['truncated_count']}/{num_episodes}{marker}"
+        )
     print()
 
     # Improvement calculation
@@ -269,8 +296,12 @@ def main():
     best_steps = best_round["avg_steps"]
     best_truncated = best_round["truncated_count"]
 
-    reward_improvement = ((best_reward - baseline_reward) / baseline_reward * 100) if baseline_reward > 0 else 0
-    step_reduction = ((baseline_steps - best_steps) / baseline_steps * 100) if baseline_steps > 0 else 0
+    reward_improvement = (
+        ((best_reward - baseline_reward) / baseline_reward * 100) if baseline_reward > 0 else 0
+    )
+    step_reduction = (
+        ((baseline_steps - best_steps) / baseline_steps * 100) if baseline_steps > 0 else 0
+    )
     truncated_reduction = baseline_truncated - best_truncated
 
     print("Improvement (Best Round vs Baseline):")
@@ -293,7 +324,11 @@ def main():
     output = {
         "benchmark": "ROSClaw Auto-Tuning on ManiSkill PickCube",
         "date": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "config": {"episodes": num_episodes, "max_steps": max_steps, "policy": "scaled_random_identical_actions"},
+        "config": {
+            "episodes": num_episodes,
+            "max_steps": max_steps,
+            "policy": "scaled_random_identical_actions",
+        },
         "baseline": {
             "scale": baseline_scale,
             "success_rate": round(baseline_success / num_episodes * 100, 2),

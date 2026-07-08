@@ -81,8 +81,12 @@ class SandboxBodyAdapter:
         output_dir.mkdir(parents=True, exist_ok=True)
         mujoco_path = output_dir / "mujoco.config.yaml"
         isaac_path = output_dir / "isaac.config.yaml"
-        mujoco_path.write_text(yaml.safe_dump(self.to_mujoco_config(), sort_keys=False), encoding="utf-8")
-        isaac_path.write_text(yaml.safe_dump(self.to_isaac_config(), sort_keys=False), encoding="utf-8")
+        mujoco_path.write_text(
+            yaml.safe_dump(self.to_mujoco_config(), sort_keys=False), encoding="utf-8"
+        )
+        isaac_path.write_text(
+            yaml.safe_dump(self.to_isaac_config(), sort_keys=False), encoding="utf-8"
+        )
         return {"mujoco": mujoco_path, "isaac": isaac_path}
 
     def _disabled_actuators(self) -> list[str]:

@@ -48,12 +48,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 class TrajectorySubscriber:
     def __init__(self, node_name: str):
@@ -67,10 +69,12 @@ class TrajectorySubscriber:
         )
 
     def _callback(self, msg):
-        self.received.append({
-            "joint_names": list(msg.joint_names),
-            "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
-        })
+        self.received.append(
+            {
+                "joint_names": list(msg.joint_names),
+                "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
+            }
+        )
 
     def destroy(self):
         self.node.destroy_node()
@@ -96,6 +100,7 @@ def next_name(base: str) -> str:
 # Tests
 # ------------------------------------------------------------------
 
+
 @test("Firewall validates valid trajectory: ALLOW")
 def test_firewall_allows_valid_trajectory():
     """A valid trajectory (within limits) should pass firewall and be published."""
@@ -114,7 +119,9 @@ def test_firewall_blocks_limit_violation():
     firewall = DigitalTwinFirewall(model_path=model_path)
 
     # shoulder_pan limit is ~±3.14, so 10.0 should be blocked
-    result = firewall.validate_trajectory([[10.0, 0.0, 0.0, 0.0, 0.0, 0.0]], safety_level=SafetyLevel.STRICT)
+    result = firewall.validate_trajectory(
+        [[10.0, 0.0, 0.0, 0.0, 0.0, 0.0]], safety_level=SafetyLevel.STRICT
+    )
     assert result.is_safe is False
     assert len(result.violation_details) > 0
 
@@ -126,7 +133,9 @@ def test_firewall_blocks_collision_trajectory():
     firewall = DigitalTwinFirewall(model_path=model_path)
 
     # Extreme elbow position may cause self-collision
-    result = firewall.validate_trajectory([[0.0, 0.0, 3.5, 0.0, 0.0, 0.0]], safety_level=SafetyLevel.STRICT)
+    result = firewall.validate_trajectory(
+        [[0.0, 0.0, 3.5, 0.0, 0.0, 0.0]], safety_level=SafetyLevel.STRICT
+    )
     # Depending on model, this may or may not be blocked
     # Just verify the firewall returns a structured result
     assert hasattr(result, "is_safe")
@@ -210,6 +219,7 @@ def test_firewall_safety_levels():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     if not rclpy.ok():

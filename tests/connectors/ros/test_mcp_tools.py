@@ -28,6 +28,7 @@ class FakeMCP:
             self.tools[func.__name__] = func
             func.description = description
             return func
+
         return decorator
 
 
@@ -69,10 +70,17 @@ def test_ros_validate_capability_uses_runtime_registry():
     cap = RosCapability(
         id="turtlesim.base.velocity_command",
         kind="actuation",
-        interface=RosInterface(ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"),
+        interface=RosInterface(
+            ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"
+        ),
         risk=RosCapabilityRisk(
-            level="high", read_only=False, destructive=True,
-            requires_sandbox=True, requires_runtime_guard=True, requires_stop_guard=True, max_duration_sec=1.0,
+            level="high",
+            read_only=False,
+            destructive=True,
+            requires_sandbox=True,
+            requires_runtime_guard=True,
+            requires_stop_guard=True,
+            max_duration_sec=1.0,
         ),
         safety={"constraints": {"linear.x": [-0.2, 0.2]}},
     )

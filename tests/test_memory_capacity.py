@@ -29,8 +29,9 @@ class TestSeekDBDelete:
     def test_memory_client_delete(self):
         c = SeekDBMemoryClient()
         c.connect()
-        c.insert("experience_graph", {"id": "e1", "robot_id": "r1",
-                                      "timestamp": 1.0, "event_type": "t"})
+        c.insert(
+            "experience_graph", {"id": "e1", "robot_id": "r1", "timestamp": 1.0, "event_type": "t"}
+        )
         assert c.count("experience_graph") == 1
         assert c.delete("experience_graph", "e1") is True
         assert c.count("experience_graph") == 0
@@ -44,11 +45,16 @@ class TestSeekDBDelete:
         c = SeekDBMemoryClient()
         c.connect()
         for i in range(5):
-            c.insert("experience_graph", {
-                "id": f"e{i}", "robot_id": "r1",
-                "outcome": "failure" if i < 3 else "success",
-                "timestamp": float(i), "event_type": "t",
-            })
+            c.insert(
+                "experience_graph",
+                {
+                    "id": f"e{i}",
+                    "robot_id": "r1",
+                    "outcome": "failure" if i < 3 else "success",
+                    "timestamp": float(i),
+                    "event_type": "t",
+                },
+            )
         deleted = c.delete_where("experience_graph", {"outcome": "failure"})
         assert deleted == 3
         assert c.count("experience_graph") == 2
@@ -56,9 +62,16 @@ class TestSeekDBDelete:
     def test_memory_client_delete_updates_index(self):
         c = SeekDBMemoryClient()
         c.connect()
-        c.insert("experience_graph", {"id": "e1", "robot_id": "r1",
-                                      "outcome": "success", "timestamp": 1.0,
-                                      "event_type": "t"})
+        c.insert(
+            "experience_graph",
+            {
+                "id": "e1",
+                "robot_id": "r1",
+                "outcome": "success",
+                "timestamp": 1.0,
+                "event_type": "t",
+            },
+        )
         idx = c._indices["experience_graph"]
         assert "e1" in idx["robot_id"]["r1"]
         c.delete("experience_graph", "e1")
@@ -67,8 +80,9 @@ class TestSeekDBDelete:
     def test_sqlite_client_delete(self, tmp_path):
         c = SeekDBSQLiteClient(str(tmp_path / "t.sqlite"))
         c.connect()
-        c.insert("experience_graph", {"id": "e1", "robot_id": "r1",
-                                      "timestamp": 1.0, "event_type": "t"})
+        c.insert(
+            "experience_graph", {"id": "e1", "robot_id": "r1", "timestamp": 1.0, "event_type": "t"}
+        )
         assert c.count("experience_graph") == 1
         assert c.delete("experience_graph", "e1") is True
         assert c.count("experience_graph") == 0
@@ -78,11 +92,16 @@ class TestSeekDBDelete:
         c = SeekDBSQLiteClient(str(tmp_path / "t.sqlite"))
         c.connect()
         for i in range(5):
-            c.insert("experience_graph", {
-                "id": f"e{i}", "robot_id": "r1",
-                "outcome": "failure" if i < 3 else "success",
-                "timestamp": float(i), "event_type": "t",
-            })
+            c.insert(
+                "experience_graph",
+                {
+                    "id": f"e{i}",
+                    "robot_id": "r1",
+                    "outcome": "failure" if i < 3 else "success",
+                    "timestamp": float(i),
+                    "event_type": "t",
+                },
+            )
         deleted = c.delete_where("experience_graph", {"outcome": "failure"})
         assert deleted == 3
         assert c.count("experience_graph") == 2
@@ -128,11 +147,17 @@ class TestForgetOldExperiences:
     def test_forget_old(self, mem):
         # Manually insert old experience with past timestamp
         old_ts = time.time() - (40 * 86400)  # 40 days ago
-        mem._client.insert("experience_graph", {
-            "id": "old1", "event_type": "praxis",
-            "robot_id": "test_bot", "timestamp": old_ts,
-            "instruction": "old task", "outcome": "success",
-        })
+        mem._client.insert(
+            "experience_graph",
+            {
+                "id": "old1",
+                "event_type": "praxis",
+                "robot_id": "test_bot",
+                "timestamp": old_ts,
+                "instruction": "old task",
+                "outcome": "success",
+            },
+        )
         # Insert recent experience
         mem.store_experience("new1", "praxis", "recent task")
 
@@ -144,21 +169,32 @@ class TestForgetOldExperiences:
     def test_forget_with_outcome_filter(self, mem):
         old_ts = time.time() - (40 * 86400)
         # Old failure
-        mem._client.insert("experience_graph", {
-            "id": "of1", "event_type": "praxis",
-            "robot_id": "test_bot", "timestamp": old_ts,
-            "instruction": "old failure", "outcome": "failure",
-        })
+        mem._client.insert(
+            "experience_graph",
+            {
+                "id": "of1",
+                "event_type": "praxis",
+                "robot_id": "test_bot",
+                "timestamp": old_ts,
+                "instruction": "old failure",
+                "outcome": "failure",
+            },
+        )
         # Old success
-        mem._client.insert("experience_graph", {
-            "id": "os1", "event_type": "praxis",
-            "robot_id": "test_bot", "timestamp": old_ts,
-            "instruction": "old success", "outcome": "success",
-        })
+        mem._client.insert(
+            "experience_graph",
+            {
+                "id": "os1",
+                "event_type": "praxis",
+                "robot_id": "test_bot",
+                "timestamp": old_ts,
+                "instruction": "old success",
+                "outcome": "success",
+            },
+        )
 
         # Only forget old failures
-        deleted = mem.forget_old_experiences(max_age_days=30,
-                                             outcome_filter="failure")
+        deleted = mem.forget_old_experiences(max_age_days=30, outcome_filter="failure")
         assert deleted == 1
         assert mem.get_experience("of1") is None
         assert mem.get_experience("os1") is not None
@@ -175,11 +211,17 @@ class TestEnforceCapacity:
 
     def test_evicts_oldest_when_over_capacity(self, mem):
         for i in range(10):
-            mem._client.insert("experience_graph", {
-                "id": f"e{i}", "event_type": "praxis",
-                "robot_id": "test_bot", "timestamp": float(1000 + i),
-                "instruction": f"task {i}", "outcome": "success",
-            })
+            mem._client.insert(
+                "experience_graph",
+                {
+                    "id": f"e{i}",
+                    "event_type": "praxis",
+                    "robot_id": "test_bot",
+                    "timestamp": float(1000 + i),
+                    "instruction": f"task {i}",
+                    "outcome": "success",
+                },
+            )
 
         evicted = mem.enforce_capacity(max_experiences=7)
         assert evicted == 3
@@ -199,11 +241,17 @@ class TestEnforceCapacity:
         """Auto-eviction triggers every 100 inserts."""
         # Insert 100 experiences directly to populate the store
         for i in range(100):
-            mem._client.insert("experience_graph", {
-                "id": f"auto_{i}", "event_type": "praxis",
-                "robot_id": "test_bot", "timestamp": float(i),
-                "instruction": f"old task {i}", "outcome": "success",
-            })
+            mem._client.insert(
+                "experience_graph",
+                {
+                    "id": f"auto_{i}",
+                    "event_type": "praxis",
+                    "robot_id": "test_bot",
+                    "timestamp": float(i),
+                    "instruction": f"old task {i}",
+                    "outcome": "success",
+                },
+            )
 
         # Set counter to 99 so the next store_experience triggers eviction
         mem._insert_count = 99
@@ -213,8 +261,7 @@ class TestEnforceCapacity:
         try:
             mem.store_experience("trigger", "praxis", "101st task")
             # After 100th insert, auto-eviction should fire
-            total = mem._client.count("experience_graph",
-                                      {"robot_id": "test_bot"})
+            total = mem._client.count("experience_graph", {"robot_id": "test_bot"})
             assert total <= 50
         finally:
             MemoryInterface.DEFAULT_MAX_EXPERIENCES = original

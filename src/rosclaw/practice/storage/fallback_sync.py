@@ -40,7 +40,7 @@ class FallbackSync:
         self._fallback_dir.mkdir(parents=True, exist_ok=True)
         self._archived_dir.mkdir(parents=True, exist_ok=True)
 
-        summary = {"attempted": 0, "success": 0, "failed": 0, "errors": []}
+        summary: dict[str, Any] = {"attempted": 0, "success": 0, "failed": 0, "errors": []}
         files = sorted(self._fallback_dir.glob("*.json"))
         for path in files:
             summary["attempted"] += 1

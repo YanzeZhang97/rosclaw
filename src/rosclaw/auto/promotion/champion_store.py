@@ -1,4 +1,5 @@
 """ChampionStore — persistent champion skill registry."""
+
 import logging
 from typing import Any
 

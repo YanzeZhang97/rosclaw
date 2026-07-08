@@ -17,6 +17,7 @@ needing to know about direction.
 
 Pure rules, no I/O. Hot-path safe.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -45,8 +46,8 @@ LATE_BUDGET_FRAC: Final[float] = 0.9
 OSCILLATION_RATIO: Final[float] = 0.25
 
 # Invalid-rate thresholds for feasibility classification.
-INVALID_HEAVY_RATE: Final[float] = 0.4   # ≥40% invalid
-ALL_INVALID_RATE: Final[float] = 0.95    # ≥95% invalid
+INVALID_HEAVY_RATE: Final[float] = 0.4  # ≥40% invalid
+ALL_INVALID_RATE: Final[float] = 0.95  # ≥95% invalid
 
 # Plateau detection: relative |delta| smaller than this is "no change".
 PLATEAU_EPSILON: Final[float] = 1e-6

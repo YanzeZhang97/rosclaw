@@ -17,7 +17,9 @@ CATALOG_REPO = "ros-claw/skills"
 CATALOG_DEFAULT_BRANCH = "main"
 
 
-def _run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def _run(
+    cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         cmd,
         cwd=cwd,
@@ -73,17 +75,12 @@ def submit_to_catalog(
         )
 
     if not _gh_auth_status():
-        raise RuntimeError(
-            "`gh` is not authenticated. Run `gh auth login` first."
-        )
+        raise RuntimeError("`gh` is not authenticated. Run `gh auth login` first.")
 
     # Validate the local skill first.
     report = validate_package(pkg)
     if not report.ok:
-        raise RuntimeError(
-            "Local skill validation failed:\n  "
-            + "\n  ".join(report.errors)
-        )
+        raise RuntimeError("Local skill validation failed:\n  " + "\n  ".join(report.errors))
 
     name = pkg.skill.metadata.name
     namespace = pkg.skill.metadata.namespace or "ros-claw"

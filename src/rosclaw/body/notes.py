@@ -97,7 +97,6 @@ class MaintenanceLog:
         self.append(event)
         return event
 
-
     def write_fault_event(
         self,
         body_instance_id: str,
@@ -275,7 +274,18 @@ def _should_recheck(affects: list[str]) -> bool:
     """Heuristic: does this affect list warrant a skill recheck?"""
     if not affects:
         return False
-    recheck_keywords = {"sensor", "camera", "actuator", "arm", "leg", "motor", "gripper", "capability", "safety", "calibration"}
+    recheck_keywords = {
+        "sensor",
+        "camera",
+        "actuator",
+        "arm",
+        "leg",
+        "motor",
+        "gripper",
+        "capability",
+        "safety",
+        "calibration",
+    }
     for affect in affects:
         low = affect.lower()
         if any(kw in low for kw in recheck_keywords):

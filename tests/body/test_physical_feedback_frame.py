@@ -1,4 +1,5 @@
 """Tests for generic PhysicalFeedbackFrame."""
+
 from __future__ import annotations
 
 from rosclaw.body.physical_feedback_frame import PhysicalFeedbackFrame

@@ -1,4 +1,5 @@
 """Unified EventEnvelope — bridges core EventBus Event and auto EventEnvelope."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -23,9 +24,7 @@ class EventEnvelope:
 
     event_id: str = ""
     event_type: str = ""  # canonical topic name, e.g. "rosclaw.auto.proposal.created"
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     trace_id: str = ""
     run_id: str = ""
     task_id: str = ""

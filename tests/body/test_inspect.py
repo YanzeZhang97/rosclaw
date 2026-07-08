@@ -39,8 +39,11 @@ def test_inspect_json_output(linked_body, capsys):
 
 def test_inspect_without_body():
     import tempfile
-    with tempfile.TemporaryDirectory() as tmp, patch.dict(
-        "os.environ", {"HOME": tmp}
-    ), patch.object(sys, "argv", ["rosclaw", "body", "inspect"]):
+
+    with (
+        tempfile.TemporaryDirectory() as tmp,
+        patch.dict("os.environ", {"HOME": tmp}),
+        patch.object(sys, "argv", ["rosclaw", "body", "inspect"]),
+    ):
         rc = rosclaw_main()
         assert rc == 1

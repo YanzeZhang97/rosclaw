@@ -15,14 +15,16 @@ def test_knowledge_ingest_complete_logged():
     recorder = PracticeRecorder("ur5e_01", joint_dof=6, event_bus=bus)
     recorder.initialize()
 
-    bus.publish(Event(
-        topic="knowledge.ingest_complete",
-        payload={
-            "practice_id": "prac_123",
-            "knowledge_version": "v1.2.3",
-            "status": "success",
-        },
-    ))
+    bus.publish(
+        Event(
+            topic="knowledge.ingest_complete",
+            payload={
+                "practice_id": "prac_123",
+                "knowledge_version": "v1.2.3",
+                "status": "success",
+            },
+        )
+    )
 
     log = recorder.knowledge_ingest_log
     assert len(log) == 1
@@ -40,14 +42,16 @@ def test_knowledge_ingest_multiple_events():
     recorder.initialize()
 
     for i in range(3):
-        bus.publish(Event(
-            topic="knowledge.ingest_complete",
-            payload={
-                "practice_id": f"prac_{i}",
-                "knowledge_version": "v1.0",
-                "status": "success",
-            },
-        ))
+        bus.publish(
+            Event(
+                topic="knowledge.ingest_complete",
+                payload={
+                    "practice_id": f"prac_{i}",
+                    "knowledge_version": "v1.0",
+                    "status": "success",
+                },
+            )
+        )
 
     log = recorder.knowledge_ingest_log
     assert len(log) == 3
@@ -71,10 +75,12 @@ def test_knowledge_ingest_default_values():
     recorder = PracticeRecorder("ur5e_01", joint_dof=6, event_bus=bus)
     recorder.initialize()
 
-    bus.publish(Event(
-        topic="knowledge.ingest_complete",
-        payload={},  # Empty payload
-    ))
+    bus.publish(
+        Event(
+            topic="knowledge.ingest_complete",
+            payload={},  # Empty payload
+        )
+    )
 
     log = recorder.knowledge_ingest_log
     assert len(log) == 1
@@ -92,10 +98,12 @@ def test_knowledge_ingest_timestamp_captured():
     recorder.initialize()
 
     before = time.time()
-    bus.publish(Event(
-        topic="knowledge.ingest_complete",
-        payload={"practice_id": "prac_ts"},
-    ))
+    bus.publish(
+        Event(
+            topic="knowledge.ingest_complete",
+            payload={"practice_id": "prac_ts"},
+        )
+    )
     after = time.time()
 
     log = recorder.knowledge_ingest_log

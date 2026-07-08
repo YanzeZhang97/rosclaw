@@ -7,7 +7,6 @@ Covers:
 - Event subscriptions
 """
 
-
 import pytest
 
 from rosclaw.core.event_bus import Event, EventBus
@@ -132,24 +131,45 @@ class TestRetrieveSimilarEpisode:
         assert mem.retrieve_similar_episode(task_id="t1") == []
 
     def test_filter_by_task(self, mem):
-        mem._client.insert("episodes", {
-            "id": "ep1", "task_id": "t1", "robot_id": "test_bot",
-            "started_at": 1000.0, "outcome": "success", "artifact_uri": "",
-        })
-        mem._client.insert("episodes", {
-            "id": "ep2", "task_id": "t2", "robot_id": "test_bot",
-            "started_at": 2000.0, "outcome": "failure", "artifact_uri": "",
-        })
+        mem._client.insert(
+            "episodes",
+            {
+                "id": "ep1",
+                "task_id": "t1",
+                "robot_id": "test_bot",
+                "started_at": 1000.0,
+                "outcome": "success",
+                "artifact_uri": "",
+            },
+        )
+        mem._client.insert(
+            "episodes",
+            {
+                "id": "ep2",
+                "task_id": "t2",
+                "robot_id": "test_bot",
+                "started_at": 2000.0,
+                "outcome": "failure",
+                "artifact_uri": "",
+            },
+        )
         results = mem.retrieve_similar_episode(task_id="t1")
         assert len(results) == 1
         assert results[0]["id"] == "ep1"
 
     def test_limit(self, mem):
         for i in range(5):
-            mem._client.insert("episodes", {
-                "id": f"ep{i}", "task_id": "t1", "robot_id": "test_bot",
-                "started_at": float(i), "outcome": "success", "artifact_uri": "",
-            })
+            mem._client.insert(
+                "episodes",
+                {
+                    "id": f"ep{i}",
+                    "task_id": "t1",
+                    "robot_id": "test_bot",
+                    "started_at": float(i),
+                    "outcome": "success",
+                    "artifact_uri": "",
+                },
+            )
         results = mem.retrieve_similar_episode(task_id="t1", n=3)
         assert len(results) == 3
 
@@ -159,16 +179,30 @@ class TestExplainLastFailure:
         assert mem.explain_last_failure(task_id="t1") is None
 
     def test_returns_latest(self, mem):
-        mem._client.insert("failures", {
-            "id": "f1", "task_id": "t1", "robot_id": "test_bot",
-            "failure_type": "collision", "root_cause": "old",
-            "timestamp": 1000.0, "recovery_hint": "",
-        })
-        mem._client.insert("failures", {
-            "id": "f2", "task_id": "t1", "robot_id": "test_bot",
-            "failure_type": "slippage", "root_cause": "recent",
-            "timestamp": 2000.0, "recovery_hint": "",
-        })
+        mem._client.insert(
+            "failures",
+            {
+                "id": "f1",
+                "task_id": "t1",
+                "robot_id": "test_bot",
+                "failure_type": "collision",
+                "root_cause": "old",
+                "timestamp": 1000.0,
+                "recovery_hint": "",
+            },
+        )
+        mem._client.insert(
+            "failures",
+            {
+                "id": "f2",
+                "task_id": "t1",
+                "robot_id": "test_bot",
+                "failure_type": "slippage",
+                "root_cause": "recent",
+                "timestamp": 2000.0,
+                "recovery_hint": "",
+            },
+        )
         result = mem.explain_last_failure(task_id="t1")
         assert result is not None
         assert result["id"] == "f2"
@@ -180,10 +214,18 @@ class TestRetrieveRobotCapability:
         assert mem.retrieve_robot_capability("test_bot") == []
 
     def test_returns_capabilities(self, mem):
-        mem._client.insert("knowledge_graph", {
-            "id": "k1", "subject": "test_bot", "predicate": "has_capability",
-            "object": "grasp", "confidence": 0.9, "source": "seed", "timestamp": 1.0,
-        })
+        mem._client.insert(
+            "knowledge_graph",
+            {
+                "id": "k1",
+                "subject": "test_bot",
+                "predicate": "has_capability",
+                "object": "grasp",
+                "confidence": 0.9,
+                "source": "seed",
+                "timestamp": 1.0,
+            },
+        )
         caps = mem.retrieve_robot_capability("test_bot")
         assert len(caps) == 1
         assert caps[0]["object"] == "grasp"
@@ -194,10 +236,17 @@ class TestRetrieveSkillSuccessPattern:
         assert mem.retrieve_skill_success_pattern("grasp") is None
 
     def test_returns_pattern(self, mem):
-        mem._client.insert("success_patterns", {
-            "id": "sp1", "skill_id": "grasp", "robot_id": "test_bot",
-            "context_hash": "abc", "success_count": 5, "avg_duration_sec": 2.5,
-        })
+        mem._client.insert(
+            "success_patterns",
+            {
+                "id": "sp1",
+                "skill_id": "grasp",
+                "robot_id": "test_bot",
+                "context_hash": "abc",
+                "success_count": 5,
+                "avg_duration_sec": 2.5,
+            },
+        )
         pat = mem.retrieve_skill_success_pattern("grasp", "test_bot")
         assert pat is not None
         assert pat["success_count"] == 5
@@ -205,10 +254,18 @@ class TestRetrieveSkillSuccessPattern:
 
 class TestRetrieveSafetyCase:
     def test_filter_by_constraint(self, mem):
-        mem._client.insert("heuristic_rules", {
-            "id": "h1", "condition": "force_limit", "action": "stop",
-            "priority": 5, "success_count": 0, "failure_count": 0, "last_triggered": None,
-        })
+        mem._client.insert(
+            "heuristic_rules",
+            {
+                "id": "h1",
+                "condition": "force_limit",
+                "action": "stop",
+                "priority": 5,
+                "success_count": 0,
+                "failure_count": 0,
+                "last_triggered": None,
+            },
+        )
         cases = mem.retrieve_safety_case(constraint_type="force_limit")
         assert len(cases) == 1
         assert cases[0]["action"] == "stop"
@@ -253,67 +310,82 @@ class TestArtifactHandling:
 
 class TestEventSubscriptions:
     def test_practice_event_created(self, mem_with_bus):
-        mem_with_bus.event_bus.publish(Event(
-            topic="rosclaw.practice.event.created",
-            payload={
-                "event_id": "pe1",
-                "event_type": "step_completed",
-                "robot_id": "test_bot",
-                "episode_id": "ep1",
-                "task_id": "t1",
-            },
-            source="test",
-        ))
+        mem_with_bus.event_bus.publish(
+            Event(
+                topic="rosclaw.practice.event.created",
+                payload={
+                    "event_id": "pe1",
+                    "event_type": "step_completed",
+                    "robot_id": "test_bot",
+                    "episode_id": "ep1",
+                    "task_id": "t1",
+                },
+                source="test",
+            )
+        )
         rows = mem_with_bus._client.query("praxis_events", filters={"id": "pe1"})
         assert len(rows) == 1
         assert rows[0]["event_type"] == "step_completed"
 
     def test_sandbox_episode_failed(self, mem_with_bus):
-        mem_with_bus.event_bus.publish(Event(
-            topic="rosclaw.sandbox.episode.failed",
-            payload={
-                "failure_id": "f1",
-                "robot_id": "test_bot",
-                "failure_type": "collision",
-                "root_cause": "obstacle",
-                "sandbox_intervened": True,
-            },
-            source="test",
-        ))
+        mem_with_bus.event_bus.publish(
+            Event(
+                topic="rosclaw.sandbox.episode.failed",
+                payload={
+                    "failure_id": "f1",
+                    "robot_id": "test_bot",
+                    "failure_type": "collision",
+                    "root_cause": "obstacle",
+                    "sandbox_intervened": True,
+                },
+                source="test",
+            )
+        )
         rows = mem_with_bus._client.query("failures", filters={"id": "f1"})
         assert len(rows) == 1
         meta = rows[0].get("metadata", {})
         assert meta.get("sandbox_intervened") is True
 
     def test_sandbox_episode_succeeded(self, mem_with_bus):
-        mem_with_bus.event_bus.publish(Event(
-            topic="rosclaw.sandbox.episode.succeeded",
-            payload={
-                "pattern_id": "sp1",
-                "skill_id": "grasp",
-                "robot_id": "test_bot",
-                "success_count": 3,
-                "avg_duration_sec": 1.2,
-            },
-            source="test",
-        ))
+        mem_with_bus.event_bus.publish(
+            Event(
+                topic="rosclaw.sandbox.episode.succeeded",
+                payload={
+                    "pattern_id": "sp1",
+                    "skill_id": "grasp",
+                    "robot_id": "test_bot",
+                    "success_count": 3,
+                    "avg_duration_sec": 1.2,
+                },
+                source="test",
+            )
+        )
         rows = mem_with_bus._client.query("success_patterns", filters={"id": "sp1"})
         assert len(rows) == 1
         assert rows[0]["success_count"] == 3
 
     def test_recovery_hint_generated(self, mem_with_bus):
-        mem_with_bus._client.insert("failures", {
-            "id": "f1", "task_id": "t1", "robot_id": "test_bot",
-            "failure_type": "collision", "root_cause": "obs",
-            "timestamp": 1000.0, "recovery_hint": "old_hint",
-        })
-        mem_with_bus.event_bus.publish(Event(
-            topic="rosclaw.how.recovery_hint.generated",
-            payload={
-                "failure_id": "f1",
-                "hint": "new_hint: replan",
+        mem_with_bus._client.insert(
+            "failures",
+            {
+                "id": "f1",
+                "task_id": "t1",
+                "robot_id": "test_bot",
+                "failure_type": "collision",
+                "root_cause": "obs",
+                "timestamp": 1000.0,
+                "recovery_hint": "old_hint",
             },
-            source="test",
-        ))
+        )
+        mem_with_bus.event_bus.publish(
+            Event(
+                topic="rosclaw.how.recovery_hint.generated",
+                payload={
+                    "failure_id": "f1",
+                    "hint": "new_hint: replan",
+                },
+                source="test",
+            )
+        )
         rows = mem_with_bus._client.query("failures", filters={"id": "f1"})
         assert rows[0]["recovery_hint"] == "new_hint: replan"

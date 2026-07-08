@@ -102,7 +102,9 @@ class BasicCritic(LifecycleMixin):
         payload = event.payload if isinstance(event.payload, dict) else {}
         episode_id = payload.get("episode_id", payload.get("correlation_id", "unknown"))
         violations = payload.get("violations", [])
-        reason = violations[0] if isinstance(violations, list) and violations else "safety violation"
+        reason = (
+            violations[0] if isinstance(violations, list) and violations else "safety violation"
+        )
         self._judge(episode_id, "BLOCKED", -0.5, payload, reason=reason)
 
     def _judge(
@@ -125,24 +127,28 @@ class BasicCritic(LifecycleMixin):
         self._judgments.append(judgment)
 
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="rosclaw.critic.success.detected",
-                payload={
-                    "episode_id": episode_id,
-                    "robot_id": self.robot_id,
-                    "success": status == "SUCCESS",
-                    "reward": reward,
-                    "reason": reason,
-                },
-                source="basic_critic",
-                priority=EventPriority.NORMAL,
-            ))
-            self.event_bus.publish(Event(
-                topic="rosclaw.critic.judgment",
-                payload=judgment,
-                source="basic_critic",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="rosclaw.critic.success.detected",
+                    payload={
+                        "episode_id": episode_id,
+                        "robot_id": self.robot_id,
+                        "success": status == "SUCCESS",
+                        "reward": reward,
+                        "reason": reason,
+                    },
+                    source="basic_critic",
+                    priority=EventPriority.NORMAL,
+                )
+            )
+            self.event_bus.publish(
+                Event(
+                    topic="rosclaw.critic.judgment",
+                    payload=judgment,
+                    source="basic_critic",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
     def get_stats(self) -> dict[str, Any]:
         total = len(self._judgments)

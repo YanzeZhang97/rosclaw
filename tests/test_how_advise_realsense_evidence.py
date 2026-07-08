@@ -56,7 +56,9 @@ class _FakeHeuristicEngine:
     async def initialize(self):
         pass
 
-    async def advise(self, body_id: str, failure: str, episode_id: str, data_root: str | None = None):
+    async def advise(
+        self, body_id: str, failure: str, episode_id: str, data_root: str | None = None
+    ):
         return {
             "body_id": body_id,
             "failure": failure,

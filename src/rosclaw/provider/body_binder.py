@@ -16,7 +16,7 @@ class ProviderInterface:
     name: str
     required: bool
     category: str = "unknown"  # state, command, sensor, actuator, telemetry
-    status: str = "unknown"    # available, unavailable, degraded, unknown
+    status: str = "unknown"  # available, unavailable, degraded, unknown
     error: str | None = None
     topic: str = ""
     provider_ref: str | None = None
@@ -191,7 +191,12 @@ class ProviderBodyBinder:
                 error = iface.error
 
             counts[status] = counts.get(status, 0) + 1
-            if iface.required and status in ("unavailable", "unknown") or iface.required and status == "degraded":
+            if (
+                iface.required
+                and status in ("unavailable", "unknown")
+                or iface.required
+                and status == "degraded"
+            ):
                 required_unavailable += 1
 
             result[name] = {

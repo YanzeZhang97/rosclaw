@@ -33,7 +33,7 @@ from rosclaw.connectors.ros.discovery.graph import (
 
 
 class FakeArgs(SimpleNamespace):
-    """ argparse.Namespace replacement with safe defaults. """
+    """argparse.Namespace replacement with safe defaults."""
 
     def __getattr__(self, name: str):
         return None
@@ -55,7 +55,9 @@ def test_ros_list_capabilities_with_preloaded_manifest():
     cap = RosCapability(
         id="turtlesim.observe.pose",
         kind="observation",
-        interface=RosInterface(ros_kind="topic", name="/turtle1/pose", msg_type="turtlesim/msg/Pose"),
+        interface=RosInterface(
+            ros_kind="topic", name="/turtle1/pose", msg_type="turtlesim/msg/Pose"
+        ),
         risk=RosCapabilityRisk(level="low", read_only=True),
     )
     manifest = CapabilityManifest(robot_id="turtlesim", capabilities=[cap])
@@ -69,10 +71,17 @@ def test_ros_inspect_capability_with_preloaded_manifest():
     cap = RosCapability(
         id="turtlesim.base.velocity_command",
         kind="actuation",
-        interface=RosInterface(ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"),
+        interface=RosInterface(
+            ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"
+        ),
         risk=RosCapabilityRisk(
-            level="high", read_only=False, destructive=True,
-            requires_sandbox=True, requires_runtime_guard=True, requires_stop_guard=True, max_duration_sec=1.0,
+            level="high",
+            read_only=False,
+            destructive=True,
+            requires_sandbox=True,
+            requires_runtime_guard=True,
+            requires_stop_guard=True,
+            max_duration_sec=1.0,
         ),
         safety={"constraints": {"linear.x": [-0.2, 0.2]}},
     )
@@ -91,10 +100,17 @@ def test_ros_validate_capability_blocks_out_of_bounds():
     cap = RosCapability(
         id="turtlesim.base.velocity_command",
         kind="actuation",
-        interface=RosInterface(ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"),
+        interface=RosInterface(
+            ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"
+        ),
         risk=RosCapabilityRisk(
-            level="high", read_only=False, destructive=True,
-            requires_sandbox=True, requires_runtime_guard=True, requires_stop_guard=True, max_duration_sec=1.0,
+            level="high",
+            read_only=False,
+            destructive=True,
+            requires_sandbox=True,
+            requires_runtime_guard=True,
+            requires_stop_guard=True,
+            max_duration_sec=1.0,
         ),
         safety={"constraints": {"linear.x": [-0.2, 0.2]}},
     )
@@ -114,10 +130,17 @@ def test_ros_validate_capability_allows_in_bounds():
     cap = RosCapability(
         id="turtlesim.base.velocity_command",
         kind="actuation",
-        interface=RosInterface(ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"),
+        interface=RosInterface(
+            ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"
+        ),
         risk=RosCapabilityRisk(
-            level="high", read_only=False, destructive=True,
-            requires_sandbox=True, requires_runtime_guard=True, requires_stop_guard=True, max_duration_sec=1.0,
+            level="high",
+            read_only=False,
+            destructive=True,
+            requires_sandbox=True,
+            requires_runtime_guard=True,
+            requires_stop_guard=True,
+            max_duration_sec=1.0,
         ),
         safety={"constraints": {"linear.x": [-0.2, 0.2]}},
     )
@@ -142,15 +165,19 @@ def test_doctor_ros_without_server_reports_not_ready():
 def test_doctor_ros_no_args_reports_not_ready():
     # Use an unused port so the test is independent of any running rosbridge.
     import argparse
+
     args = argparse.Namespace(endpoint="ws://127.0.0.1:59999")
     rc = cmd_doctor_ros(args)
     assert rc == 1
 
 
-@pytest.mark.parametrize("cmd,expected", [
-    (["-m", "rosclaw.cli", "ros", "--help"], "ros"),
-    (["-m", "rosclaw.cli", "doctor", "--help"], "doctor"),
-])
+@pytest.mark.parametrize(
+    "cmd,expected",
+    [
+        (["-m", "rosclaw.cli", "ros", "--help"], "ros"),
+        (["-m", "rosclaw.cli", "doctor", "--help"], "doctor"),
+    ],
+)
 def test_ros_cli_help_renders(cmd, expected):
     result = subprocess.run([sys.executable, *cmd], capture_output=True, text=True)
     assert result.returncode == 0
@@ -161,7 +188,9 @@ def test_ros_list_capabilities_loads_manifest_from_file():
     cap = RosCapability(
         id="turtlesim.observe.pose",
         kind="observation",
-        interface=RosInterface(ros_kind="topic", name="/turtle1/pose", msg_type="turtlesim/msg/Pose"),
+        interface=RosInterface(
+            ros_kind="topic", name="/turtle1/pose", msg_type="turtlesim/msg/Pose"
+        ),
         risk=RosCapabilityRisk(level="low", read_only=True),
     )
     manifest = CapabilityManifest(robot_id="turtlesim", capabilities=[cap])
@@ -182,8 +211,15 @@ def test_ros_compile_from_saved_graph():
         distro="humble",
         endpoint="ws://127.0.0.1:9090",
         topics=[
-            RosTopicInfo(name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist", is_command=True, risk_hint="high"),
-            RosTopicInfo(name="/turtle1/pose", msg_type="turtlesim/msg/Pose", is_sensor=True, risk_hint="low"),
+            RosTopicInfo(
+                name="/turtle1/cmd_vel",
+                msg_type="geometry_msgs/msg/Twist",
+                is_command=True,
+                risk_hint="high",
+            ),
+            RosTopicInfo(
+                name="/turtle1/pose", msg_type="turtlesim/msg/Pose", is_sensor=True, risk_hint="low"
+            ),
         ],
         services=[],
         actions=[],

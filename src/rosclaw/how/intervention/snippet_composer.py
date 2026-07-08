@@ -22,6 +22,7 @@ strategy enum is engaged.
 
 No I/O. Returns plain markdown.
 """
+
 from __future__ import annotations
 
 import json
@@ -237,17 +238,14 @@ def _compose_catalyst(
         "the agreed direction within 3-5 iterations."
     )
     parts.append(
-        "**Stop Condition:** if validity drops or oscillation increases, "
-        "revert this change."
+        "**Stop Condition:** if validity drops or oscillation increases, revert this change."
     )
     return {
         "snippet": "\n\n".join(parts),
         "diagnosis": diagnosis,
         "next_experiment": next_experiment,
         "code_target": code_target,
-        "expected_signal": (
-            "validity preserved; normalized score improves within 3-5 iterations"
-        ),
+        "expected_signal": ("validity preserved; normalized score improves within 3-5 iterations"),
         "stop_condition": "validity drops or oscillation increases",
     }
 
@@ -437,11 +435,7 @@ def compose(
         )
 
     # Curated-only quality gate for software-resource fall-through CATALYST.
-    if (
-        strategy == "CATALYST"
-        and require_curated_match
-        and not _is_curated_match(matched)
-    ):
+    if strategy == "CATALYST" and require_curated_match and not _is_curated_match(matched):
         return InterventionDecision(
             strategy=strategy,
             runtime_state=state,

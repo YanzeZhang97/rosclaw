@@ -24,7 +24,9 @@ def _utc_now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
-def _load_body(params: dict[str, Any]) -> tuple[Path | None, str | None, dict[str, Any], dict[str, Any]]:
+def _load_body(
+    params: dict[str, Any],
+) -> tuple[Path | None, str | None, dict[str, Any], dict[str, Any]]:
     """Resolve body workspace, id, body yaml, and eurdf profile from parameters."""
     from rosclaw.body.resolver import BodyResolver
     from rosclaw.firstboot.workspace import resolve_home
@@ -79,7 +81,11 @@ def _is_perception_only(body: dict[str, Any], profile: dict[str, Any] | None = N
         return True
     if profile:
         identity = profile.get("identity", {})
-        if identity.get("robot_class") in ("perception_only_camera", "realsense_d405", "realsense_d435i"):
+        if identity.get("robot_class") in (
+            "perception_only_camera",
+            "realsense_d405",
+            "realsense_d435i",
+        ):
             return True
         profile_safety = profile.get("safety", {})
         limits = profile_safety.get("safety_limits", {}) if isinstance(profile_safety, dict) else {}
@@ -122,7 +128,12 @@ def _discover_realsense_mcp(home: Path | None) -> tuple[str, str] | tuple[None, 
     return None, None
 
 
-def _resolve_serial(body: dict[str, Any], params: dict[str, Any], home: Path | None = None, profile: dict[str, Any] | None = None) -> str | None:
+def _resolve_serial(
+    body: dict[str, Any],
+    params: dict[str, Any],
+    home: Path | None = None,
+    profile: dict[str, Any] | None = None,
+) -> str | None:
     """Pick a RealSense serial number.
 
     The explicit ``--serial`` parameter wins, then the linked body's
@@ -149,7 +160,9 @@ def _resolve_serial(body: dict[str, Any], params: dict[str, Any], home: Path | N
         if "realsense" not in rec.server_name.lower():
             continue
         try:
-            result = call_server_tool(rec.server_name, "list_devices", {}, home=resolved_home, timeout=20.0)
+            result = call_server_tool(
+                rec.server_name, "list_devices", {}, home=resolved_home, timeout=20.0
+            )
             content = result.get("content", [])
             text = content[0].get("text", "{}") if content else "{}"
             data = json.loads(text)
@@ -250,7 +263,11 @@ def run(params: dict[str, Any]) -> dict[str, Any]:
 
         with McpServerSession(server_name, home=home, start_timeout=15.0) as session:
             start_result = session.call("start_pipeline", {"serial": serial}, timeout=60.0)
-            if isinstance(start_result, dict) and start_result.get("error") and "already" not in str(start_result.get("error", "")).lower():
+            if (
+                isinstance(start_result, dict)
+                and start_result.get("error")
+                and "already" not in str(start_result.get("error", "")).lower()
+            ):
                 return {
                     "status": "error",
                     "reason": f"Failed to start pipeline: {start_result['error']}",

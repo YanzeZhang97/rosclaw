@@ -44,9 +44,15 @@ class BodySummaryGenerator:
     ) -> dict[str, dict[str, Any]]:
         """Generate all three summary dicts and optionally write them to disk."""
         summaries = {
-            "body.summary.json": self.generate_body_summary(effective, body, calibration, maintenance),
-            "embodiment.agent.json": self.generate_agent_summary(effective, body, report, maintenance),
-            "safety.summary.json": self.generate_safety_summary(effective, body, calibration, maintenance),
+            "body.summary.json": self.generate_body_summary(
+                effective, body, calibration, maintenance
+            ),
+            "embodiment.agent.json": self.generate_agent_summary(
+                effective, body, report, maintenance
+            ),
+            "safety.summary.json": self.generate_safety_summary(
+                effective, body, calibration, maintenance
+            ),
         }
         if write:
             self._write_summaries(summaries)
@@ -64,12 +70,15 @@ class BodySummaryGenerator:
             item.get("id", item.get("capability", "unknown"))
             for item in (effective.forbidden_capabilities or body.forbidden_capabilities or [])
         ]
-        open_faults = [f.get("id", "unknown") for f in effective.known_faults if f.get("status") == "open"]
+        open_faults = [
+            f.get("id", "unknown") for f in effective.known_faults if f.get("status") == "open"
+        ]
         return {
             "schema": "rosclaw.generated.body_summary.v1",
             "generated_at": _utc_now(),
             "robot_instance_id": effective.body_instance_id,
-            "robot_model": identity.get("robot_model") or body.body_instance.get("robot_model", "unknown"),
+            "robot_model": identity.get("robot_model")
+            or body.body_instance.get("robot_model", "unknown"),
             "eurdf_profile": body.model_ref.get("profile_id", "unknown"),
             "safety_status": body.get_safety_status(),
             "calibration_status": calibration.overall_status(),
@@ -92,7 +101,9 @@ class BodySummaryGenerator:
             item.get("id", item.get("capability", "unknown"))
             for item in (effective.forbidden_capabilities or body.forbidden_capabilities or [])
         ]
-        open_faults = [f.get("id", "unknown") for f in effective.known_faults if f.get("status") == "open"]
+        open_faults = [
+            f.get("id", "unknown") for f in effective.known_faults if f.get("status") == "open"
+        ]
         return {
             "schema": "rosclaw.generated.embodiment_agent.v1",
             "generated_at": _utc_now(),
@@ -115,13 +126,19 @@ class BodySummaryGenerator:
         calibration: CalibrationYaml,
         maintenance: list[MaintenanceEvent] | None = None,
     ) -> dict[str, Any]:
-        open_faults = [f.get("id", "unknown") for f in effective.known_faults if f.get("status") == "open"]
+        open_faults = [
+            f.get("id", "unknown") for f in effective.known_faults if f.get("status") == "open"
+        ]
         return {
             "schema": "rosclaw.generated.safety_summary.v1",
             "generated_at": _utc_now(),
             "safety_status": body.get_safety_status(),
-            "global_limits": effective.safety.get("safety_limits") or effective.safety.get("global_limits") or {},
-            "workspace_limits": effective.safety.get("workspace_boundaries") or effective.safety.get("workspace_limits") or [],
+            "global_limits": effective.safety.get("safety_limits")
+            or effective.safety.get("global_limits")
+            or {},
+            "workspace_limits": effective.safety.get("workspace_boundaries")
+            or effective.safety.get("workspace_limits")
+            or [],
             "contact_limits": effective.safety.get("contact_limits") or [],
             "open_faults": open_faults,
             "calibration_status": calibration.overall_status(),

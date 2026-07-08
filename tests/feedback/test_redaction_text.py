@@ -8,7 +8,10 @@ from rosclaw.feedback.redactor.text_redactor import TextRedactor
 class TestTextRedactor:
     def test_redacts_email(self) -> None:
         r = TextRedactor()
-        assert r.redact("contact me at foo@example.com please") == "contact me at [REDACTED_EMAIL] please"
+        assert (
+            r.redact("contact me at foo@example.com please")
+            == "contact me at [REDACTED_EMAIL] please"
+        )
 
     def test_redacts_ipv4(self) -> None:
         r = TextRedactor()

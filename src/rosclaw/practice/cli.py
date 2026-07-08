@@ -1,4 +1,5 @@
 """Practice CLI - Episode recording and replay."""
+
 import json
 from pathlib import Path
 
@@ -21,12 +22,14 @@ def list_episodes():
         if meta.exists():
             with open(meta, encoding="utf-8") as f:
                 data = json.load(f)
-            episodes.append({
-                "id": d.name,
-                "robot": data.get("robot_id", "unknown"),
-                "status": data.get("status", "UNKNOWN"),
-                "reward": data.get("reward", 0.0),
-            })
+            episodes.append(
+                {
+                    "id": d.name,
+                    "robot": data.get("robot_id", "unknown"),
+                    "status": data.get("status", "UNKNOWN"),
+                    "reward": data.get("reward", 0.0),
+                }
+            )
     if not episodes:
         print("No episodes recorded yet.")
         return

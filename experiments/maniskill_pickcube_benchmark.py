@@ -36,6 +36,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _to_scalar(val):
     """Convert torch.Tensor or numpy scalar to Python scalar."""
     if hasattr(val, "item"):
@@ -54,18 +55,17 @@ def _to_bool(val):
 # Pre-generated actions (ensures identical action sequences for fair comparison)
 # ---------------------------------------------------------------------------
 
+
 def _generate_actions(env, num_episodes: int, max_steps: int) -> list:
     """Pre-generate random actions so baseline and ROSClaw use identical sequences."""
     np.random.seed(42)
-    return [
-        [env.action_space.sample() for _ in range(max_steps)]
-        for _ in range(num_episodes)
-    ]
+    return [[env.action_space.sample() for _ in range(max_steps)] for _ in range(num_episodes)]
 
 
 # ---------------------------------------------------------------------------
 # Baseline: Raw ManiSkill
 # ---------------------------------------------------------------------------
+
 
 def run_baseline(num_episodes: int = 20, max_steps: int = 100) -> dict:
     """Run PickCube with raw ManiSkill env and pre-generated random actions."""
@@ -101,13 +101,15 @@ def run_baseline(num_episodes: int = 20, max_steps: int = 100) -> dict:
             if _to_bool(terminated) or _to_bool(truncated):
                 break
 
-        results.append({
-            "episode": ep,
-            "seed": ep,
-            "steps": steps,
-            "total_reward": round(episode_reward, 4),
-            "success": success,
-        })
+        results.append(
+            {
+                "episode": ep,
+                "seed": ep,
+                "steps": steps,
+                "total_reward": round(episode_reward, 4),
+                "success": success,
+            }
+        )
 
     env.close()
     elapsed = time.time() - start_time
@@ -134,6 +136,7 @@ def run_baseline(num_episodes: int = 20, max_steps: int = 100) -> dict:
 # ---------------------------------------------------------------------------
 # ROSClaw: Adapter + Governance
 # ---------------------------------------------------------------------------
+
 
 def run_rosclaw(num_episodes: int = 20, max_steps: int = 100, actions: list | None = None) -> dict:
     """Run PickCube with ROSClaw adapter and pre-generated actions."""
@@ -179,18 +182,18 @@ def run_rosclaw(num_episodes: int = 20, max_steps: int = 100, actions: list | No
         trace = adapter.record_episode(success=success)
         traces.append(trace)
 
-        results.append({
-            "episode": ep,
-            "seed": ep,
-            "steps": steps,
-            "total_reward": round(episode_reward, 4),
-            "success": success,
-            "trace_complete": (
-                "episode_id" in trace
-                and "step_traces" in trace
-                and "total_reward" in trace
-            ),
-        })
+        results.append(
+            {
+                "episode": ep,
+                "seed": ep,
+                "steps": steps,
+                "total_reward": round(episode_reward, 4),
+                "success": success,
+                "trace_complete": (
+                    "episode_id" in trace and "step_traces" in trace and "total_reward" in trace
+                ),
+            }
+        )
 
     adapter.close()
     elapsed = time.time() - start_time
@@ -221,6 +224,7 @@ def run_rosclaw(num_episodes: int = 20, max_steps: int = 100, actions: list | No
 # Comparison
 # ---------------------------------------------------------------------------
 
+
 def compare(baseline: dict, rosclaw: dict) -> dict:
     """Compare baseline vs ROSClaw results."""
     return {
@@ -228,7 +232,8 @@ def compare(baseline: dict, rosclaw: dict) -> dict:
         "avg_return_delta": round(rosclaw["avg_return"] - baseline["avg_return"], 4),
         "avg_length_delta": round(rosclaw["avg_length"] - baseline["avg_length"], 2),
         "speed_ratio": round(rosclaw["episodes_per_sec"] / baseline["episodes_per_sec"], 2)
-        if baseline["episodes_per_sec"] > 0 else None,
+        if baseline["episodes_per_sec"] > 0
+        else None,
         "performance_neutral": (
             abs(rosclaw["success_rate"] - baseline["success_rate"]) < 0.1
             and abs(rosclaw["avg_return"] - baseline["avg_return"]) < 0.01
@@ -239,6 +244,7 @@ def compare(baseline: dict, rosclaw: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main():
     num_episodes = 20
@@ -256,6 +262,7 @@ def main():
     # Pre-generate identical action sequences for fair comparison
     import gymnasium as gym
     import mani_skill.envs  # noqa: F401
+
     _env = gym.make("PickCube-v1", obs_mode="state_dict", control_mode="pd_joint_pos")
     actions = _generate_actions(_env, num_episodes, max_steps)
     _env.close()
@@ -283,7 +290,9 @@ def main():
 
     for group, data in [("Baseline", baseline), ("ROSClaw", rosclaw)]:
         print(f"{group}:")
-        print(f"  Success rate:     {data['success_count']}/{data['episodes']} = {data['success_rate']}%")
+        print(
+            f"  Success rate:     {data['success_count']}/{data['episodes']} = {data['success_rate']}%"
+        )
         print(f"  Avg return:       {data['avg_return']}")
         print(f"  Avg length:       {data['avg_length']} steps")
         print(f"  Speed:            {data['episodes_per_sec']} episodes/sec")
@@ -312,7 +321,9 @@ def main():
     print("  Unsafe Execution Rate (UER):    0 / 0 = N/A (no injected hazards)")
     print("  Safety Block Rate (SBR):        N/A (no injected hazards)")
     print(f"  Episode Completeness (EC):      {rosclaw['episode_completeness']}%")
-    print(f"    ({num_episodes}/{num_episodes} episodes have full trace_id + step_traces + total_reward)")
+    print(
+        f"    ({num_episodes}/{num_episodes} episodes have full trace_id + step_traces + total_reward)"
+    )
     print("=" * 70)
 
     # Save results

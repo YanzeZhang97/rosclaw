@@ -55,7 +55,9 @@ def promote_candidate(
     pkg.skill.metadata.candidate_id = None
     pkg.skill.status.promotion_state = stage
     pkg.skill.status.last_eval_passed = True
-    pkg.skill.status.safe_to_run_on_real_robot = stage == "validated" and metrics.get("no_fall_rate", 0.0) >= 1.0
+    pkg.skill.status.safe_to_run_on_real_robot = (
+        stage == "validated" and metrics.get("no_fall_rate", 0.0) >= 1.0
+    )
     pkg.skill.evidence.latest_eval_report = f"evidence/reports/{candidate_id}_eval.json"
 
     # Update lineage.
@@ -83,7 +85,11 @@ def promote_candidate(
     import yaml
 
     lock_path = pkg.root / ".rosclaw" / "lock.yaml"
-    lock = yaml.safe_load(lock_path.read_text(encoding="utf-8")) if lock_path.exists() else {"schema_version": "rosclaw.lock.v1"}
+    lock = (
+        yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+        if lock_path.exists()
+        else {"schema_version": "rosclaw.lock.v1"}
+    )
     lock["hashes"] = hashes["files"]
     pkg.write_lock_yaml(lock)
 
@@ -114,7 +120,9 @@ def _snapshot_files(pkg: SkillPackage, version: str) -> None:
             dest.write_bytes(src.read_bytes())
 
 
-def _update_changelog(pkg: SkillPackage, version: str, candidate_id: str, metrics: dict[str, Any]) -> None:
+def _update_changelog(
+    pkg: SkillPackage, version: str, candidate_id: str, metrics: dict[str, Any]
+) -> None:
     changelog = pkg.root / "CHANGELOG.md"
     date = datetime.now(UTC).strftime("%Y-%m-%d")
     lines = [
@@ -128,12 +136,14 @@ def _update_changelog(pkg: SkillPackage, version: str, candidate_id: str, metric
     ]
     for k, v in metrics.items():
         lines.append(f"- {k}: {v}")
-    lines.extend([
-        "",
-        "### Safety",
-        "- Requires sandbox_first mode.",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "### Safety",
+            "- Requires sandbox_first mode.",
+            "",
+        ]
+    )
     existing = changelog.read_text(encoding="utf-8") if changelog.exists() else "# Changelog\n"
     # Insert after first line.
     parts = existing.split("\n", 1)

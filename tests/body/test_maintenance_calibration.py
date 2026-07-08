@@ -20,12 +20,22 @@ def linked_body(tmp_path, monkeypatch):
 
 
 def test_maintenance_add_appends_event(linked_body):
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "maintenance", "add",
-        "--type", "inspection",
-        "--component", "right_arm",
-        "--summary", "Routine joint inspection completed",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "maintenance",
+            "add",
+            "--type",
+            "inspection",
+            "--component",
+            "right_arm",
+            "--summary",
+            "Routine joint inspection completed",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     resolver = BodyResolver()
@@ -46,10 +56,18 @@ def test_calibration_update_replaces_file_and_logs_event(linked_body):
     }
     new_cal_path.write_text(yaml.safe_dump(new_cal), encoding="utf-8")
 
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "calibration", "update",
-        "--file", str(new_cal_path),
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "calibration",
+            "update",
+            "--file",
+            str(new_cal_path),
+        ],
+    ):
         assert rosclaw_main() == 0
 
     calibration = resolver.get_calibration()
@@ -59,12 +77,22 @@ def test_calibration_update_replaces_file_and_logs_event(linked_body):
 
 
 def test_retrofit_add_records_event_and_updates_components(linked_body):
-    with patch.object(sys, "argv", [
-        "rosclaw", "body", "retrofit", "add",
-        "--component", "wrist_camera",
-        "--type", "sensor_install",
-        "--summary", "Installed wrist camera for manipulation",
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "rosclaw",
+            "body",
+            "retrofit",
+            "add",
+            "--component",
+            "wrist_camera",
+            "--type",
+            "sensor_install",
+            "--summary",
+            "Installed wrist camera for manipulation",
+        ],
+    ):
         assert rosclaw_main() == 0
 
     resolver = BodyResolver()
@@ -73,4 +101,6 @@ def test_retrofit_add_records_event_and_updates_components(linked_body):
     assert events[0].component == "wrist_camera"
 
     body_yaml = resolver.get_current_body_yaml()
-    assert body_yaml.installed_components.get("sensors", {}).get("wrist_camera", {}).get("installed")
+    assert (
+        body_yaml.installed_components.get("sensors", {}).get("wrist_camera", {}).get("installed")
+    )

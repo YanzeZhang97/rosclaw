@@ -27,9 +27,7 @@ class TestSenseCli:
         assert '"robot_id"' in out
 
     def test_cmd_sense_readiness_hot_knee(self, capsys):
-        args = self._args(
-            task="kick_ball", mock="hot_knee", robot_id="g1", json=True
-        )
+        args = self._args(task="kick_ball", mock="hot_knee", robot_id="g1", json=True)
         assert cmd_sense_readiness(args) == 0
         out = capsys.readouterr().out
         assert "not_ready" in out

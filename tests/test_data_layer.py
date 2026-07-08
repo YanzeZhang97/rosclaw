@@ -76,10 +76,13 @@ class TestMultiChannelRingBuffer:
             positions=(100, (6,)),
             velocities=(100, (6,)),
         )
-        buf.append({
-            "positions": np.ones(6),
-            "velocities": np.zeros(6),
-        }, timestamp=0.0)
+        buf.append(
+            {
+                "positions": np.ones(6),
+                "velocities": np.zeros(6),
+            },
+            timestamp=0.0,
+        )
         data = buf.get_last_n(1)
         assert "positions" in data
         assert np.allclose(data["positions"][0][0], np.ones(6))

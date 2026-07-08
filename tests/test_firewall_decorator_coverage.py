@@ -184,10 +184,12 @@ class TestDecoratorEdgeCases:
             return {"status": "ok"}
 
         # Pass plain Python lists (not np.ndarray) to trigger conversion
-        result = move([
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
-        ])
+        result = move(
+            [
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+            ]
+        )
         assert result["status"] == "ok"
 
     def test_mujoco_firewall_unsupported_format(self):
@@ -203,7 +205,9 @@ class TestDecoratorEdgeCases:
             return {"status": "ok"}
 
         with pytest.raises(SafetyViolationError):
-            move([
-                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                [10.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            ])
+            move(
+                [
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    [10.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                ]
+            )

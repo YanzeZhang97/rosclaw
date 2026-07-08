@@ -109,7 +109,9 @@ def _capture_with_pyrealsense2(duration_sec: float) -> dict[str, Any]:
         },
         "aggregate": {
             "total_frame_count": color_frames + depth_frames,
-            "average_fps": round((color_fps + depth_fps) / 2, 2) if (color_frames or depth_frames) else 0.0,
+            "average_fps": round((color_fps + depth_fps) / 2, 2)
+            if (color_frames or depth_frames)
+            else 0.0,
             "drop_count": dropped,
         },
         **device_info,
@@ -218,7 +220,9 @@ def _compute_stream_fps(report: dict[str, Any], duration_sec: float) -> None:
 
     report["aggregate"] = {
         "total_frame_count": color_count + depth_count,
-        "average_fps": round((color_fps + depth_fps) / 2, 2) if (color_count or depth_count) else 0.0,
+        "average_fps": round((color_fps + depth_fps) / 2, 2)
+        if (color_count or depth_count)
+        else 0.0,
         "drop_count": report.get("drops", 0),
     }
     if report.get("fps") == 0.0:

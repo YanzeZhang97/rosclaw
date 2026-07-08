@@ -390,9 +390,7 @@ def _pkg_name_from_remote_canonical(manifest_id: str) -> str | None:
     return suffix.replace(".", "/", 1)
 
 
-def _metadata_to_manifest(
-    metadata: dict[str, Any], pkg_name: str | None = None
-) -> dict[str, Any]:
+def _metadata_to_manifest(metadata: dict[str, Any], pkg_name: str | None = None) -> dict[str, Any]:
     """Convert a lightweight Hub package record into a full hardware manifest dict.
 
     The remote registry only carries distribution metadata (git URL, entry point,
@@ -450,15 +448,11 @@ def _metadata_to_manifest(
             "supportedPlatforms": [],
             "preflight": [],
             "runtimes": (
-                [{"type": "python", "installCommand": install_command}]
-                if install_command
-                else []
+                [{"type": "python", "installCommand": install_command}] if install_command else []
             ),
         },
         "health": {
-            "checks": [
-                {"id": "install_integrity", "category": "install", "required": True}
-            ]
+            "checks": [{"id": "install_integrity", "category": "install", "required": True}]
         },
         "permissions": {
             "required": [

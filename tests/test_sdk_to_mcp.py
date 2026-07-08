@@ -25,6 +25,7 @@ from rosclaw.sdk_to_mcp.manifest import MCPServerManifest
 # AssetCompiler — Skill Compilation
 # ───────────────────────────────
 
+
 class TestAssetCompilerSkillFile:
     def test_compile_skill_file_basic(self, tmp_path):
         skill = {
@@ -126,6 +127,7 @@ class TestAssetCompilerSkillFile:
 # AssetCompiler — Provider Manifest
 # ───────────────────────────────
 
+
 class TestAssetCompilerProviderManifest:
     def test_compile_provider_manifest_str_capabilities(self):
         manifest = {
@@ -175,6 +177,7 @@ class TestAssetCompilerProviderManifest:
 # ───────────────────────────────
 # AssetCompiler — Robot Profile
 # ───────────────────────────────
+
 
 class TestAssetCompilerRobotProfile:
     def test_compile_robot_profile_basic(self):
@@ -247,6 +250,7 @@ class TestAssetCompilerRobotProfile:
 # AssetCompiler — Directory & Export
 # ───────────────────────────────
 
+
 class TestAssetCompilerBatchAndExport:
     def test_compile_directory(self, tmp_path):
         (tmp_path / "skill_a.yaml").write_text(yaml.dump({"name": "skill_a"}), encoding="utf-8")
@@ -277,10 +281,12 @@ class TestAssetCompilerBatchAndExport:
 
     def test_export_to_json(self, tmp_path):
         compiler = AssetCompiler()
-        assets = compiler.compile_provider_manifest({
-            "name": "test_provider",
-            "capabilities": ["cap1", "cap2"],
-        })
+        assets = compiler.compile_provider_manifest(
+            {
+                "name": "test_provider",
+                "capabilities": ["cap1", "cap2"],
+            }
+        )
         output = tmp_path / "output.json"
         compiler.export_to_json(assets, output)
 
@@ -303,6 +309,7 @@ class TestAssetCompilerBatchAndExport:
 # ───────────────────────────────
 # AssetCompiler — Helpers
 # ───────────────────────────────
+
 
 class TestAssetCompilerHelpers:
     def test_build_input_schema_required(self):
@@ -340,6 +347,7 @@ class TestAssetCompilerHelpers:
 # ───────────────────────────────
 # MCPManifestBuilder
 # ───────────────────────────────
+
 
 class TestMCPManifestBuilder:
     def test_build_empty(self):
@@ -448,10 +456,14 @@ class TestMCPManifestBuilder:
 
     def test_add_skill_tool(self):
         builder = MCPManifestBuilder()
-        builder.add_skill_tool("pick", "Pick object", {
-            "obj": {"type": "string", "description": "Object", "required": True},
-            "force": {"type": "number", "description": "Force"},
-        })
+        builder.add_skill_tool(
+            "pick",
+            "Pick object",
+            {
+                "obj": {"type": "string", "description": "Object", "required": True},
+                "force": {"type": "number", "description": "Force"},
+            },
+        )
         manifest = builder.build()
 
         assert len(manifest.tools) == 1
@@ -465,9 +477,13 @@ class TestMCPManifestBuilder:
 
     def test_add_skill_tool_no_required(self):
         builder = MCPManifestBuilder()
-        builder.add_skill_tool("move", "Move", {
-            "x": {"type": "number", "description": "X"},
-        })
+        builder.add_skill_tool(
+            "move",
+            "Move",
+            {
+                "x": {"type": "number", "description": "X"},
+            },
+        )
         manifest = builder.build()
         assert manifest.tools[0]["inputSchema"]["required"] == []
 
@@ -500,6 +516,7 @@ class TestMCPManifestBuilder:
 # ───────────────────────────────
 # End-to-End Compilation Flow
 # ───────────────────────────────
+
 
 class TestEndToEndCompilation:
     def test_full_skill_to_manifest_flow(self, tmp_path):
@@ -609,6 +626,7 @@ class TestEndToEndCompilation:
 # ───────────────────────────────
 # CompiledAsset Dataclass
 # ───────────────────────────────
+
 
 class TestCompiledAsset:
     def test_defaults(self):

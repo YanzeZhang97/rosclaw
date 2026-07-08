@@ -1,4 +1,5 @@
 """rosclaw.auto.promotion — Champion promotion, dead-end registry, rollback."""
+
 from .champion_store import ChampionStore
 from .gate import PromotionGate
 from .lineage import LineageTracker

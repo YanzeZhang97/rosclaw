@@ -17,12 +17,18 @@ from rosclaw.firewall.validator import (
 def _make_test_robot():
     model = RobotModel(name="test_robot")
     model.joints["j1"] = JointSpec(
-        name="j1", joint_type="revolute", parent="base", child="link1",
-        limits={"lower": -1.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0}
+        name="j1",
+        joint_type="revolute",
+        parent="base",
+        child="link1",
+        limits={"lower": -1.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0},
     )
     model.joints["j2"] = JointSpec(
-        name="j2", joint_type="revolute", parent="link1", child="link2",
-        limits={"lower": -0.5, "upper": 0.5, "velocity": 1.0, "effort": 5.0}
+        name="j2",
+        joint_type="revolute",
+        parent="link1",
+        child="link2",
+        limits={"lower": -0.5, "upper": 0.5, "velocity": 1.0, "effort": 5.0},
     )
     return model
 
@@ -47,8 +53,11 @@ class TestSafetyEnvelopeCoverage:
     def test_positive_only_limits(self):
         model = RobotModel(name="pos_only")
         model.joints["j1"] = JointSpec(
-            name="j1", joint_type="prismatic", parent="base", child="link1",
-            limits={"lower": 0.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0}
+            name="j1",
+            joint_type="prismatic",
+            parent="base",
+            child="link1",
+            limits={"lower": 0.0, "upper": 1.0, "velocity": 2.0, "effort": 10.0},
         )
         env = SafetyEnvelope.from_robot_model(model)
         lo, hi = env.joint_soft_limits[0]
@@ -58,8 +67,11 @@ class TestSafetyEnvelopeCoverage:
     def test_negative_only_limits(self):
         model = RobotModel(name="neg_only")
         model.joints["j1"] = JointSpec(
-            name="j1", joint_type="revolute", parent="base", child="link1",
-            limits={"lower": -1.0, "upper": 0.0, "velocity": 2.0, "effort": 10.0}
+            name="j1",
+            joint_type="revolute",
+            parent="base",
+            child="link1",
+            limits={"lower": -1.0, "upper": 0.0, "velocity": 2.0, "effort": 10.0},
         )
         env = SafetyEnvelope.from_robot_model(model)
         lo, hi = env.joint_soft_limits[0]
@@ -76,12 +88,14 @@ class TestValidationResponse:
             violations=[],
         )
         assert resp.violation_count == 0
-        resp.violations.append(ViolationDetail(
-            layer=ValidationLayer.EURDF_SOFT_LIMITS,
-            severity="critical",
-            joint_index=0,
-            description="test",
-        ))
+        resp.violations.append(
+            ViolationDetail(
+                layer=ValidationLayer.EURDF_SOFT_LIMITS,
+                severity="critical",
+                joint_index=0,
+                description="test",
+            )
+        )
         assert resp.violation_count == 1
 
 
@@ -97,6 +111,7 @@ class TestFirewallValidatorLifecycle:
 
     def test_initialize_bad_mujoco_path(self, caplog):
         import logging
+
         bus = EventBus()
         model = _make_test_robot()
         validator = FirewallValidator(model, bus, mujoco_model_path="/nonexistent.xml")
@@ -187,15 +202,17 @@ class TestFirewallValidatorCheckLayers:
         validator.initialize()
         responses = []
         bus.subscribe("agent.response", lambda e: responses.append(e.payload))
-        bus.publish(Event(
-            topic="agent.command",
-            payload={
-                "action": "execute_trajectory",
-                "robot_id": "test",
-                "trajectory": [[0.0, 0.0], [0.5, 0.3]],
-            },
-            metadata={"request_id": "req_exec"},
-        ))
+        bus.publish(
+            Event(
+                topic="agent.command",
+                payload={
+                    "action": "execute_trajectory",
+                    "robot_id": "test",
+                    "trajectory": [[0.0, 0.0], [0.5, 0.3]],
+                },
+                metadata={"request_id": "req_exec"},
+            )
+        )
         assert len(responses) == 1
         assert responses[0]["request_id"] == "req_exec"
         validator.stop()
@@ -207,10 +224,12 @@ class TestFirewallValidatorCheckLayers:
         validator.initialize()
         responses = []
         bus.subscribe("agent.response", lambda e: responses.append(e))
-        bus.publish(Event(
-            topic="agent.command",
-            payload={"action": "grasp_object", "robot_id": "test"},
-        ))
+        bus.publish(
+            Event(
+                topic="agent.command",
+                payload={"action": "grasp_object", "robot_id": "test"},
+            )
+        )
         assert len(responses) == 0
         validator.stop()
 
@@ -225,15 +244,17 @@ class TestFirewallValidatorCheckLayers:
         bus.subscribe("agent.response", lambda e: responses.append(e))
         bus.subscribe("safety.violation", lambda e: violations.append(e))
         bus.subscribe("firewall.action_blocked", lambda e: blocked_events.append(e))
-        bus.publish(Event(
-            topic="agent.command",
-            payload={
-                "action": "move_joints",
-                "robot_id": "test",
-                "trajectory": [[10.0, 10.0]],
-            },
-            metadata={"request_id": "req_block"},
-        ))
+        bus.publish(
+            Event(
+                topic="agent.command",
+                payload={
+                    "action": "move_joints",
+                    "robot_id": "test",
+                    "trajectory": [[10.0, 10.0]],
+                },
+                metadata={"request_id": "req_block"},
+            )
+        )
         assert len(responses) == 1
         assert responses[0].payload["is_safe"] is False
         assert len(violations) == 1
@@ -274,7 +295,8 @@ class TestCheckEURDFLimitsEdgeCases:
         validator = FirewallValidator(model, bus)
         validator.initialize()
         req = ValidationRequest(
-            request_id="r1", robot_id="bot",
+            request_id="r1",
+            robot_id="bot",
             trajectory=[[0.0, 0.0], [2.0, -1.0]],
         )
         v = validator._check_eurdf_limits(req)
@@ -288,7 +310,8 @@ class TestCheckEURDFLimitsEdgeCases:
         validator = FirewallValidator(model, bus)
         validator.initialize()
         req = ValidationRequest(
-            request_id="r1", robot_id="bot",
+            request_id="r1",
+            robot_id="bot",
             trajectory=[[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]],
         )
         v = validator._check_eurdf_limits(req)
@@ -303,7 +326,8 @@ class TestCheckSemanticSafetyVelocity:
         validator = FirewallValidator(model, bus)
         validator.initialize()
         req = ValidationRequest(
-            request_id="r1", robot_id="bot",
+            request_id="r1",
+            robot_id="bot",
             trajectory=[[0.0, 0.0], [0.1, 0.1]],
             duration_per_waypoint=[1.0, 1.0],
         )
@@ -317,7 +341,8 @@ class TestCheckSemanticSafetyVelocity:
         validator = FirewallValidator(model, bus)
         validator.initialize()
         req = ValidationRequest(
-            request_id="r1", robot_id="bot",
+            request_id="r1",
+            robot_id="bot",
             trajectory=[[0.0, 0.0], [10.0, 0.0]],
             duration_per_waypoint=[1.0, 0.1],
         )
@@ -333,7 +358,8 @@ class TestCheckSemanticSafetyVelocity:
         validator = FirewallValidator(model, bus)
         validator.initialize()
         req = ValidationRequest(
-            request_id="r1", robot_id="bot",
+            request_id="r1",
+            robot_id="bot",
             trajectory=[[0.0, 0.0]],
         )
         v, w = validator._check_semantic_safety(req)
@@ -346,7 +372,8 @@ class TestCheckSemanticSafetyVelocity:
         validator = FirewallValidator(model, bus)
         validator.initialize()
         req = ValidationRequest(
-            request_id="r1", robot_id="bot",
+            request_id="r1",
+            robot_id="bot",
             trajectory=[[0.0, 0.0], [10.0, 0.0]],
             duration_per_waypoint=[0.0, 0.0],
         )

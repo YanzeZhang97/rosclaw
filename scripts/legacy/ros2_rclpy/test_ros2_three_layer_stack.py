@@ -51,12 +51,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 class TrajectorySubscriber:
     def __init__(self, node_name: str):
@@ -70,10 +72,12 @@ class TrajectorySubscriber:
         )
 
     def _callback(self, msg):
-        self.received.append({
-            "joint_names": list(msg.joint_names),
-            "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
-        })
+        self.received.append(
+            {
+                "joint_names": list(msg.joint_names),
+                "points": [(list(p.positions), p.time_from_start.sec) for p in msg.points],
+            }
+        )
 
     def destroy(self):
         self.node.destroy_node()
@@ -99,6 +103,7 @@ def next_name(base: str) -> str:
 # Tests
 # ------------------------------------------------------------------
 
+
 @test("Runtime receives EventBus event, routes to ROS2Driver")
 def test_eventbus_to_driver():
     """Simulate MCPHub sending command through EventBus to Runtime to Driver."""
@@ -123,15 +128,17 @@ def test_eventbus_to_driver():
     # Simulate MCPHub publishing a move command through EventBus
     # (In real flow, MCPHub would call Runtime API; here we use EventBus
     #  to demonstrate the event pipeline)
-    runtime.event_bus.publish(Event(
-        topic="agent.command",
-        payload={
-            "action": "move_joints",
-            "positions": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-            "duration": 2.0,
-        },
-        source="mcphub",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="agent.command",
+            payload={
+                "action": "move_joints",
+                "positions": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+                "duration": 2.0,
+            },
+            source="mcphub",
+        )
+    )
 
     # Direct driver call (the EventBus handler in Runtime doesn't directly
     # call driver.move_joints; this tests the Runtime+Driver integration)
@@ -164,11 +171,13 @@ def test_safety_violation_three_layer():
     runtime.register_driver("ros2", driver)
 
     # Simulate a safety violation from any layer
-    runtime.event_bus.publish(Event(
-        topic="safety.violation",
-        payload={"description": "collision detected", "severity": "high"},
-        source="sandbox",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="safety.violation",
+            payload={"description": "collision detected", "severity": "high"},
+            source="sandbox",
+        )
+    )
     time.sleep(0.2)
 
     # Runtime's _on_safety_violation publishes robot.emergency_stop
@@ -201,11 +210,13 @@ def test_multi_driver_eventbus():
     runtime.register_driver("bot_b", driver_b)
 
     # Emergency stop should affect ALL drivers
-    runtime.event_bus.publish(Event(
-        topic="robot.emergency_stop",
-        payload={"reason": "fleet halt"},
-        source="operator",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="robot.emergency_stop",
+            payload={"reason": "fleet halt"},
+            source="operator",
+        )
+    )
     time.sleep(0.2)
 
     assert driver_a.get_state().error_code == 99
@@ -264,6 +275,7 @@ def test_full_trajectory_pipeline():
 
     # Execute trajectory through driver
     from rosclaw.mcp_drivers.base import TrajectoryCommand
+
     traj = TrajectoryCommand(
         waypoints=[[0.0] * 6, [0.2] * 6, [0.4] * 6],
         times=[0.0, 1.0, 2.0],
@@ -284,6 +296,7 @@ def test_full_trajectory_pipeline():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     if not rclpy.ok():

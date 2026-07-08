@@ -16,19 +16,14 @@ class RuntimeAdapter(ABC):
         self._started = False
 
     @abstractmethod
-    async def start(self) -> None:
-        ...
+    async def start(self) -> None: ...
 
     @abstractmethod
-    async def stop(self) -> None:
-        ...
+    async def stop(self) -> None: ...
 
     @abstractmethod
-    async def invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
-        ...
+    async def invoke(self, payload: dict[str, Any]) -> dict[str, Any]: ...
 
     def ensure_started(self) -> None:
         if not self._started:
-            raise RuntimeError(
-                f"RuntimeAdapter '{self.name}' is not started. Call start() first."
-            )
+            raise RuntimeError(f"RuntimeAdapter '{self.name}' is not started. Call start() first.")

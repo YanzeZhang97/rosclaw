@@ -52,7 +52,11 @@ class EurdfProfile:
         capability_hints: dict[str, list[str]] = {}
         if capability.capabilities:
             capability_hints["all"] = sorted(
-                {c.get("id") or c.get("name", "") for c in capability.capabilities if c.get("id") or c.get("name")}
+                {
+                    c.get("id") or c.get("name", "")
+                    for c in capability.capabilities
+                    if c.get("id") or c.get("name")
+                }
             )
 
         forbidden_capabilities: list[dict[str, Any]] = []
@@ -70,9 +74,7 @@ class EurdfProfile:
         if simulation.backends:
             sandbox["preferred_engine"] = next(iter(simulation.backends.keys()))
 
-        robot_class = _infer_robot_class(
-            profile.robot_id, embodiment.dof, capability.capabilities
-        )
+        robot_class = _infer_robot_class(profile.robot_id, embodiment.dof, capability.capabilities)
         identity = getattr(profile, "identity", {}) or {}
         if identity.get("robot_class"):
             robot_class = identity["robot_class"]

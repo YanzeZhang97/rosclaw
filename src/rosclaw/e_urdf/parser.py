@@ -35,6 +35,7 @@ import numpy as np
 @dataclass(init=False)
 class JointSpec:
     """Specification for a robot joint."""
+
     name: str
     joint_type: str  # revolute, prismatic, fixed, etc.
     parent: str
@@ -81,6 +82,7 @@ class JointSpec:
 @dataclass
 class LinkSpec:
     """Specification for a robot link."""
+
     name: str
     visual_mesh: str | None = None
     collision_mesh: str | None = None
@@ -95,6 +97,7 @@ class LinkSpec:
 @dataclass
 class SensorSpec:
     """Specification for a robot sensor."""
+
     name: str
     sensor_type: str
     parent_link: str
@@ -110,6 +113,7 @@ class RobotModel:
     This is the Physical DNA - the complete description of
     the robot's form, function, and capabilities.
     """
+
     name: str
     joints: dict[str, JointSpec] = field(default_factory=dict)
     links: dict[str, LinkSpec] = field(default_factory=dict)
@@ -122,10 +126,7 @@ class RobotModel:
 
     def get_actuated_joints(self) -> list[str]:
         """Get joints that can be actuated (not fixed)."""
-        return [
-            name for name, joint in self.joints.items()
-            if joint.joint_type != "fixed"
-        ]
+        return [name for name, joint in self.joints.items() if joint.joint_type != "fixed"]
 
     def get_joint_limits(self) -> dict[str, tuple[float, float]]:
         """Get position limits for all actuated joints."""
@@ -246,11 +247,25 @@ class EURDFParser:
                 link.mass = float(mass.get("value", 0))
             inertia = inertial.find("inertia")
             if inertia is not None:
-                link.inertia = np.array([
-                    [float(inertia.get("ixx", 1)), float(inertia.get("ixy", 0)), float(inertia.get("ixz", 0))],
-                    [float(inertia.get("ixy", 0)), float(inertia.get("iyy", 1)), float(inertia.get("iyz", 0))],
-                    [float(inertia.get("ixz", 0)), float(inertia.get("iyz", 0)), float(inertia.get("izz", 1))],
-                ])
+                link.inertia = np.array(
+                    [
+                        [
+                            float(inertia.get("ixx", 1)),
+                            float(inertia.get("ixy", 0)),
+                            float(inertia.get("ixz", 0)),
+                        ],
+                        [
+                            float(inertia.get("ixy", 0)),
+                            float(inertia.get("iyy", 1)),
+                            float(inertia.get("iyz", 0)),
+                        ],
+                        [
+                            float(inertia.get("ixz", 0)),
+                            float(inertia.get("iyz", 0)),
+                            float(inertia.get("izz", 1)),
+                        ],
+                    ]
+                )
 
         # e-URDF extensions: semantic annotations
         semantic = elem.find("semantic")
@@ -258,15 +273,17 @@ class EURDFParser:
             for tag in semantic.findall("tag"):
                 link.semantic_tags.append(tag.get("name", ""))
             for grasp in semantic.findall("grasp_point"):
-                link.grasp_points.append({
-                    "name": grasp.get("name", ""),
-                    "position": [
-                        float(grasp.get("x", 0)),
-                        float(grasp.get("y", 0)),
-                        float(grasp.get("z", 0)),
-                    ],
-                    "approach": grasp.get("approach", "top"),
-                })
+                link.grasp_points.append(
+                    {
+                        "name": grasp.get("name", ""),
+                        "position": [
+                            float(grasp.get("x", 0)),
+                            float(grasp.get("y", 0)),
+                            float(grasp.get("z", 0)),
+                        ],
+                        "approach": grasp.get("approach", "top"),
+                    }
+                )
 
         self.model.links[name] = link
 
@@ -381,11 +398,13 @@ class EURDFParser:
         cp, sp = np.cos(pitch), np.sin(pitch)
         cy, sy = np.cos(yaw), np.sin(yaw)
 
-        rot = np.array([  # noqa: N806
-            [cy*cp, cy*sp*sr - sy*cr, cy*sp*cr + sy*sr],  # noqa: E226
-            [sy*cp, sy*sp*sr + cy*cr, sy*sp*cr - cy*sr],  # noqa: E226
-            [-sp, cp*sr, cp*cr],  # noqa: E226
-        ])
+        rot = np.array(
+            [  # noqa: N806
+                [cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr],  # noqa: E226
+                [sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr],  # noqa: E226
+                [-sp, cp * sr, cp * cr],  # noqa: E226
+            ]
+        )
 
         transform = np.eye(4)
         transform[:3, :3] = rot

@@ -92,9 +92,7 @@ def _make_provider(
 
         import yaml
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as tmp:
             yaml.safe_dump(robot_spec, tmp)
         manifest.extra["robot_spec_path"] = tmp.name
 
@@ -132,6 +130,7 @@ def _pretty_print(payload: dict[str, Any]) -> None:
 # ------------------------------------------------------------------
 # Subcommand handlers
 # ------------------------------------------------------------------
+
 
 def cmd_ros_ping(args: argparse.Namespace) -> int:
     """Ping a rosbridge endpoint."""
@@ -177,12 +176,10 @@ def cmd_ros_discover(args: argparse.Namespace) -> int:
             "ros_version": snapshot.ros_version,
             "distro": snapshot.distro,
             "topics": [
-                {"name": t.name, "type": t.msg_type, "risk": t.risk_hint}
-                for t in snapshot.topics
+                {"name": t.name, "type": t.msg_type, "risk": t.risk_hint} for t in snapshot.topics
             ],
             "services": [
-                {"name": s.name, "type": s.srv_type, "risk": s.risk_hint}
-                for s in snapshot.services
+                {"name": s.name, "type": s.srv_type, "risk": s.risk_hint} for s in snapshot.services
             ],
             "actions": [
                 {"name": a.name, "type": a.action_type, "risk": a.risk_hint}
@@ -194,7 +191,9 @@ def cmd_ros_discover(args: argparse.Namespace) -> int:
         if getattr(args, "out", None):
             out_path = Path(args.out)
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_text(json.dumps(snapshot.to_dict(), indent=2, default=str), encoding="utf-8")
+            out_path.write_text(
+                json.dumps(snapshot.to_dict(), indent=2, default=str), encoding="utf-8"
+            )
             payload["output_path"] = str(out_path.resolve())
         return _maybe_json(args, payload)
     except Exception as exc:
@@ -244,7 +243,12 @@ def cmd_ros_compile(args: argparse.Namespace) -> int:
     except Exception as exc:
         return _maybe_json(
             args,
-            {"ok": False, "action": "compile", "endpoint": getattr(args, "endpoint", None), "error": str(exc)},
+            {
+                "ok": False,
+                "action": "compile",
+                "endpoint": getattr(args, "endpoint", None),
+                "error": str(exc),
+            },
         )
 
 
@@ -283,7 +287,11 @@ def cmd_ros_list_capabilities(args: argparse.Namespace) -> int:
     if manifest is None:
         return _maybe_json(
             args,
-            {"ok": False, "action": "list_capabilities", "error": "No manifest loaded and live discovery failed."},
+            {
+                "ok": False,
+                "action": "list_capabilities",
+                "error": "No manifest loaded and live discovery failed.",
+            },
         )
 
     return _maybe_json(
@@ -604,6 +612,7 @@ def cmd_doctor_ros(args: argparse.Namespace | None = None) -> int:
 # Argument parsing
 # ------------------------------------------------------------------
 
+
 def add_ros_subparser(subparsers: argparse._SubParsersAction) -> argparse.ArgumentParser:
     """Register the ``ros`` subcommand tree on the main parser."""
     ros_parser = subparsers.add_parser("ros", help="ROS bridge commands")
@@ -625,10 +634,14 @@ def add_ros_subparser(subparsers: argparse._SubParsersAction) -> argparse.Argume
     discover_parser.add_argument("--out", default=None, help="Write graph snapshot to file")
 
     # compile
-    compile_parser = ros_subparsers.add_parser("compile", help="Compile CapabilityManifest from ROS graph")
+    compile_parser = ros_subparsers.add_parser(
+        "compile", help="Compile CapabilityManifest from ROS graph"
+    )
     _add_common(compile_parser)
     compile_parser.add_argument("--output", "-o", default=None, help="Write manifest to file")
-    compile_parser.add_argument("--graph", default=None, help="Use a saved graph snapshot instead of live discovery")
+    compile_parser.add_argument(
+        "--graph", default=None, help="Use a saved graph snapshot instead of live discovery"
+    )
 
     # list-capabilities
     list_parser = ros_subparsers.add_parser("list-capabilities", help="List compiled capabilities")
@@ -642,7 +655,9 @@ def add_ros_subparser(subparsers: argparse._SubParsersAction) -> argparse.Argume
     inspect_parser.add_argument("capability_id", help="Capability id")
 
     # validate-capability
-    validate_parser = ros_subparsers.add_parser("validate-capability", help="Validate args against safety contract")
+    validate_parser = ros_subparsers.add_parser(
+        "validate-capability", help="Validate args against safety contract"
+    )
     _add_common(validate_parser)
     validate_parser.add_argument("--manifest", default=None, help="Load manifest from file")
     validate_parser.add_argument("capability_id", help="Capability id")
@@ -666,6 +681,7 @@ def add_ros_subparser(subparsers: argparse._SubParsersAction) -> argparse.Argume
 # ------------------------------------------------------------------
 # Dispatch
 # ------------------------------------------------------------------
+
 
 def dispatch_ros_command(args: argparse.Namespace) -> int:
     """Dispatch the selected ``ros`` subcommand."""

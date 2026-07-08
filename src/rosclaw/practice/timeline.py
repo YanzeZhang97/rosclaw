@@ -25,6 +25,7 @@ logger = logging.getLogger("rosclaw.practice.timeline")
 
 class TimelineChannel(Enum):
     """Channels on the unified timeline."""
+
     LLM_REASONING = "llm_reasoning"
     AGENT_COMMAND = "agent_command"
     FIREWALL_RESULT = "firewall_result"
@@ -38,6 +39,7 @@ class TimelineChannel(Enum):
 @dataclass
 class TimelineEntry:
     """Single entry on the unified timeline."""
+
     timestamp_ns: int
     channel: TimelineChannel
     sequence: int
@@ -107,17 +109,21 @@ class UnifiedTimeline(LifecycleMixin):
                 logger.warning("mcap not available, using JSONL only")
                 self._enable_mcap = False
 
-        logger.info("Initialized for %s, MCAP=%s, buffer_size=%s",
-                    self._robot_id,
-                    'enabled' if self._enable_mcap else 'disabled',
-                    self._buffer_size)
+        logger.info(
+            "Initialized for %s, MCAP=%s, buffer_size=%s",
+            self._robot_id,
+            "enabled" if self._enable_mcap else "disabled",
+            self._buffer_size,
+        )
 
     def _do_start(self) -> None:
-        self._event_bus.publish(Event(
-            topic="timeline.status",
-            payload={"state": "running", "robot_id": self._robot_id},
-            source="unified_timeline",
-        ))
+        self._event_bus.publish(
+            Event(
+                topic="timeline.status",
+                payload={"state": "running", "robot_id": self._robot_id},
+                source="unified_timeline",
+            )
+        )
 
     def _do_stop(self) -> None:
         self._flush_pending_praxis()
@@ -125,8 +131,11 @@ class UnifiedTimeline(LifecycleMixin):
             self._mcap_writer = None
 
     def _on_agent_command(self, event: Event) -> None:
-        self._record(TimelineChannel.AGENT_COMMAND, event.payload,
-                     correlation_id=event.metadata.get("request_id"))
+        self._record(
+            TimelineChannel.AGENT_COMMAND,
+            event.payload,
+            correlation_id=event.metadata.get("request_id"),
+        )
 
     def _on_praxis_completed(self, event: Event) -> None:
         payload = event.payload
@@ -135,8 +144,9 @@ class UnifiedTimeline(LifecycleMixin):
         related_entries = [e for e in self._entries if e.correlation_id == correlation_id]
         llm_entries = [e for e in related_entries if e.channel == TimelineChannel.LLM_REASONING]
         cmd_entries = [e for e in related_entries if e.channel == TimelineChannel.AGENT_COMMAND]
-        sensor_entries = [e for e in self._sensorimotor_buffer
-                          if e.correlation_id == correlation_id]
+        sensor_entries = [
+            e for e in self._sensorimotor_buffer if e.correlation_id == correlation_id
+        ]
 
         cot_trace = []
         for e in llm_entries:
@@ -158,47 +168,61 @@ class UnifiedTimeline(LifecycleMixin):
             error_details=None,
             duration_sec=payload.get("duration_sec", 0.0),
             metadata={
-                "firewall_results": [e.data for e in related_entries
-                                     if e.channel == TimelineChannel.FIREWALL_RESULT],
+                "firewall_results": [
+                    e.data for e in related_entries if e.channel == TimelineChannel.FIREWALL_RESULT
+                ],
                 "sensorimotor_count": len(sensor_entries),
                 "timeline_entries": len(related_entries),
             },
         )
 
-        self._record(TimelineChannel.PRAXIS_EVENT, {
-            "event_id": praxis_event.event_id,
-            "event_type": praxis_event.event_type,
-            "trajectory_waypoints": len(praxis_event.trajectory),
-            "cot_steps": len(praxis_event.cot_trace),
-        }, correlation_id=correlation_id)
-
-        self._event_bus.publish(Event(
-            topic="praxis.recorded",
-            payload={
+        self._record(
+            TimelineChannel.PRAXIS_EVENT,
+            {
                 "event_id": praxis_event.event_id,
                 "event_type": praxis_event.event_type,
-                "robot_id": praxis_event.robot_id,
-                "duration_sec": praxis_event.duration_sec,
                 "trajectory_waypoints": len(praxis_event.trajectory),
                 "cot_steps": len(praxis_event.cot_trace),
-                "sensorimotor_samples": len(sensor_entries),
             },
-            source="unified_timeline",
-            priority=EventPriority.NORMAL,
-        ))
+            correlation_id=correlation_id,
+        )
+
+        self._event_bus.publish(
+            Event(
+                topic="praxis.recorded",
+                payload={
+                    "event_id": praxis_event.event_id,
+                    "event_type": praxis_event.event_type,
+                    "robot_id": praxis_event.robot_id,
+                    "duration_sec": praxis_event.duration_sec,
+                    "trajectory_waypoints": len(praxis_event.trajectory),
+                    "cot_steps": len(praxis_event.cot_trace),
+                    "sensorimotor_samples": len(sensor_entries),
+                },
+                source="unified_timeline",
+                priority=EventPriority.NORMAL,
+            )
+        )
 
         self._export_timeline(correlation_id, related_entries, sensor_entries)
 
     def _on_praxis_failed(self, event: Event) -> None:
         correlation_id = event.payload.get("correlation_id", "unknown")
-        self._record(TimelineChannel.PRAXIS_EVENT, {
-            "event_type": "failure",
-            "error": event.payload.get("error", "unknown"),
-        }, correlation_id=correlation_id)
+        self._record(
+            TimelineChannel.PRAXIS_EVENT,
+            {
+                "event_type": "failure",
+                "error": event.payload.get("error", "unknown"),
+            },
+            correlation_id=correlation_id,
+        )
 
     def _on_skill_event(self, event: Event) -> None:
-        self._record(TimelineChannel.SKILL_EXECUTION, event.payload,
-                     correlation_id=event.payload.get("skill_name"))
+        self._record(
+            TimelineChannel.SKILL_EXECUTION,
+            event.payload,
+            correlation_id=event.payload.get("skill_name"),
+        )
 
     def _on_swarm_message(self, event: Event) -> None:
         self._record(TimelineChannel.SWARM_MESSAGE, event.payload)
@@ -226,7 +250,7 @@ class UnifiedTimeline(LifecycleMixin):
         self._sensorimotor_buffer.append(entry)
 
         if len(self._sensorimotor_buffer) > self._sensorimotor_max:
-            self._sensorimotor_buffer = self._sensorimotor_buffer[-self._sensorimotor_max:]
+            self._sensorimotor_buffer = self._sensorimotor_buffer[-self._sensorimotor_max :]
 
     def record_llm_reasoning(
         self,
@@ -235,10 +259,14 @@ class UnifiedTimeline(LifecycleMixin):
         correlation_id: str,
     ) -> None:
         """Record LLM Chain-of-Thought on the timeline."""
-        self._record(TimelineChannel.LLM_REASONING, {
-            "instruction": instruction,
-            "reasoning_steps": reasoning_steps,
-        }, correlation_id=correlation_id)
+        self._record(
+            TimelineChannel.LLM_REASONING,
+            {
+                "instruction": instruction,
+                "reasoning_steps": reasoning_steps,
+            },
+            correlation_id=correlation_id,
+        )
 
     def record_agent_command(
         self,
@@ -253,10 +281,14 @@ class UnifiedTimeline(LifecycleMixin):
             joint_positions: Joint position values for the command
             correlation_id: Optional correlation ID for grouping related entries
         """
-        self._record(TimelineChannel.AGENT_COMMAND, {
-            "action": action,
-            "joint_positions": joint_positions,
-        }, correlation_id=correlation_id)
+        self._record(
+            TimelineChannel.AGENT_COMMAND,
+            {
+                "action": action,
+                "joint_positions": joint_positions,
+            },
+            correlation_id=correlation_id,
+        )
 
     def export_session(self, correlation_id: str) -> Path:
         """Manually export a session's timeline and sensorimotor data.
@@ -272,7 +304,9 @@ class UnifiedTimeline(LifecycleMixin):
             This method allows manual export for incomplete or in-progress sessions.
         """
         entries = [e for e in self._entries if e.correlation_id == correlation_id]
-        sensor_entries = [e for e in self._sensorimotor_buffer if e.correlation_id == correlation_id]
+        sensor_entries = [
+            e for e in self._sensorimotor_buffer if e.correlation_id == correlation_id
+        ]
 
         if not entries and not sensor_entries:
             raise ValueError(f"No timeline entries found for session '{correlation_id}'")
@@ -297,7 +331,7 @@ class UnifiedTimeline(LifecycleMixin):
         self._entries.append(entry)
 
         if len(self._entries) > self._buffer_size:
-            self._entries = self._entries[-self._buffer_size:]
+            self._entries = self._entries[-self._buffer_size :]
 
     def _export_timeline(
         self,
@@ -327,8 +361,10 @@ class UnifiedTimeline(LifecycleMixin):
                 timestamps=timestamps,
             )
 
-        print(f"[UnifiedTimeline] Exported {len(entries)} events + "
-              f"{len(sensor_entries)} sensorimotor samples to {session_dir}")
+        print(
+            f"[UnifiedTimeline] Exported {len(entries)} events + "
+            f"{len(sensor_entries)} sensorimotor samples to {session_dir}"
+        )
 
     def record(self, event_type: str = "praxis", **kwargs: Any) -> None:
         """Convenience method to record a generic event on the timeline.
@@ -336,20 +372,22 @@ class UnifiedTimeline(LifecycleMixin):
         Publishes a ``praxis.completed`` event so that Memory auto-ingests
         the experience and the timeline exports the session.
         """
-        self._event_bus.publish(Event(
-            topic="praxis.completed",
-            payload={
-                "event_id": kwargs.get("event_id", f"evt_{time.time_ns()}"),
-                "event_type": event_type,
-                "correlation_id": kwargs.get("correlation_id"),
-                "instruction": kwargs.get("instruction", ""),
-                "initial_state": kwargs.get("initial_state"),
-                "final_state": kwargs.get("final_state"),
-                "duration_sec": kwargs.get("duration_sec", 0.0),
-            },
-            source="unified_timeline",
-            priority=EventPriority.NORMAL,
-        ))
+        self._event_bus.publish(
+            Event(
+                topic="praxis.completed",
+                payload={
+                    "event_id": kwargs.get("event_id", f"evt_{time.time_ns()}"),
+                    "event_type": event_type,
+                    "correlation_id": kwargs.get("correlation_id"),
+                    "instruction": kwargs.get("instruction", ""),
+                    "initial_state": kwargs.get("initial_state"),
+                    "final_state": kwargs.get("final_state"),
+                    "duration_sec": kwargs.get("duration_sec", 0.0),
+                },
+                source="unified_timeline",
+                priority=EventPriority.NORMAL,
+            )
+        )
 
     def _flush_pending_praxis(self) -> None:
         for cid, _state in self._pending_praxis.items():

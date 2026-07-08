@@ -48,15 +48,11 @@ class ProviderRegistry:
         try:
             from rosclaw.core.event_bus import Event
 
-            self._event_bus.publish(
-                Event(topic=topic, payload=payload, source="provider_registry")
-            )
+            self._event_bus.publish(Event(topic=topic, payload=payload, source="provider_registry"))
         except Exception:
             pass
 
-    def _publish_health_changed(
-        self, name: str, ok: bool, reason: str = ""
-    ) -> None:
+    def _publish_health_changed(self, name: str, ok: bool, reason: str = "") -> None:
         """Publish provider_health_changed event."""
         self._publish_event(
             "provider_health_changed",
@@ -116,6 +112,7 @@ class ProviderRegistry:
     def _load_provider(self, provider: Provider) -> None:
         """Load a provider, handling both sync and async calling contexts."""
         from rosclaw.core.async_utils import run_sync
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -150,6 +147,7 @@ class ProviderRegistry:
     def unregister(self, name: str) -> None:
         """Unregister and unload a provider."""
         from rosclaw.core.async_utils import run_sync
+
         provider = self._providers.pop(name, None)
         if provider is not None:
             try:
@@ -227,10 +225,7 @@ class ProviderRegistry:
 
     def find_by_type(self, provider_type: str) -> list[Provider]:
         """Find all providers of a given type (llm, vlm, skill, etc.)."""
-        return [
-            p for p in self._providers.values()
-            if p.manifest.type == provider_type
-        ]
+        return [p for p in self._providers.values() if p.manifest.type == provider_type]
 
     # ------------------------------------------------------------------
     # Health
@@ -262,8 +257,10 @@ class ProviderRegistry:
             *(self.check_health(n) for n in names),
             return_exceptions=True,
         )
-        return {n: (r if not isinstance(r, Exception) else {"ok": False, "error": str(r)})
-                for n, r in zip(names, results, strict=False)}
+        return {
+            n: (r if not isinstance(r, Exception) else {"ok": False, "error": str(r)})
+            for n, r in zip(names, results, strict=False)
+        }
 
     def _is_healthy(self, name: str) -> bool:
         health = self._health.get(name, {})

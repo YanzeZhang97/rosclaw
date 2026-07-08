@@ -75,30 +75,36 @@ def provider_registry():
 
 @pytest.fixture
 def mock_providers():
-    vlm_manifest = ProviderManifest.from_dict({
-        "name": "mock_vlm",
-        "version": "0.1.0",
-        "type": "vlm",
-        "capabilities": ["vlm.object_grounding", "vlm.scene_understanding"],
-        "embodiment": {"supported_robots": ["universal_robots_ur5e", "unitree_go2"]},
-        "safety": {"executable": False, "requires_guard": True},
-    })
-    skill_manifest = ProviderManifest.from_dict({
-        "name": "mock_skill",
-        "version": "0.1.0",
-        "type": "skill",
-        "capabilities": ["skill.pick_and_place", "skill.push"],
-        "embodiment": {"supported_robots": ["universal_robots_ur5e"]},
-        "safety": {"executable": True, "requires_guard": True},
-    })
-    unsafe_manifest = ProviderManifest.from_dict({
-        "name": "mock_unsafe",
-        "version": "0.1.0",
-        "type": "skill",
-        "capabilities": ["skill.pick_and_place"],
-        "embodiment": {"supported_robots": []},
-        "safety": {"executable": True, "requires_guard": False},
-    })
+    vlm_manifest = ProviderManifest.from_dict(
+        {
+            "name": "mock_vlm",
+            "version": "0.1.0",
+            "type": "vlm",
+            "capabilities": ["vlm.object_grounding", "vlm.scene_understanding"],
+            "embodiment": {"supported_robots": ["universal_robots_ur5e", "unitree_go2"]},
+            "safety": {"executable": False, "requires_guard": True},
+        }
+    )
+    skill_manifest = ProviderManifest.from_dict(
+        {
+            "name": "mock_skill",
+            "version": "0.1.0",
+            "type": "skill",
+            "capabilities": ["skill.pick_and_place", "skill.push"],
+            "embodiment": {"supported_robots": ["universal_robots_ur5e"]},
+            "safety": {"executable": True, "requires_guard": True},
+        }
+    )
+    unsafe_manifest = ProviderManifest.from_dict(
+        {
+            "name": "mock_unsafe",
+            "version": "0.1.0",
+            "type": "skill",
+            "capabilities": ["skill.pick_and_place"],
+            "embodiment": {"supported_robots": []},
+            "safety": {"executable": True, "requires_guard": False},
+        }
+    )
     return {
         "vlm": MockVLMProvider(vlm_manifest),
         "skill": MockSkillProvider(skill_manifest),
@@ -109,7 +115,9 @@ def mock_providers():
 
 class TestProviderEURDFIntegration:
     @pytest.mark.asyncio
-    async def test_provider_registry_reads_robot_capabilities(self, robot_registry, provider_registry, mock_providers):
+    async def test_provider_registry_reads_robot_capabilities(
+        self, robot_registry, provider_registry, mock_providers
+    ):
         profile = robot_registry.install("ur5e")
         cap_names = [c["name"] for c in profile.capability.capabilities]
         reg = provider_registry
@@ -145,7 +153,9 @@ class TestProviderEURDFIntegration:
         assert decision.selected_provider == "mock_vlm"
 
     @pytest.mark.asyncio
-    async def test_capability_router_rejects_unsupported_robot(self, robot_registry, mock_providers):
+    async def test_capability_router_rejects_unsupported_robot(
+        self, robot_registry, mock_providers
+    ):
         reg = ProviderRegistry()
         reg._providers["mock_skill"] = mock_providers["skill"]
         reg._health["mock_skill"] = {"ok": True}
@@ -161,7 +171,9 @@ class TestProviderEURDFIntegration:
             await router.route(request)
 
     @pytest.mark.asyncio
-    async def test_safety_level_strict_prefers_guarded_providers(self, robot_registry, mock_providers):
+    async def test_safety_level_strict_prefers_guarded_providers(
+        self, robot_registry, mock_providers
+    ):
         reg = ProviderRegistry()
         reg._providers["mock_skill"] = mock_providers["skill"]
         reg._health["mock_skill"] = {"ok": True}
@@ -243,7 +255,9 @@ class TestProviderSafetyIntegration:
                         provider=self.name,
                         capability=request.capability,
                         status="blocked",
-                        errors=[f"Requested force {requested_force}N exceeds robot limit {max_force}N"],
+                        errors=[
+                            f"Requested force {requested_force}N exceeds robot limit {max_force}N"
+                        ],
                     )
                 return ProviderResponse(
                     request_id=request.request_id,
@@ -253,12 +267,14 @@ class TestProviderSafetyIntegration:
                     status="ok",
                 )
 
-        manifest = ProviderManifest.from_dict({
-            "name": "force_guard",
-            "version": "0.1.0",
-            "type": "skill",
-            "capabilities": ["skill.force_compliant_insert"],
-        })
+        manifest = ProviderManifest.from_dict(
+            {
+                "name": "force_guard",
+                "version": "0.1.0",
+                "type": "skill",
+                "capabilities": ["skill.force_compliant_insert"],
+            }
+        )
         provider = ForceLimitGuardProvider(manifest)
         safe_request = ProviderRequest(
             request_id="req_safe",

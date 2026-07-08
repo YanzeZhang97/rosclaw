@@ -50,7 +50,9 @@ def test_coordinator_publishes_session_events_on_event_bus():
         bus = EventBus()
         received = []
         bus.subscribe("practice.session_started", lambda e: received.append(("started", e.payload)))
-        bus.subscribe("practice.session_finished", lambda e: received.append(("finished", e.payload)))
+        bus.subscribe(
+            "practice.session_finished", lambda e: received.append(("finished", e.payload))
+        )
 
         cfg = PracticeConfig(
             robot_id="test_bot",
@@ -91,4 +93,8 @@ def test_coordinator_catalog_indexed():
         assert record["outcome"] == "SUCCESS"
         # event_count is tracked in the summary, not the practices table
         assert coord.summary.event_count > 0
+        assert (
+            coord.catalog.count_source_events(coord.summary.practice_id)
+            == coord._source_event_count
+        )
         assert coord.catalog.count_events(coord.summary.practice_id) == coord.summary.event_count

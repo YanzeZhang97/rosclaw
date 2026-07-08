@@ -1,7 +1,5 @@
 """Tests for sandbox/events/publisher.py RuntimePublisher."""
 
-
-
 from rosclaw.core.event_bus import EventBus, EventPriority
 from rosclaw.sandbox.events.publisher import RuntimePublisher
 

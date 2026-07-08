@@ -24,6 +24,7 @@ from rosclaw.provider.core.manifest import EmbodimentSpec
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def manifest() -> ProviderManifest:
     return ProviderManifest(
@@ -62,13 +63,16 @@ class DummyProvider(Provider):
 # ProviderManifest
 # ---------------------------------------------------------------------------
 
+
 class TestProviderManifest:
     def test_from_dict_minimal(self):
-        m = ProviderManifest.from_dict({
-            "name": "p",
-            "version": "1.0",
-            "type": "llm",
-        })
+        m = ProviderManifest.from_dict(
+            {
+                "name": "p",
+                "version": "1.0",
+                "type": "llm",
+            }
+        )
         assert m.name == "p"
         assert m.capabilities == []
 
@@ -103,6 +107,7 @@ class TestProviderManifest:
 # ---------------------------------------------------------------------------
 # Provider ABC
 # ---------------------------------------------------------------------------
+
 
 class TestProvider:
     def test_init_from_manifest(self, manifest: ProviderManifest):
@@ -145,9 +150,7 @@ class TestProvider:
     @pytest.mark.asyncio
     async def test_infer_success(self, manifest: ProviderManifest):
         p = DummyProvider(manifest)
-        req = ProviderRequest(
-            request_id="r1", capability="llm.chat", inputs={"text": "hi"}
-        )
+        req = ProviderRequest(request_id="r1", capability="llm.chat", inputs={"text": "hi"})
         resp = await p.infer(req)
         assert resp.is_ok
         assert resp.provider == "test_provider"
@@ -155,9 +158,7 @@ class TestProvider:
     @pytest.mark.asyncio
     async def test_infer_unsupported(self, manifest: ProviderManifest):
         p = DummyProvider(manifest)
-        req = ProviderRequest(
-            request_id="r1", capability="vlm.x", inputs={}
-        )
+        req = ProviderRequest(request_id="r1", capability="vlm.x", inputs={})
         with pytest.raises(CapabilityNotSupportedError):
             await p.infer(req)
 
@@ -165,6 +166,7 @@ class TestProvider:
 # ---------------------------------------------------------------------------
 # ProviderRegistry
 # ---------------------------------------------------------------------------
+
 
 class TestProviderRegistry:
     def test_register_and_get(self, manifest: ProviderManifest):
@@ -255,6 +257,7 @@ class TestProviderRegistry:
 # CapabilityRouter
 # ---------------------------------------------------------------------------
 
+
 class TestCapabilityRouter:
     @pytest.fixture
     def router(self, manifest: ProviderManifest) -> CapabilityRouter:
@@ -272,25 +275,19 @@ class TestCapabilityRouter:
 
     @pytest.mark.asyncio
     async def test_route_no_capability(self, router: CapabilityRouter):
-        req = ProviderRequest(
-            request_id="r1", capability="vlm.x", inputs={}
-        )
+        req = ProviderRequest(request_id="r1", capability="vlm.x", inputs={})
         with pytest.raises(ProviderNotFoundError):
             await router.route(req)
 
     @pytest.mark.asyncio
     async def test_route_unhealthy(self, router: CapabilityRouter):
-        req = ProviderRequest(
-            request_id="r1", capability="llm.chat", inputs={}
-        )
+        req = ProviderRequest(request_id="r1", capability="llm.chat", inputs={})
         with pytest.raises(ProviderUnavailableError):
             await router.route(req)
 
     @pytest.mark.asyncio
     async def test_route_success(self, healthy_router: CapabilityRouter):
-        req = ProviderRequest(
-            request_id="r1", capability="llm.chat", inputs={"text": "hi"}
-        )
+        req = ProviderRequest(request_id="r1", capability="llm.chat", inputs={"text": "hi"})
         decision = await healthy_router.route(req)
         assert isinstance(decision, RouterDecision)
         assert decision.selected_provider == "test_provider"
@@ -298,9 +295,7 @@ class TestCapabilityRouter:
 
     @pytest.mark.asyncio
     async def test_invoke_success(self, healthy_router: CapabilityRouter):
-        req = ProviderRequest(
-            request_id="r1", capability="llm.chat", inputs={"text": "hi"}
-        )
+        req = ProviderRequest(request_id="r1", capability="llm.chat", inputs={"text": "hi"})
         resp = await healthy_router.invoke(req)
         assert resp.is_ok
         assert resp.provider == "test_provider"
@@ -314,7 +309,9 @@ class TestCapabilityRouter:
         reg._health["test_provider"] = {"ok": True}
         # fallback
         m2 = ProviderManifest(
-            name="fallback", version="0.1", type="llm",
+            name="fallback",
+            version="0.1",
+            type="llm",
             capabilities=["llm.chat"],
         )
         p2 = reg.register(m2, lambda m: DummyProvider(m), auto_load=False)
@@ -322,9 +319,7 @@ class TestCapabilityRouter:
         reg._health["fallback"] = {"ok": True}
 
         router = CapabilityRouter(reg)
-        req = ProviderRequest(
-            request_id="r1", capability="llm.chat", inputs={"text": "hi"}
-        )
+        req = ProviderRequest(request_id="r1", capability="llm.chat", inputs={"text": "hi"})
         resp = await router.invoke(req)
         assert resp.is_ok
 
@@ -340,6 +335,7 @@ class TestCapabilityRouter:
 # ---------------------------------------------------------------------------
 # Errors
 # ---------------------------------------------------------------------------
+
 
 class TestProviderErrors:
     def test_provider_error_attrs(self):
@@ -361,6 +357,7 @@ class TestProviderErrors:
 # ---------------------------------------------------------------------------
 # ProviderRequest
 # ---------------------------------------------------------------------------
+
 
 class TestProviderRequest:
     def test_required_fields(self):
@@ -386,6 +383,7 @@ class TestProviderRequest:
 # ---------------------------------------------------------------------------
 # ProviderResponse
 # ---------------------------------------------------------------------------
+
 
 class TestProviderResponse:
     def test_is_ok(self):

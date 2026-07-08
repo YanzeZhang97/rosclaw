@@ -21,6 +21,7 @@ lines: each incoming payload is normalised into one or more
 ``RobotEvent`` objects, then ``reweight_bridge_from_robot_events``
 does the rest.
 """
+
 from __future__ import annotations
 
 import logging
@@ -108,9 +109,16 @@ def _payload_to_robot_events(
 
     # Pass everything else through as `fields` for downstream extractors.
     reserved = {
-        "embodiment_id", "robot_id", "agent_id",
-        "severity", "timestamp", "event_type", "failure_type",
-        "source", "source_id", "fingerprint",
+        "embodiment_id",
+        "robot_id",
+        "agent_id",
+        "severity",
+        "timestamp",
+        "event_type",
+        "failure_type",
+        "source",
+        "source_id",
+        "fingerprint",
     }
     fields = {k: v for k, v in payload.items() if k not in reserved}
 
@@ -168,7 +176,8 @@ class KnowledgeBatchEngine(LifecycleMixin):
         self.assets_path.mkdir(parents=True, exist_ok=True)
         logger.info(
             "[KnowBatch] Initialized; bridge=%s metrics=%s",
-            self.bridge_path, self.metrics_path,
+            self.bridge_path,
+            self.metrics_path,
         )
 
     def _do_start(self) -> None:
@@ -193,9 +202,7 @@ class KnowledgeBatchEngine(LifecycleMixin):
 
     def _ingest(self, event: Event) -> None:
         payload = event.payload if isinstance(event.payload, dict) else {}
-        robot_events = _payload_to_robot_events(
-            payload, default_source=event.source or "runtime"
-        )
+        robot_events = _payload_to_robot_events(payload, default_source=event.source or "runtime")
         if not robot_events:
             return
 
@@ -218,25 +225,29 @@ class KnowledgeBatchEngine(LifecycleMixin):
         # Tell the task-pack adapter its YAML cache is stale.
         try:
             from rosclaw.know.task_pack_adapter import reload_assets
+
             reload_assets()
         except ImportError:
             pass
 
         # Announce.
         if hasattr(self.runtime, "event_bus") and self.runtime.event_bus is not None:
-            self.runtime.event_bus.publish(Event(
-                topic="rosclaw.knowledge.assets_refreshed",
-                payload={
-                    "summary": summary,
-                    "coverage_violations": list(coverage.violations)
-                        if coverage and hasattr(coverage, "violations") else [],
-                    "batches_processed": self._batches_processed,
-                    "source_topic": event.topic,
-                },
-                source="knowledge.batch_engine",
-                priority=EventPriority.NORMAL,
-                trace_id=getattr(event, "trace_id", ""),
-            ))
+            self.runtime.event_bus.publish(
+                Event(
+                    topic="rosclaw.knowledge.assets_refreshed",
+                    payload={
+                        "summary": summary,
+                        "coverage_violations": list(coverage.violations)
+                        if coverage and hasattr(coverage, "violations")
+                        else [],
+                        "batches_processed": self._batches_processed,
+                        "source_topic": event.topic,
+                    },
+                    source="knowledge.batch_engine",
+                    priority=EventPriority.NORMAL,
+                    trace_id=getattr(event, "trace_id", ""),
+                )
+            )
 
     # -- introspection --------------------------------------------------
 

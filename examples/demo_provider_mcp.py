@@ -34,10 +34,13 @@ async def demo_semantic_tools():
 
     # --- observe_scene ---
     print("\n--- observe_scene ---")
-    result = await hub.handle_tool_call("observe_scene", {
-        "image_topic": "/camera/color/image_raw",
-        "query": "What objects are on the table?",
-    })
+    result = await hub.handle_tool_call(
+        "observe_scene",
+        {
+            "image_topic": "/camera/color/image_raw",
+            "query": "What objects are on the table?",
+        },
+    )
     print(f"Status: {result['status']}")
     print(f"Capability: {result['capability']}")
     print(f"Provider: {result['provider']}")
@@ -45,23 +48,29 @@ async def demo_semantic_tools():
 
     # --- locate_object ---
     print("\n--- locate_object ---")
-    result = await hub.handle_tool_call("locate_object", {
-        "object_name": "red cup",
-        "image_topic": "/camera/color/image_raw",
-    })
+    result = await hub.handle_tool_call(
+        "locate_object",
+        {
+            "object_name": "red cup",
+            "image_topic": "/camera/color/image_raw",
+        },
+    )
     print(f"Status: {result['status']}")
     print(f"Capability: {result['capability']}")
     print(f"Provider: {result['provider']}")
-    obj = result['result'].get('objects', [{}])[0]
+    obj = result["result"].get("objects", [{}])[0]
     print(f"Detected: {obj.get('label')} @ bbox={obj.get('bbox_2d')} conf={obj.get('confidence')}")
 
     # --- delegate_skill (grasp) ---
     print("\n--- delegate_skill (grasp) ---")
-    result = await hub.handle_tool_call("delegate_skill", {
-        "skill": "grasp",
-        "target": {"object": "red cup", "bbox": [120, 80, 230, 200]},
-        "constraints": {"force": 0.6, "approach": "top_down"},
-    })
+    result = await hub.handle_tool_call(
+        "delegate_skill",
+        {
+            "skill": "grasp",
+            "target": {"object": "red cup", "bbox": [120, 80, 230, 200]},
+            "constraints": {"force": 0.6, "approach": "top_down"},
+        },
+    )
     print(f"Status: {result['status']}")
     print(f"Capability: {result['capability']}")
     print(f"Provider: {result['provider']}")
@@ -69,19 +78,25 @@ async def demo_semantic_tools():
 
     # --- delegate_skill (pick_and_place) ---
     print("\n--- delegate_skill (pick_and_place) ---")
-    result = await hub.handle_tool_call("delegate_skill", {
-        "skill": "pick_and_place",
-        "target": {"source": "red cup", "destination": "blue bin"},
-    })
+    result = await hub.handle_tool_call(
+        "delegate_skill",
+        {
+            "skill": "pick_and_place",
+            "target": {"source": "red cup", "destination": "blue bin"},
+        },
+    )
     print(f"Status: {result['status']}")
     print(f"Result: {result['result']}")
 
     # --- verify_task_success ---
     print("\n--- verify_task_success ---")
-    result = await hub.handle_tool_call("verify_task_success", {
-        "task_description": "The red cup was placed into the blue bin",
-        "image_topic": "/camera/color/image_raw",
-    })
+    result = await hub.handle_tool_call(
+        "verify_task_success",
+        {
+            "task_description": "The red cup was placed into the blue bin",
+            "image_topic": "/camera/color/image_raw",
+        },
+    )
     print(f"Status: {result['status']}")
     print(f"Capability: {result['capability']}")
     print(f"Success: {result['result'].get('success')}")
@@ -106,10 +121,13 @@ async def demo_low_level_fallback():
 
     # These are the original low-level tools
     print("\n--- move_joints (fallback) ---")
-    result = await hub.handle_tool_call("move_joints", {
-        "joint_positions": [0.1, -0.5, 1.2, -0.8, 0.3, 0.0],
-        "duration": 2.0,
-    })
+    result = await hub.handle_tool_call(
+        "move_joints",
+        {
+            "joint_positions": [0.1, -0.5, 1.2, -0.8, 0.3, 0.0],
+            "duration": 2.0,
+        },
+    )
     print(f"Result: {result}")
 
     print("\n--- grasp (fallback) ---")
@@ -173,7 +191,9 @@ async def demo_registry_stats():
     for name in runtime.provider_registry.list_providers():
         manifest = runtime.provider_registry.get_manifest(name)
         healthy = runtime.provider_registry.is_healthy(name)
-        print(f"  - {name} (type={manifest.type}, capabilities={manifest.capabilities}, healthy={healthy})")
+        print(
+            f"  - {name} (type={manifest.type}, capabilities={manifest.capabilities}, healthy={healthy})"
+        )
 
     runtime.stop()
 
@@ -202,7 +222,9 @@ async def demo_capability_client():
     print(f"Status: {result.status}")
     print("Steps:")
     for step in result.steps:
-        print(f"  - {step['capability']}: {step['status']} (provider={step.get('provider', 'n/a')})")
+        print(
+            f"  - {step['capability']}: {step['status']} (provider={step.get('provider', 'n/a')})"
+        )
     print(f"Trace ID: {result.trace['trace_id']}")
     print(f"Total latency: {result.trace['total_latency_ms']}ms")
     print(f"Final result: {result.final_result}")

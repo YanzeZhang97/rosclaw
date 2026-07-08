@@ -87,30 +87,36 @@ class TestV10ClosedLoop:
 
         # 3. Providers
         provider_reg = ProviderRegistry(event_bus=event_bus)
-        vlm_manifest = ProviderManifest.from_dict({
-            "name": "qwen_vl",
-            "version": "0.1.0",
-            "type": "vlm",
-            "capabilities": ["vlm.object_grounding"],
-            "embodiment": {"supported_robots": [profile.robot_id]},
-            "safety": {"executable": False, "requires_guard": True},
-        })
-        skill_manifest = ProviderManifest.from_dict({
-            "name": "moveit_skill",
-            "version": "0.1.0",
-            "type": "skill",
-            "capabilities": ["skill.pick_and_place"],
-            "embodiment": {"supported_robots": [profile.robot_id]},
-            "safety": {"executable": True, "requires_guard": True},
-        })
-        critic_manifest = ProviderManifest.from_dict({
-            "name": "critic_vlm",
-            "version": "0.1.0",
-            "type": "critic",
-            "capabilities": ["critic.success_detection"],
-            "embodiment": {"supported_robots": [profile.robot_id]},
-            "safety": {"executable": False, "requires_guard": False},
-        })
+        vlm_manifest = ProviderManifest.from_dict(
+            {
+                "name": "qwen_vl",
+                "version": "0.1.0",
+                "type": "vlm",
+                "capabilities": ["vlm.object_grounding"],
+                "embodiment": {"supported_robots": [profile.robot_id]},
+                "safety": {"executable": False, "requires_guard": True},
+            }
+        )
+        skill_manifest = ProviderManifest.from_dict(
+            {
+                "name": "moveit_skill",
+                "version": "0.1.0",
+                "type": "skill",
+                "capabilities": ["skill.pick_and_place"],
+                "embodiment": {"supported_robots": [profile.robot_id]},
+                "safety": {"executable": True, "requires_guard": True},
+            }
+        )
+        critic_manifest = ProviderManifest.from_dict(
+            {
+                "name": "critic_vlm",
+                "version": "0.1.0",
+                "type": "critic",
+                "capabilities": ["critic.success_detection"],
+                "embodiment": {"supported_robots": [profile.robot_id]},
+                "safety": {"executable": False, "requires_guard": False},
+            }
+        )
 
         provider_reg._providers["qwen_vl"] = MockVLMProvider(vlm_manifest)
         provider_reg._health["qwen_vl"] = {"ok": True}
@@ -128,7 +134,11 @@ class TestV10ClosedLoop:
 
         # 4. Sandbox
         sandbox = SandboxRuntimeAdapter(
-            config={"engine": "mujoco", "world_id": "tabletop", "robot_id": "universal_robots_ur5e"},
+            config={
+                "engine": "mujoco",
+                "world_id": "tabletop",
+                "robot_id": "universal_robots_ur5e",
+            },
             event_bus=event_bus,
             e_urdf_model=profile.embodiment,
         )
@@ -264,8 +274,10 @@ class TestV10ClosedLoop:
         ctx = e2e_setup
         event_bus = ctx["event_bus"]
         received = []
+
         def subscriber(event):  # noqa: E306
             received.append(event)
+
         event_bus.subscribe("test.topic", subscriber)
         event_bus.publish(Event("test.topic", {"msg": "hello"}, source="test"))
         await asyncio.sleep(0.01)
@@ -310,14 +322,17 @@ class TestV10ClosedLoop:
         assert "is_safe" in validation
 
         # Memory Record
-        memory.seekdb_client.insert("episodes", {
-            "episode_id": "ep_001",
-            "robot_id": profile.robot_id,
-            "task_id": "pick_red_cup",
-            "trajectory": trajectory,
-            "sandbox_validation": validation,
-            "vlm_result": vlm_resp.result,
-        })
+        memory.seekdb_client.insert(
+            "episodes",
+            {
+                "episode_id": "ep_001",
+                "robot_id": profile.robot_id,
+                "task_id": "pick_red_cup",
+                "trajectory": trajectory,
+                "sandbox_validation": validation,
+                "vlm_result": vlm_resp.result,
+            },
+        )
 
         # Critic Evaluation
         critic_request = ProviderRequest(

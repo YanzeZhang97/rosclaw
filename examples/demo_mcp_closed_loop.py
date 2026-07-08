@@ -61,6 +61,7 @@ async def main() -> int:
     # ------------------------------------------------------------------
     print_section("Step 3: Start Dashboard")
     from rosclaw.dashboard.web_server import DashboardWebServer
+
     dashboard = DashboardWebServer(host="0.0.0.0", port=8766)
     await dashboard.start()
     print("  Dashboard: http://localhost:8766/health")
@@ -108,33 +109,37 @@ async def main() -> int:
     print(f"  Target joint positions: {target_pos}")
 
     # Publish action to EventBus
-    runtime.event_bus.publish(Event(
-        topic="sandbox.action",
-        payload={
-            "action": "reach",
-            "target": target_pos.tolist(),
-            "robot_id": "ur5e",
-            "status": "started",
-        },
-        source="demo",
-        priority=EventPriority.HIGH,
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="sandbox.action",
+            payload={
+                "action": "reach",
+                "target": target_pos.tolist(),
+                "robot_id": "ur5e",
+                "status": "started",
+            },
+            source="demo",
+            priority=EventPriority.HIGH,
+        )
+    )
 
     # Simulate execution (mock — no real robot)
     await asyncio.sleep(0.5)
 
     # Simulate success
-    runtime.event_bus.publish(Event(
-        topic="sandbox.action",
-        payload={
-            "action": "reach",
-            "status": "completed",
-            "error": 0.02,
-            "duration_sec": 1.5,
-        },
-        source="demo",
-        priority=EventPriority.HIGH,
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="sandbox.action",
+            payload={
+                "action": "reach",
+                "status": "completed",
+                "error": 0.02,
+                "duration_sec": 1.5,
+            },
+            source="demo",
+            priority=EventPriority.HIGH,
+        )
+    )
     print("  Task: completed (mock)")
 
     # ------------------------------------------------------------------
@@ -144,40 +149,46 @@ async def main() -> int:
     # EpisodeRecorder subscribes to EventBus events automatically
     # We publish events to trigger recording
 
-    runtime.event_bus.publish(Event(
-        topic="skill.execution.start",
-        payload={
-            "episode_id": "ep_reach_001",
-            "skill": "reach",
-            "robot_id": "ur5e",
-            "inputs": {"target": target_pos.tolist()},
-        },
-        source="demo",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="skill.execution.start",
+            payload={
+                "episode_id": "ep_reach_001",
+                "skill": "reach",
+                "robot_id": "ur5e",
+                "inputs": {"target": target_pos.tolist()},
+            },
+            source="demo",
+        )
+    )
 
-    runtime.event_bus.publish(Event(
-        topic="agent.response",
-        payload={
-            "request_id": "req_001",
-            "status": "ok",
-            "capability": "skill.reach",
-            "result": {"error_m": 0.02, "duration_sec": 1.5},
-        },
-        source="demo",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="agent.response",
+            payload={
+                "request_id": "req_001",
+                "status": "ok",
+                "capability": "skill.reach",
+                "result": {"error_m": 0.02, "duration_sec": 1.5},
+            },
+            source="demo",
+        )
+    )
 
-    runtime.event_bus.publish(Event(
-        topic="praxis.completed",
-        payload={
-            "episode_id": "ep_reach_001",
-            "robot_id": "ur5e",
-            "task": "reach",
-            "success": True,
-            "duration_sec": 1.5,
-            "final_error_m": 0.02,
-        },
-        source="demo",
-    ))
+    runtime.event_bus.publish(
+        Event(
+            topic="praxis.completed",
+            payload={
+                "episode_id": "ep_reach_001",
+                "robot_id": "ur5e",
+                "task": "reach",
+                "success": True,
+                "duration_sec": 1.5,
+                "final_error_m": 0.02,
+            },
+            source="demo",
+        )
+    )
     print("  Events published: skill.start → agent.response → praxis.completed")
     print("  EpisodeRecorder captured via EventBus subscription")
 

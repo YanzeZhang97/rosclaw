@@ -52,12 +52,14 @@ def test(name):
             ERRORS.append((name, traceback.format_exc()))
             print(f"  FAIL: {name} - {e}")
         return func
+
     return decorator
 
 
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 def spin_nodes(nodes, iterations: int = 10, timeout: float = 0.05):
     for _ in range(iterations):
@@ -78,6 +80,7 @@ def next_name(base: str) -> str:
 # ------------------------------------------------------------------
 # Tests: ROS2Driver boundary values
 # ------------------------------------------------------------------
+
 
 @test("move_joints with NaN positions rejected")
 def test_move_joints_nan():
@@ -267,6 +270,7 @@ def test_emergency_stop_no_state():
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
+
 
 def main():
     if not rclpy.ok():

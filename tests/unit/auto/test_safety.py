@@ -1,4 +1,5 @@
 """L10: Safety policy tests with AST analysis."""
+
 from rosclaw.auto.core.patch import Patch
 from rosclaw.auto.patchers.patch_validator import PatchValidator
 from rosclaw.auto.promotion.gate import PromotionGate
@@ -11,8 +12,11 @@ class TestSafetyPolicy:
         """AUTO-SAFE-001: Real robot runner must require human approval."""
         validator = PatchValidator()
         patch = Patch(
-            id="p_real", proposal_id="prop_r", patch_level=3,
-            patch_type="skill_graph_patch", target_skill="pick_v1",
+            id="p_real",
+            proposal_id="prop_r",
+            patch_level=3,
+            patch_type="skill_graph_patch",
+            target_skill="pick_v1",
             changes=[{"action": "real_robot_deploy"}],
             human_approval_required=True,
         )
@@ -24,8 +28,11 @@ class TestSafetyPolicy:
         """AUTO-SAFE-002: Sandbox required must be enforced."""
         validator = PatchValidator()
         patch = Patch(
-            id="p_skip", proposal_id="prop_s", patch_level=1,
-            patch_type="config_patch", target_skill="pick_v1",
+            id="p_skip",
+            proposal_id="prop_s",
+            patch_level=1,
+            patch_type="config_patch",
+            target_skill="pick_v1",
             changes=[{"path": "/safety/sandbox_required", "old": True, "new": False}],
         )
         result = validator.validate(patch)
@@ -36,8 +43,11 @@ class TestSafetyPolicy:
         """AUTO-SAFE-003: collision_check cannot be disabled via patch."""
         validator = PatchValidator()
         patch = Patch(
-            id="p_col", proposal_id="prop_c", patch_level=1,
-            patch_type="config_patch", target_skill="pick_v1",
+            id="p_col",
+            proposal_id="prop_c",
+            patch_level=1,
+            patch_type="config_patch",
+            target_skill="pick_v1",
             changes=[{"path": "/safety/collision_check_enabled", "old": True, "new": False}],
         )
         result = validator.validate(patch)
@@ -47,9 +57,14 @@ class TestSafetyPolicy:
         """AUTO-SAFE-003b: ../ traversal cannot bypass forbidden path check."""
         validator = PatchValidator()
         patch = Patch(
-            id="p_traversal", proposal_id="prop_t", patch_level=1,
-            patch_type="config_patch", target_skill="pick_v1",
-            changes=[{"path": "/config/../safety/collision_check_enabled", "old": True, "new": False}],
+            id="p_traversal",
+            proposal_id="prop_t",
+            patch_level=1,
+            patch_type="config_patch",
+            target_skill="pick_v1",
+            changes=[
+                {"path": "/config/../safety/collision_check_enabled", "old": True, "new": False}
+            ],
         )
         result = validator.validate(patch)
         assert result["valid"] is False
@@ -68,8 +83,11 @@ class TestSafetyPolicy:
         """AUTO-SAFE-005: Code patch without approval is invalid."""
         validator = PatchValidator()
         patch = Patch(
-            id="p_code", proposal_id="prop_code", patch_level=5,
-            patch_type="code_patch", target_skill="pick_v1",
+            id="p_code",
+            proposal_id="prop_code",
+            patch_level=5,
+            patch_type="code_patch",
+            target_skill="pick_v1",
             changes=[{"path": "/controller.py", "old": "", "new": "def safe(): pass"}],
             human_approval_required=False,
         )
@@ -81,8 +99,11 @@ class TestSafetyPolicy:
         """AUTO-SAFE-006: Code patch containing exec() is rejected by AST."""
         validator = PatchValidator()
         patch = Patch(
-            id="p_exec", proposal_id="prop_exec", patch_level=5,
-            patch_type="code_patch", target_skill="pick_v1",
+            id="p_exec",
+            proposal_id="prop_exec",
+            patch_level=5,
+            patch_type="code_patch",
+            target_skill="pick_v1",
             changes=[{"path": "/controller.py", "old": "", "new": "exec('import os')"}],
             human_approval_required=True,
         )
@@ -93,9 +114,18 @@ class TestSafetyPolicy:
         """AUTO-SAFE-007: Code patch containing subprocess is rejected by AST."""
         validator = PatchValidator()
         patch = Patch(
-            id="p_subprocess", proposal_id="prop_sub", patch_level=5,
-            patch_type="code_patch", target_skill="pick_v1",
-            changes=[{"path": "/controller.py", "old": "", "new": "import subprocess\nsubprocess.run(['rm', '-rf', '/'])"}],
+            id="p_subprocess",
+            proposal_id="prop_sub",
+            patch_level=5,
+            patch_type="code_patch",
+            target_skill="pick_v1",
+            changes=[
+                {
+                    "path": "/controller.py",
+                    "old": "",
+                    "new": "import subprocess\nsubprocess.run(['rm', '-rf', '/'])",
+                }
+            ],
             human_approval_required=True,
         )
         result = validator.validate(patch)

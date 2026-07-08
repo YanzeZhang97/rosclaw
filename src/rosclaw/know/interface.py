@@ -41,6 +41,7 @@ def _validate_bridge_index(
     """
     try:
         from rosclaw_know.bridge_schema import validate_bridge_index  # type: ignore[import-untyped]
+
         return validate_bridge_index(data, code_patterns_dir)
     except Exception:  # noqa: BLE001
         return {"ok": True, "errors": [], "warnings": []}
@@ -53,6 +54,7 @@ def _load_rosclaw_know_patterns() -> list[Any]:
     catch that and continue with the hard-coded baseline patterns.
     """
     from rosclaw_know.curated_registry import load_curated_patterns  # type: ignore[import-untyped]
+
     return load_curated_patterns()
 
 
@@ -73,35 +75,79 @@ class KnowledgeInterface(LifecycleMixin):
             "domain": "Control_Locomotion",
             "fix": "Apply conditional integration: stop accumulating integral term when actuator output is saturated. Clamp tau_cmd with torch.clamp(tau, -tau_max, tau_max).",
             "anti_pattern": "Cranking up Kp/Ki to fix tracking error during saturation — deepens wind-up.",
-            "keywords": ["torque", "overflow", "saturation", "wind-up", "windup", "anti-windup", "pid", "integral", "actuator"],
+            "keywords": [
+                "torque",
+                "overflow",
+                "saturation",
+                "wind-up",
+                "windup",
+                "anti-windup",
+                "pid",
+                "integral",
+                "actuator",
+            ],
         },
         "Velocity_Divergence": {
             "symptom": "Commanded velocity diverges to ±∞ when integrator has no clamp",
             "domain": "Control_Locomotion",
             "fix": "Wrap every commanded velocity through torch.clamp(v_cmd, -v_max, v_max). Add integral-leak term (integ *= 0.99 per step) in steady state.",
             "anti_pattern": "Adding only soft-start ramp on user-side command — cannot stop internal feedback divergence.",
-            "keywords": ["velocity", "diverg", "infinite", "explode", "saturation", "clamp", "limit"],
+            "keywords": [
+                "velocity",
+                "diverg",
+                "infinite",
+                "explode",
+                "saturation",
+                "clamp",
+                "limit",
+            ],
         },
         "Memory_Exhaustion": {
             "symptom": "Unbounded KV-cache growth during long-horizon LLM rollouts causes CUDA OOM",
             "domain": "Memory_Reasoning",
             "fix": "Cap per-layer KV tensor at fixed window N (256-512 tokens). Evict oldest key/value rows on each forward. Keep optional global-attention sink.",
             "anti_pattern": "Increasing --gpu-memory-utilization or moving to larger GPU — only buys one more batch.",
-            "keywords": ["memory", "exhaustion", "oom", "out of memory", "cuda", "kv-cache", "kv cache", "sequence", "long horizon"],
+            "keywords": [
+                "memory",
+                "exhaustion",
+                "oom",
+                "out of memory",
+                "cuda",
+                "kv-cache",
+                "kv cache",
+                "sequence",
+                "long horizon",
+            ],
         },
         "Numerical_Instability": {
             "symptom": "NaN/Inf in loss or weights after a step explodes the gradient",
             "domain": "Learning_Training",
             "fix": "Apply torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) before optimizer.step(). If NaN persists, halve learning rate.",
             "anti_pattern": "Catching NaN after it surfaces and zeroing it out — bad direction already corrupted optimizer moment buffers.",
-            "keywords": ["nan", "inf", "numerical instability", "loss explod", "gradient explod", "gradient clip", "learning rate"],
+            "keywords": [
+                "nan",
+                "inf",
+                "numerical instability",
+                "loss explod",
+                "gradient explod",
+                "gradient clip",
+                "learning rate",
+            ],
         },
         "Oscillation_Divergence": {
             "symptom": "Open-loop plan tracks ground truth poorly when latency exceeds 50 ms",
             "domain": "Planning_Decision",
             "fix": "Replace open-loop planner with Model-Predictive Control loop: re-solve horizon-H optimization every dt using latest measurement.",
             "anti_pattern": "Compensating for tracking error by adding feed-forward terms tuned offline.",
-            "keywords": ["oscillat", "diverg", "tracking", "drift", "latency", "open-loop", "open loop"],
+            "keywords": [
+                "oscillat",
+                "diverg",
+                "tracking",
+                "drift",
+                "latency",
+                "open-loop",
+                "open loop",
+            ],
         },
         "Communication_Timeout": {
             "symptom": "Network/RPC timeout cascades cause request storms after partial outage",
@@ -115,38 +161,104 @@ class KnowledgeInterface(LifecycleMixin):
             "domain": "Learning_Training",
             "fix": "Apply gradient clipping with clip_grad_norm_. Reduce learning rate by 10x. Check for log(<=0) or divide-by-zero in loss.",
             "anti_pattern": "Increasing batch size to 'absorb' large gradients — masks the root cause.",
-            "keywords": ["gradient", "explod", "inf", "nan", "loss", "backprop", "weight", "overflow"],
+            "keywords": [
+                "gradient",
+                "explod",
+                "inf",
+                "nan",
+                "loss",
+                "backprop",
+                "weight",
+                "overflow",
+            ],
         },
         "Compile_Error": {
             "symptom": "Python syntax or import error prevents code execution",
             "domain": "Systems_Compute",
             "fix": "Fix syntax/import path BEFORE calling Wiki. This is not a deadlock, it's a typo.",
             "anti_pattern": "Retrying execution without reading the traceback.",
-            "keywords": ["syntaxerror", "indentationerror", "nameerror", "typeerror", "importerror", "compile"],
+            "keywords": [
+                "syntaxerror",
+                "indentationerror",
+                "nameerror",
+                "typeerror",
+                "importerror",
+                "compile",
+            ],
         },
     }
 
     # Robot physical properties for constraint-based matching.
     # v1.0: Curated baseline data (kg, mm, count).
     _ROBOT_PROPERTIES: dict[str, dict[str, Any]] = {
-        "ur5e": {"dof": 6, "payload_kg": 5, "reach_mm": 850, "sim_backends": ["mujoco", "isaacgym"]},
-        "panda": {"dof": 7, "payload_kg": 3, "reach_mm": 855, "sim_backends": ["mujoco", "pybullet"]},
+        "ur5e": {
+            "dof": 6,
+            "payload_kg": 5,
+            "reach_mm": 850,
+            "sim_backends": ["mujoco", "isaacgym"],
+        },
+        "panda": {
+            "dof": 7,
+            "payload_kg": 3,
+            "reach_mm": 855,
+            "sim_backends": ["mujoco", "pybullet"],
+        },
         "unitree_g1": {"dof": 23, "payload_kg": 2, "reach_mm": 700, "sim_backends": ["mujoco"]},
-        "spot": {"dof": 16, "payload_kg": 14, "reach_mm": 500, "sim_backends": ["mujoco", "isaacgym"]},
+        "spot": {
+            "dof": 16,
+            "payload_kg": 14,
+            "reach_mm": 500,
+            "sim_backends": ["mujoco", "isaacgym"],
+        },
         "agilex_piper": {"dof": 6, "payload_kg": 1, "reach_mm": 330, "sim_backends": ["mujoco"]},
     }
 
     # Task decomposition hints: high-level task -> ordered sub-task list.
     # v1.0: Curated patterns for common embodied-intelligence tasks.
     _TASK_DECOMPOSITIONS: dict[str, list[str]] = {
-        "pick and place": ["navigate_to_object", "align_gripper", "grasp", "lift", "move_to_target", "release"],
-        "sort objects": ["scan_workspace", "classify_object", "grasp", "move_to_bin", "release", "repeat"],
+        "pick and place": [
+            "navigate_to_object",
+            "align_gripper",
+            "grasp",
+            "lift",
+            "move_to_target",
+            "release",
+        ],
+        "sort objects": [
+            "scan_workspace",
+            "classify_object",
+            "grasp",
+            "move_to_bin",
+            "release",
+            "repeat",
+        ],
         "walk to point": ["balance", "plan_footsteps", "step", "step", "step", "arrive_check"],
         "assembly": ["grasp_part", "align_holes", "insert", "verify_fit", "release"],
-        "inspect surface": ["position_sensor", "scan_line", "scan_line", "analyze_defects", "report"],
-        "handover object": ["detect_human", "approach", "grasp", "extend_arm", "wait_signal", "release"],
+        "inspect surface": [
+            "position_sensor",
+            "scan_line",
+            "scan_line",
+            "analyze_defects",
+            "report",
+        ],
+        "handover object": [
+            "detect_human",
+            "approach",
+            "grasp",
+            "extend_arm",
+            "wait_signal",
+            "release",
+        ],
         "open door": ["approach_door", "grasp_handle", "pull", "hold", "pass_through", "release"],
-        "stack blocks": ["grasp_block", "lift", "move_above_target", "align", "lower", "release", "repeat"],
+        "stack blocks": [
+            "grasp_block",
+            "lift",
+            "move_above_target",
+            "align",
+            "lower",
+            "release",
+            "repeat",
+        ],
     }
 
     # Task -> required capability mapping for compositional reasoning.
@@ -165,14 +277,30 @@ class KnowledgeInterface(LifecycleMixin):
     # Cross-domain analogies for common symptoms.
     _CROSS_DOMAIN_ANALOGIES: dict[str, list[dict[str, str]]] = {
         "Torque_Overflow": [
-            {"source_domain": "Systems_Compute", "insight": "Same back-pressure principle as bounded-queue producer-consumer.", "action_suggestion": "Pause the integrator the way you'd pause a queue writer when downstream is full."},
-            {"source_domain": "Learning_Training", "insight": "Clamp gradient analogue — gradient clipping prevents one outlier from blowing up a step.", "action_suggestion": "Reuse clip_grad_norm_ mental model: an upper bound that fires only when magnitude exceeds a known physical limit."},
+            {
+                "source_domain": "Systems_Compute",
+                "insight": "Same back-pressure principle as bounded-queue producer-consumer.",
+                "action_suggestion": "Pause the integrator the way you'd pause a queue writer when downstream is full.",
+            },
+            {
+                "source_domain": "Learning_Training",
+                "insight": "Clamp gradient analogue — gradient clipping prevents one outlier from blowing up a step.",
+                "action_suggestion": "Reuse clip_grad_norm_ mental model: an upper bound that fires only when magnitude exceeds a known physical limit.",
+            },
         ],
         "Memory_Exhaustion": [
-            {"source_domain": "Control_Locomotion", "insight": "Like an anti-windup clamp on an integrator: keep the size of accumulating state finite.", "action_suggestion": "Treat the KV-cache as the integral term of attention; bound it the same way a PID bounds the integrator."},
+            {
+                "source_domain": "Control_Locomotion",
+                "insight": "Like an anti-windup clamp on an integrator: keep the size of accumulating state finite.",
+                "action_suggestion": "Treat the KV-cache as the integral term of attention; bound it the same way a PID bounds the integrator.",
+            },
         ],
         "Velocity_Divergence": [
-            {"source_domain": "Memory_Reasoning", "insight": "Same as sliding-window KV-cache: cap the magnitude of the running state, not just the input.", "action_suggestion": "Bound the integrator state itself (integ = clamp(integ, -I_MAX, I_MAX)), mirroring the KV sliding window."},
+            {
+                "source_domain": "Memory_Reasoning",
+                "insight": "Same as sliding-window KV-cache: cap the magnitude of the running state, not just the input.",
+                "action_suggestion": "Bound the integrator state itself (integ = clamp(integ, -I_MAX, I_MAX)), mirroring the KV sliding window.",
+            },
         ],
     }
 
@@ -195,7 +323,7 @@ class KnowledgeInterface(LifecycleMixin):
 
         # In-memory caches (populated at initialize())
         self._capabilities: dict[str, list[str]] = {}  # robot_id -> [capability, ...]
-        self._symptoms: list[dict[str, Any]] = []      # loaded symptom clusters
+        self._symptoms: list[dict[str, Any]] = []  # loaded symptom clusters
         self._patterns: dict[str, dict[str, Any]] = {}  # pattern_id -> pattern dict
         self._initialized = False
 
@@ -255,27 +383,31 @@ class KnowledgeInterface(LifecycleMixin):
             )
         # Publish startup event for Practice / Dashboard tracking
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="rosclaw.knowledge.started",
-                payload={"robot_id": self.robot_id,
-                         "capabilities_loaded": len(self._capabilities.get(self.robot_id, [])),
-                         "patterns_loaded": len(self._patterns)},
-                source="knowledge_interface",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="rosclaw.knowledge.started",
+                    payload={
+                        "robot_id": self.robot_id,
+                        "capabilities_loaded": len(self._capabilities.get(self.robot_id, [])),
+                        "patterns_loaded": len(self._patterns),
+                    },
+                    source="knowledge_interface",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
     def _do_stop(self) -> None:
         logger.info("[Know] KnowledgeInterface stopped")
         if self.event_bus is not None:
             self.event_bus.unsubscribe(
-                "rosclaw.provider.inference.requested",
-                self._on_provider_inference_requested)
+                "rosclaw.provider.inference.requested", self._on_provider_inference_requested
+            )
             self.event_bus.unsubscribe(
-                "rosclaw.sandbox.episode.started",
-                self._on_sandbox_episode_started)
+                "rosclaw.sandbox.episode.started", self._on_sandbox_episode_started
+            )
             self.event_bus.unsubscribe(
-                "rosclaw.runtime.execution.completed",
-                self._on_runtime_execution_completed)
+                "rosclaw.runtime.execution.completed", self._on_runtime_execution_completed
+            )
         self._capabilities.clear()
         self._symptoms.clear()
         self._patterns.clear()
@@ -343,16 +475,18 @@ class KnowledgeInterface(LifecycleMixin):
         robot_id = payload.get("robot_id", self.robot_id)
         result = self.query_for_provider_selection(capability, robot_id)
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="rosclaw.knowledge.pre_check",
-                payload={
-                    "capability": capability,
-                    "robot_id": robot_id,
-                    "result": result,
-                },
-                source="knowledge_interface",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="rosclaw.knowledge.pre_check",
+                    payload={
+                        "capability": capability,
+                        "robot_id": robot_id,
+                        "result": result,
+                    },
+                    source="knowledge_interface",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
     def _on_sandbox_episode_started(self, event: Event) -> None:
         """React to sandbox episode start: load robot safety limits.
@@ -364,16 +498,18 @@ class KnowledgeInterface(LifecycleMixin):
         limits = self.get_robot_safety_limits(robot_id)
         profile = self.get_robot_simulation_profile(robot_id)
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="rosclaw.knowledge.safety_limits_loaded",
-                payload={
-                    "robot_id": robot_id,
-                    "safety_limits": limits,
-                    "simulation_profile": profile,
-                },
-                source="knowledge_interface",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="rosclaw.knowledge.safety_limits_loaded",
+                    payload={
+                        "robot_id": robot_id,
+                        "safety_limits": limits,
+                        "simulation_profile": profile,
+                    },
+                    source="knowledge_interface",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
     def _on_runtime_execution_completed(self, event: Event) -> None:
         """React to execution completion: record knowledge usage in memory.
@@ -466,6 +602,7 @@ class KnowledgeInterface(LifecycleMixin):
         if self.seekdb is not None:
             try:
                 from rosclaw.know.graph import get_related_robots
+
                 return get_related_robots(self.seekdb, skill_name)
             except Exception as exc:
                 logger.warning("[Know] robot_capability_query SeekDB failed: %s", exc)
@@ -480,7 +617,9 @@ class KnowledgeInterface(LifecycleMixin):
                     break
         return results
 
-    def query_for_provider_selection(self, capability: str, robot_id: str | None = None) -> dict[str, Any]:
+    def query_for_provider_selection(
+        self, capability: str, robot_id: str | None = None
+    ) -> dict[str, Any]:
         """Query KNOW before provider selection to check robot capability match.
 
         Returns a dict with robot_id, capability, can_perform, recommendations,
@@ -545,30 +684,35 @@ class KnowledgeInterface(LifecycleMixin):
         }
         if self.seekdb is not None:
             try:
-                self.seekdb.insert("knowledge_graph", {
-                    "id": record["id"],
-                    "subject": self.robot_id,
-                    "predicate": "used_knowledge",
-                    "object": json.dumps(record),
-                    "confidence": 1.0,
-                    "source": "runtime",
-                    "timestamp": record["timestamp"],
-                })
+                self.seekdb.insert(
+                    "knowledge_graph",
+                    {
+                        "id": record["id"],
+                        "subject": self.robot_id,
+                        "predicate": "used_knowledge",
+                        "object": json.dumps(record),
+                        "confidence": 1.0,
+                        "source": "runtime",
+                        "timestamp": record["timestamp"],
+                    },
+                )
             except Exception as exc:
                 logger.warning("[Know] Failed to record knowledge usage: %s", exc)
 
         if self.event_bus is not None:
-            self.event_bus.publish(Event(
-                topic="knowledge.ingest_complete",
-                payload={
-                    "practice_id": context.get("episode_id", "unknown"),
-                    "knowledge_version": "1.0",
-                    "status": "success",
-                    "context": context,
-                },
-                source="knowledge_interface",
-                priority=EventPriority.NORMAL,
-            ))
+            self.event_bus.publish(
+                Event(
+                    topic="knowledge.ingest_complete",
+                    payload={
+                        "practice_id": context.get("episode_id", "unknown"),
+                        "knowledge_version": "1.0",
+                        "status": "success",
+                        "context": context,
+                    },
+                    source="knowledge_interface",
+                    priority=EventPriority.NORMAL,
+                )
+            )
 
     def task_decomposition_hint(self, task: str) -> dict[str, Any] | None:
         """Decompose a high-level task into ordered sub-tasks.
@@ -666,8 +810,8 @@ class KnowledgeInterface(LifecycleMixin):
         if self.seekdb is not None:
             try:
                 rows = self.seekdb.query(
-                    "knowledge_graph",
-                    filters={"predicate": "has_capability"}, limit=1000)
+                    "knowledge_graph", filters={"predicate": "has_capability"}, limit=1000
+                )
                 for r in rows:
                     rid = r.get("subject", "")
                     if rid:
@@ -683,7 +827,9 @@ class KnowledgeInterface(LifecycleMixin):
                 try:
                     rows = self.seekdb.query(
                         "knowledge_graph",
-                        filters={"subject": rid, "predicate": "has_capability"}, limit=100)
+                        filters={"subject": rid, "predicate": "has_capability"},
+                        limit=100,
+                    )
                     caps = {r.get("object", "") for r in rows if r.get("object")}
                 except Exception:
                     pass
@@ -691,13 +837,15 @@ class KnowledgeInterface(LifecycleMixin):
             matched = required & caps
             missing = required - caps
             score = len(matched) / max(len(required), 1)
-            recommendations.append({
-                "robot_id": rid,
-                "score": round(score, 4),
-                "matched_capabilities": sorted(matched),
-                "missing_capabilities": sorted(missing),
-                "task_match_confidence": round(best_score, 4),
-            })
+            recommendations.append(
+                {
+                    "robot_id": rid,
+                    "score": round(score, 4),
+                    "matched_capabilities": sorted(matched),
+                    "missing_capabilities": sorted(missing),
+                    "task_match_confidence": round(best_score, 4),
+                }
+            )
 
         recommendations.sort(key=lambda x: (-x["score"], x["robot_id"]))
         return recommendations
@@ -755,14 +903,16 @@ class KnowledgeInterface(LifecycleMixin):
             if not passes:
                 continue
 
-            results.append({
-                "robot_id": rid,
-                "score": rec["score"],
-                "properties": props,
-                "matched_capabilities": rec["matched_capabilities"],
-                "missing_capabilities": rec["missing_capabilities"],
-                "task_match_confidence": rec["task_match_confidence"],
-            })
+            results.append(
+                {
+                    "robot_id": rid,
+                    "score": rec["score"],
+                    "properties": props,
+                    "matched_capabilities": rec["matched_capabilities"],
+                    "missing_capabilities": rec["missing_capabilities"],
+                    "task_match_confidence": rec["task_match_confidence"],
+                }
+            )
 
         return results
 
@@ -781,8 +931,15 @@ class KnowledgeInterface(LifecycleMixin):
             "panda": {
                 "joint_torque_max": [87, 87, 87, 87, 12, 12, 12],
                 "joint_velocity_max": [150, 150, 150, 150, 180, 180, 180],
-                "joint_position_limits": [(-166, 166), (-101, 101), (-166, 166),
-                                          (-176, 4), (-166, 166), (-1, 215), (-166, 166)],
+                "joint_position_limits": [
+                    (-166, 166),
+                    (-101, 101),
+                    (-166, 166),
+                    (-176, 4),
+                    (-166, 166),
+                    (-1, 215),
+                    (-166, 166),
+                ],
             },
             "unitree_g1": {
                 "joint_torque_max": [80] * 23,
@@ -877,97 +1034,118 @@ class KnowledgeInterface(LifecycleMixin):
         # Store joints as JSON blob
         joints = eurdf.get("joints", [])
         if joints:
-            self.seekdb.insert("knowledge_graph", {
-                "id": f"{robot_id}_eurdf_joints",
-                "subject": robot_id,
-                "predicate": "has_eurdf_joints",
-                "object": json.dumps(joints),
-                "confidence": 1.0,
-                "source": "eurdf",
-                "timestamp": time.time(),
-            })
+            self.seekdb.insert(
+                "knowledge_graph",
+                {
+                    "id": f"{robot_id}_eurdf_joints",
+                    "subject": robot_id,
+                    "predicate": "has_eurdf_joints",
+                    "object": json.dumps(joints),
+                    "confidence": 1.0,
+                    "source": "eurdf",
+                    "timestamp": time.time(),
+                },
+            )
             counts["joints"] = len(joints)
 
         # Store links
         links = eurdf.get("links", [])
         if links:
-            self.seekdb.insert("knowledge_graph", {
-                "id": f"{robot_id}_eurdf_links",
-                "subject": robot_id,
-                "predicate": "has_eurdf_links",
-                "object": json.dumps(links),
-                "confidence": 1.0,
-                "source": "eurdf",
-                "timestamp": time.time(),
-            })
+            self.seekdb.insert(
+                "knowledge_graph",
+                {
+                    "id": f"{robot_id}_eurdf_links",
+                    "subject": robot_id,
+                    "predicate": "has_eurdf_links",
+                    "object": json.dumps(links),
+                    "confidence": 1.0,
+                    "source": "eurdf",
+                    "timestamp": time.time(),
+                },
+            )
             counts["links"] = len(links)
 
         # Store sensors
         sensors = eurdf.get("sensors", [])
         if sensors:
-            self.seekdb.insert("knowledge_graph", {
-                "id": f"{robot_id}_eurdf_sensors",
-                "subject": robot_id,
-                "predicate": "has_eurdf_sensors",
-                "object": json.dumps(sensors),
-                "confidence": 1.0,
-                "source": "eurdf",
-                "timestamp": time.time(),
-            })
+            self.seekdb.insert(
+                "knowledge_graph",
+                {
+                    "id": f"{robot_id}_eurdf_sensors",
+                    "subject": robot_id,
+                    "predicate": "has_eurdf_sensors",
+                    "object": json.dumps(sensors),
+                    "confidence": 1.0,
+                    "source": "eurdf",
+                    "timestamp": time.time(),
+                },
+            )
             counts["sensors"] = len(sensors)
 
         # Store actuators
         actuators = eurdf.get("actuators", [])
         if actuators:
-            self.seekdb.insert("knowledge_graph", {
-                "id": f"{robot_id}_eurdf_actuators",
-                "subject": robot_id,
-                "predicate": "has_eurdf_actuators",
-                "object": json.dumps(actuators),
-                "confidence": 1.0,
-                "source": "eurdf",
-                "timestamp": time.time(),
-            })
+            self.seekdb.insert(
+                "knowledge_graph",
+                {
+                    "id": f"{robot_id}_eurdf_actuators",
+                    "subject": robot_id,
+                    "predicate": "has_eurdf_actuators",
+                    "object": json.dumps(actuators),
+                    "confidence": 1.0,
+                    "source": "eurdf",
+                    "timestamp": time.time(),
+                },
+            )
             counts["actuators"] = len(actuators)
 
         # Store safety limits
         safety = eurdf.get("safety_limits", {})
         if safety:
-            self.seekdb.insert("knowledge_graph", {
-                "id": f"{robot_id}_eurdf_safety",
-                "subject": robot_id,
-                "predicate": "has_eurdf_safety",
-                "object": json.dumps(safety),
-                "confidence": 1.0,
-                "source": "eurdf",
-                "timestamp": time.time(),
-            })
+            self.seekdb.insert(
+                "knowledge_graph",
+                {
+                    "id": f"{robot_id}_eurdf_safety",
+                    "subject": robot_id,
+                    "predicate": "has_eurdf_safety",
+                    "object": json.dumps(safety),
+                    "confidence": 1.0,
+                    "source": "eurdf",
+                    "timestamp": time.time(),
+                },
+            )
 
         # Store simulation backends
         sim = eurdf.get("simulation_backends", {})
         if sim:
-            self.seekdb.insert("knowledge_graph", {
-                "id": f"{robot_id}_eurdf_simulation",
-                "subject": robot_id,
-                "predicate": "has_eurdf_simulation",
-                "object": json.dumps(sim),
-                "confidence": 1.0,
-                "source": "eurdf",
-                "timestamp": time.time(),
-            })
+            self.seekdb.insert(
+                "knowledge_graph",
+                {
+                    "id": f"{robot_id}_eurdf_simulation",
+                    "subject": robot_id,
+                    "predicate": "has_eurdf_simulation",
+                    "object": json.dumps(sim),
+                    "confidence": 1.0,
+                    "source": "eurdf",
+                    "timestamp": time.time(),
+                },
+            )
 
         # Store capabilities
         caps = eurdf.get("capabilities", [])
         if caps:
-            self.seekdb.insert("knowledge_graph", {
-                "id": f"{robot_id}_eurdf_capabilities",
-                "subject": robot_id,
-                "predicate": "has_eurdf_capabilities",
-                "object": json.dumps(caps),
-                "confidence": 1.0,
-                "source": "eurdf",
-                "timestamp": time.time(),
-            })
+            self.seekdb.insert(
+                "knowledge_graph",
+                {
+                    "id": f"{robot_id}_eurdf_capabilities",
+                    "subject": robot_id,
+                    "predicate": "has_eurdf_capabilities",
+                    "object": json.dumps(caps),
+                    "confidence": 1.0,
+                    "source": "eurdf",
+                    "timestamp": time.time(),
+                },
+            )
             counts["capabilities"] = len(caps)
 
         # Update in-memory properties from e-URDF
@@ -1025,9 +1203,7 @@ class KnowledgeInterface(LifecycleMixin):
         try:
             patterns = _load_rosclaw_know_patterns()
         except ImportError:
-            logger.info(
-                "[Know] rosclaw_know not installed; curated registry enrichment skipped"
-            )
+            logger.info("[Know] rosclaw_know not installed; curated registry enrichment skipped")
             return
         except Exception as exc:  # noqa: BLE001
             logger.warning("[Know] rosclaw_know registry load failed: %s", exc)
@@ -1042,15 +1218,15 @@ class KnowledgeInterface(LifecycleMixin):
                 "keywords": list(cp.matched_keywords),
                 "analogies": [dict(h) for h in cp.cross_domain_hints],
             }
-            self._symptoms.append({
-                "id": cp.pattern_id,
-                "subject": self.robot_id,
-                "symptom": cp.standard_name,
-                "confidence": 1.0,
-            })
-        logger.info(
-            "[Know] Enriched %d patterns from rosclaw_know registry", len(patterns)
-        )
+            self._symptoms.append(
+                {
+                    "id": cp.pattern_id,
+                    "subject": self.robot_id,
+                    "symptom": cp.standard_name,
+                    "confidence": 1.0,
+                }
+            )
+        logger.info("[Know] Enriched %d patterns from rosclaw_know registry", len(patterns))
 
     # -- Internal loaders --
 
@@ -1077,12 +1253,14 @@ class KnowledgeInterface(LifecycleMixin):
             subject = rec.get("subject", "")
             obj = rec.get("object", "")
             if subject and obj:
-                self._symptoms.append({
-                    "id": rec.get("id", ""),
-                    "subject": subject,
-                    "symptom": obj,
-                    "confidence": rec.get("confidence", 1.0),
-                })
+                self._symptoms.append(
+                    {
+                        "id": rec.get("id", ""),
+                        "subject": subject,
+                        "symptom": obj,
+                        "confidence": rec.get("confidence", 1.0),
+                    }
+                )
 
     def _load_bridge_index(self, bridge_path: Path) -> None:
         """Load symptom clusters from bridge_index.json."""
@@ -1104,12 +1282,14 @@ class KnowledgeInterface(LifecycleMixin):
             }
 
             # Also index as a symptom entry
-            self._symptoms.append({
-                "id": cluster_id,
-                "subject": self.robot_id,
-                "symptom": symptom,
-                "confidence": 1.0,
-            })
+            self._symptoms.append(
+                {
+                    "id": cluster_id,
+                    "subject": self.robot_id,
+                    "symptom": symptom,
+                    "confidence": 1.0,
+                }
+            )
 
     def _register_curated_patterns(self) -> None:
         """Register hard-coded safety patterns as baseline."""

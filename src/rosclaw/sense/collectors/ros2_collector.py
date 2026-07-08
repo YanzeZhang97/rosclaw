@@ -34,6 +34,7 @@ class ROS2Collector(BodyStateCollector):
             return True
         try:
             import rclpy
+
             self._rclpy = rclpy
             return True
         except ImportError:

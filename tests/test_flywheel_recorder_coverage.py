@@ -91,6 +91,7 @@ class TestDataFlywheelControlCycle:
 
     def test_on_control_cycle_invalid_dropped(self, tmp_path, caplog):
         import logging
+
         fw = DataFlywheel("bot", joint_dof=3, storage_path=tmp_path)
         state = RobotState(
             timestamp=time.time(),
@@ -113,7 +114,9 @@ class TestDataFlywheelEvents:
         assert len(fw._events) == 1
 
     def test_trigger_event_saves_data(self, tmp_path):
-        fw = DataFlywheel("bot", joint_dof=3, buffer_duration_sec=1.0, sampling_rate_hz=10, storage_path=tmp_path)
+        fw = DataFlywheel(
+            "bot", joint_dof=3, buffer_duration_sec=1.0, sampling_rate_hz=10, storage_path=tmp_path
+        )
         # Feed some data
         for i in range(5):
             state = RobotState(
@@ -190,6 +193,7 @@ class TestDataFlywheelExport:
 class TestPracticeRecorderLifecycle:
     def test_initialize_without_bus(self, caplog):
         import logging
+
         rec = PracticeRecorder("bot")
         with caplog.at_level(logging.INFO, logger="rosclaw.practice.recorder"):
             rec.initialize()
@@ -222,14 +226,16 @@ class TestPracticeRecorderSkillEvents:
 
         rec = PracticeRecorder("bot", event_bus=bus)
         rec.initialize()
-        bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "skill_name": "pick",
-                "correlation_id": "corr_1",
-                "result": {"status": "success", "reward": 0.9, "details": {}},
-            },
-        ))
+        bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "skill_name": "pick",
+                    "correlation_id": "corr_1",
+                    "result": {"status": "success", "reward": 0.9, "details": {}},
+                },
+            )
+        )
         assert len(received) == 1
         assert received[0]["outcome"]["status"] == "success"
         assert received[0]["outcome"]["reward"] == 0.9
@@ -243,14 +249,21 @@ class TestPracticeRecorderSkillEvents:
 
         rec = PracticeRecorder("bot", event_bus=bus)
         rec.initialize()
-        bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "skill_name": "pick",
-                "correlation_id": "corr_1",
-                "result": {"status": "failure", "reward": -0.5, "error": "missed", "details": {}},
-            },
-        ))
+        bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "skill_name": "pick",
+                    "correlation_id": "corr_1",
+                    "result": {
+                        "status": "failure",
+                        "reward": -0.5,
+                        "error": "missed",
+                        "details": {},
+                    },
+                },
+            )
+        )
         assert len(received) == 1
         assert received[0]["outcome"]["status"] == "failure"
         assert received[0]["error_log"] == "missed"
@@ -269,18 +282,22 @@ class TestPracticeRecorderSkillEvents:
         bus = EventBus()
         rec = PracticeRecorder("bot", event_bus=bus)
         rec.initialize()
-        bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "result": {"status": "failure", "reward": -0.5, "error": "boom"},
-            },
-        ))
-        bus.publish(Event(
-            topic="skill.execution.complete",
-            payload={
-                "result": {"status": "success", "reward": 1.0},
-            },
-        ))
+        bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "result": {"status": "failure", "reward": -0.5, "error": "boom"},
+                },
+            )
+        )
+        bus.publish(
+            Event(
+                topic="skill.execution.complete",
+                payload={
+                    "result": {"status": "success", "reward": 1.0},
+                },
+            )
+        )
         ctx = rec.failure_context
         assert ctx["current_iteration"] == 2
         assert ctx["previous_scores"] == [-0.5, 1.0]
@@ -293,15 +310,17 @@ class TestPracticeRecorderKnowledge:
         bus = EventBus()
         rec = PracticeRecorder("bot", event_bus=bus)
         rec.initialize()
-        bus.publish(Event(
-            topic="knowledge.ingest_complete",
-            payload={
-                "practice_id": "p1",
-                "knowledge_version": "v2",
-                "status": "ok",
-                "timestamp": 123.0,
-            },
-        ))
+        bus.publish(
+            Event(
+                topic="knowledge.ingest_complete",
+                payload={
+                    "practice_id": "p1",
+                    "knowledge_version": "v2",
+                    "status": "ok",
+                    "timestamp": 123.0,
+                },
+            )
+        )
         assert len(rec.knowledge_ingest_log) == 1
         assert rec.knowledge_ingest_log[0]["practice_id"] == "p1"
         rec.stop()
@@ -405,7 +424,9 @@ class TestPracticeRecorderPraxisEvent:
         rec.initialize()
         rec.start_recording()
         result = rec.record_praxis_event(
-            event_id="e1", event_type="success", instruction="pick red",
+            event_id="e1",
+            event_type="success",
+            instruction="pick red",
             metadata={"x": 1},
         )
         assert isinstance(result, str)
@@ -417,7 +438,8 @@ class TestPracticeRecorderPraxisEvent:
         rec.initialize()
         rec.start_recording()
         result = rec.record_praxis_event(
-            event_id="e1", event_type="nonexistent_type",
+            event_id="e1",
+            event_type="nonexistent_type",
         )
         assert isinstance(result, str)
         rec.stop()

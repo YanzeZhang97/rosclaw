@@ -1,4 +1,5 @@
 """Local JSONL store for rosclaw-auto."""
+
 import json
 from collections.abc import Iterator
 from pathlib import Path
@@ -8,8 +9,20 @@ class LocalStore:
     def __init__(self, base_path: str = "./.rosclaw.auto"):
         self.base = Path(base_path)
         self.base.mkdir(parents=True, exist_ok=True)
-        for sub in ["tasks", "failures", "diagnoses", "hypotheses", "proposals",
-                    "patches", "experiments", "evaluations", "champions", "deadends", "reports", "lineage"]:
+        for sub in [
+            "tasks",
+            "failures",
+            "diagnoses",
+            "hypotheses",
+            "proposals",
+            "patches",
+            "experiments",
+            "evaluations",
+            "champions",
+            "deadends",
+            "reports",
+            "lineage",
+        ]:
             (self.base / sub).mkdir(exist_ok=True)
 
     def _path(self, namespace: str, key: str) -> Path:

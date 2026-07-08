@@ -31,9 +31,7 @@ def add_feedback_subparser(subparsers: argparse._SubParsersAction) -> None:  # t
     status_parser.add_argument("--workspace", default=None, help="ROSClaw workspace path")
 
     # telemetry
-    telemetry_parser = feedback_subparsers.add_parser(
-        "telemetry", help="Manage product telemetry"
-    )
+    telemetry_parser = feedback_subparsers.add_parser("telemetry", help="Manage product telemetry")
     telemetry_parser.add_argument("--workspace", default=None, help="ROSClaw workspace path")
     telemetry_subparsers = telemetry_parser.add_subparsers(dest="telemetry_command")
 
@@ -48,14 +46,20 @@ def add_feedback_subparser(subparsers: argparse._SubParsersAction) -> None:  # t
         p.add_argument("--workspace", default=None, help="ROSClaw workspace path")
 
     # consent
-    consent_parser = feedback_subparsers.add_parser(
-        "consent", help="Manage upload consent"
-    )
+    consent_parser = feedback_subparsers.add_parser("consent", help="Manage upload consent")
     consent_parser.add_argument("--workspace", default=None, help="ROSClaw workspace path")
-    consent_parser.add_argument("--diagnostics", action="store_true", help="Enable diagnostic upload consent")
-    consent_parser.add_argument("--rich-feedback", action="store_true", help="Enable rich feedback upload consent")
-    consent_parser.add_argument("--revoke-diagnostics", action="store_true", help="Revoke diagnostic upload consent")
-    consent_parser.add_argument("--revoke-all", action="store_true", help="Revoke all upload consent")
+    consent_parser.add_argument(
+        "--diagnostics", action="store_true", help="Enable diagnostic upload consent"
+    )
+    consent_parser.add_argument(
+        "--rich-feedback", action="store_true", help="Enable rich feedback upload consent"
+    )
+    consent_parser.add_argument(
+        "--revoke-diagnostics", action="store_true", help="Revoke diagnostic upload consent"
+    )
+    consent_parser.add_argument(
+        "--revoke-all", action="store_true", help="Revoke all upload consent"
+    )
     consent_parser.add_argument("--show", action="store_true", help="Show current consent")
 
     # export
@@ -72,10 +76,16 @@ def add_feedback_subparser(subparsers: argparse._SubParsersAction) -> None:  # t
         "upload", help="Upload a redacted feedback bundle"
     )
     upload_parser.add_argument("--workspace", default=None, help="ROSClaw workspace path")
-    upload_parser.add_argument("--redact", action="store_true", required=True, help="Redact before upload")
+    upload_parser.add_argument(
+        "--redact", action="store_true", required=True, help="Redact before upload"
+    )
     upload_parser.add_argument("--days", type=int, default=30, help="Number of days to include")
-    upload_parser.add_argument("--dry-run", action="store_true", help="Prepare bundle without uploading")
-    upload_parser.add_argument("--include-media", action="store_true", help="Include local media files")
+    upload_parser.add_argument(
+        "--dry-run", action="store_true", help="Prepare bundle without uploading"
+    )
+    upload_parser.add_argument(
+        "--include-media", action="store_true", help="Include local media files"
+    )
 
 
 def dispatch_feedback_command(args: argparse.Namespace) -> int:
@@ -222,9 +232,9 @@ def cmd_feedback_consent(args: argparse.Namespace) -> int:
     else:
         state = mgr.show()
 
-    if getattr(args, "show", False) or not any([
-        args.diagnostics, args.rich_feedback, args.revoke_diagnostics, args.revoke_all
-    ]):
+    if getattr(args, "show", False) or not any(
+        [args.diagnostics, args.rich_feedback, args.revoke_diagnostics, args.revoke_all]
+    ):
         print("ROSClaw Feedback Consent\n")
         print(f"Product telemetry: {'enabled' if state.product_telemetry else 'disabled'}")
         print(f"Diagnostics upload: {'enabled' if state.diagnostics else 'disabled'}")

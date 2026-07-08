@@ -51,6 +51,7 @@ class SandboxRuntimeAdapter(LifecycleMixin):
             if sense_runtime is not None:
                 try:
                     from rosclaw.sense.adapters.sandbox_context import SandboxContextAdapter
+
                     self._sandbox_context_adapter = SandboxContextAdapter(sense_runtime)
                 except Exception:
                     logger.warning("Failed to initialize SandboxContextAdapter", exc_info=True)
@@ -141,32 +142,37 @@ class SandboxRuntimeAdapter(LifecycleMixin):
                 try:
                     action = self._sandbox_context_adapter.apply(action)
                 except Exception:
-                    logger.warning("SandboxContextAdapter failed; validating without body sense", exc_info=True)
+                    logger.warning(
+                        "SandboxContextAdapter failed; validating without body sense", exc_info=True
+                    )
             decision = gate.check(action)
             # CRITICAL FIX: Publish firewall event for BOTH blocked AND allowed
             if self._event_bus:
                 from rosclaw.core.event_bus import Event, EventPriority
+
                 topic = (
                     "firewall.action_blocked"
                     if not decision.is_allowed
                     else "firewall.action_allowed"
                 )
-                self._event_bus.publish(Event(
-                    topic=topic,
-                    payload={
-                        "robot_id": self._robot_id,
-                        "world_id": self._world_id,
-                        "action": action,
-                        "reason": decision.reason,
-                        "risk_score": decision.risk_score,
-                        "violations": decision.violated_constraints,
-                        "replay_id": decision.replay_id,
-                        "safety_level": safety_level,
-                        "decision": "BLOCK" if not decision.is_allowed else "ALLOW",
-                    },
-                    source="sandbox.firewall",
-                    priority=EventPriority.HIGH,
-                ))
+                self._event_bus.publish(
+                    Event(
+                        topic=topic,
+                        payload={
+                            "robot_id": self._robot_id,
+                            "world_id": self._world_id,
+                            "action": action,
+                            "reason": decision.reason,
+                            "risk_score": decision.risk_score,
+                            "violations": decision.violated_constraints,
+                            "replay_id": decision.replay_id,
+                            "safety_level": safety_level,
+                            "decision": "BLOCK" if not decision.is_allowed else "ALLOW",
+                        },
+                        source="sandbox.firewall",
+                        priority=EventPriority.HIGH,
+                    )
+                )
 
             result = {
                 "is_safe": decision.is_allowed,
@@ -232,7 +238,9 @@ class SandboxRuntimeAdapter(LifecycleMixin):
             "status": "healthy" if self._sandbox_service else "unavailable",
             "engine": self._engine_name,
             "world": self._world_id,
-            "session_id": self._sandbox_service.session.session_id if self._sandbox_service else None,
+            "session_id": self._sandbox_service.session.session_id
+            if self._sandbox_service
+            else None,
         }
 
     def _get_body_sense_snapshot(self) -> dict[str, Any] | None:

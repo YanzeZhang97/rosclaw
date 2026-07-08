@@ -12,9 +12,13 @@ class TestUninstall:
         monkeypatch.setenv("ROSCLAW_HOME", str(home))
         home.mkdir()
         (home / "config").mkdir()
-        (home / "config" / "rosclaw.yaml").write_text("runtime:\n  robot_id: test\n", encoding="utf-8")
+        (home / "config" / "rosclaw.yaml").write_text(
+            "runtime:\n  robot_id: test\n", encoding="utf-8"
+        )
         (home / "state").mkdir()
-        (home / "state" / "install.json").write_text('{"firstboot_completed": true}', encoding="utf-8")
+        (home / "state" / "install.json").write_text(
+            '{"firstboot_completed": true}', encoding="utf-8"
+        )
 
         from rosclaw.cli import main
 
@@ -32,7 +36,9 @@ class TestUninstall:
         monkeypatch.setenv("ROSCLAW_HOME", str(home))
         home.mkdir()
         (home / "config").mkdir()
-        (home / "config" / "rosclaw.yaml").write_text("runtime:\n  robot_id: test\n", encoding="utf-8")
+        (home / "config" / "rosclaw.yaml").write_text(
+            "runtime:\n  robot_id: test\n", encoding="utf-8"
+        )
 
         from rosclaw.cli import main
 
@@ -99,7 +105,7 @@ class TestSkillCheck:
 
         captured = capsys.readouterr()
         out = captured.out
-        payload = out[out.index("{"): out.rindex("}") + 1]
+        payload = out[out.index("{") : out.rindex("}") + 1]
         data = json.loads(payload)
 
         assert code == 0

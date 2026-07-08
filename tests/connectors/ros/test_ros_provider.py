@@ -24,12 +24,17 @@ def _make_manifest_provider(
         name="ros_capability_provider",
         version="0.1.0",
         type="ros",
-        runtime={"backend": "rosbridge", "endpoint": "ws://127.0.0.1:9090", "protocol": "websocket"},
+        runtime={
+            "backend": "rosbridge",
+            "endpoint": "ws://127.0.0.1:9090",
+            "protocol": "websocket",
+        },
         extra={"robot_id": "turtlesim", "dry_run": dry_run, "auto_discover": False},
     )
     provider = RosCapabilityProvider(manifest)
     provider._manifest = CapabilityManifest(robot_id="turtlesim", capabilities=capabilities or [])
     from rosclaw.connectors.ros.compiler import SafetyContractCompiler
+
     provider._contract = SafetyContractCompiler().compile(provider._manifest)
     provider.capabilities = [cap.id for cap in provider._manifest.capabilities]
     provider._transport = provider._create_transport()
@@ -40,7 +45,9 @@ def _cmd_vel_capability() -> RosCapability:
     return RosCapability(
         id="turtlesim.base.velocity_command",
         kind="actuation",
-        interface=RosInterface(ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"),
+        interface=RosInterface(
+            ros_kind="topic", name="/turtle1/cmd_vel", msg_type="geometry_msgs/msg/Twist"
+        ),
         risk=RosCapabilityRisk(
             level="high",
             read_only=False,
@@ -50,7 +57,13 @@ def _cmd_vel_capability() -> RosCapability:
             requires_stop_guard=True,
             max_duration_sec=1.0,
         ),
-        safety={"constraints": {"linear.x": [-0.2, 0.2], "linear.y": [-0.1, 0.1], "angular.z": [-0.5, 0.5]}},
+        safety={
+            "constraints": {
+                "linear.x": [-0.2, 0.2],
+                "linear.y": [-0.1, 0.1],
+                "angular.z": [-0.5, 0.5],
+            }
+        },
     )
 
 
@@ -58,7 +71,9 @@ def _pose_capability() -> RosCapability:
     return RosCapability(
         id="turtlesim.observe.pose",
         kind="observation",
-        interface=RosInterface(ros_kind="topic", name="/turtle1/pose", msg_type="turtlesim/msg/Pose"),
+        interface=RosInterface(
+            ros_kind="topic", name="/turtle1/pose", msg_type="turtlesim/msg/Pose"
+        ),
         risk=RosCapabilityRisk(level="low", read_only=True, destructive=False),
     )
 
@@ -153,6 +168,7 @@ async def test_dry_run_does_not_invoke_ros():
 
 def test_rosbridge_endpoint_from_url():
     from rosclaw.connectors.ros.transport import RosbridgeEndpoint
+
     ep = RosbridgeEndpoint.from_url("ws://example.com:9091")
     assert ep.scheme == "ws"
     assert ep.host == "example.com"

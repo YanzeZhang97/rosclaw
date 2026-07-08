@@ -1,4 +1,5 @@
 """Tests for generic ForceModel."""
+
 from __future__ import annotations
 
 from rosclaw.body.force_model import DofForceWindow, ForceBaseline, ForceModel
@@ -21,7 +22,9 @@ def test_net_force_subtracts_baseline():
 def test_contact_levels_with_window():
     model = ForceModel(
         contact_windows={
-            "thumb": DofForceWindow(desired_min=80.0, desired_max=180.0, hard=250.0, emergency=350.0)
+            "thumb": DofForceWindow(
+                desired_min=80.0, desired_max=180.0, hard=250.0, emergency=350.0
+            )
         }
     )
     assert model.contact_level(10.0, "thumb") == "none"

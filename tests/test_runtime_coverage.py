@@ -39,6 +39,7 @@ def _make_future(result):
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def fresh_runtime():
     """Return a fresh Runtime instance with all modules disabled."""
@@ -67,6 +68,7 @@ def mock_event_bus():
 # ---------------------------------------------------------------------------
 # RuntimeConfig
 # ---------------------------------------------------------------------------
+
 
 class TestRuntimeConfig:
     def test_default_values(self):
@@ -160,6 +162,7 @@ class TestRuntimeConfig:
 # Runtime.__init__
 # ---------------------------------------------------------------------------
 
+
 class TestRuntimeInit:
     def test_init_no_args(self):
         rt = Runtime()
@@ -208,6 +211,7 @@ class TestRuntimeInit:
 # _do_initialize — disabled module paths
 # ---------------------------------------------------------------------------
 
+
 class TestRuntimeInitializeDisabledModules:
     def test_initialize_all_disabled(self, fresh_runtime):
         rt = fresh_runtime
@@ -227,10 +231,15 @@ class TestRuntimeInitializeDisabledModules:
     def test_initialize_firewall_disabled_no_e_urdf(self):
         cfg = RuntimeConfig(
             robot_zoo_path="/nonexistent/zoo",
-            enable_firewall=True, enable_memory=False,
-            enable_practice=False, enable_swarm=False,
-            enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False)
+            enable_firewall=True,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
+        )
         rt = Runtime(config=cfg)
         # _e_urdf is None so firewall should NOT be initialized
         rt._load_e_urdf = lambda: None  # prevent actual file loading
@@ -240,10 +249,15 @@ class TestRuntimeInitializeDisabledModules:
     def test_initialize_memory_disabled(self):
         cfg = RuntimeConfig(
             robot_zoo_path="/nonexistent/zoo",
-            enable_firewall=False, enable_memory=False,
-            enable_practice=False, enable_swarm=False,
-            enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False)
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
+        )
         rt = Runtime(config=cfg)
         rt.initialize()
         assert rt._memory is None
@@ -251,10 +265,15 @@ class TestRuntimeInitializeDisabledModules:
     def test_initialize_practice_disabled(self):
         cfg = RuntimeConfig(
             robot_zoo_path="/nonexistent/zoo",
-            enable_firewall=False, enable_memory=False,
-            enable_practice=False, enable_swarm=False,
-            enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False)
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
+        )
         rt = Runtime(config=cfg)
         rt.initialize()
         assert rt._practice is None
@@ -263,10 +282,15 @@ class TestRuntimeInitializeDisabledModules:
     def test_initialize_swarm_disabled(self):
         cfg = RuntimeConfig(
             robot_zoo_path="/nonexistent/zoo",
-            enable_firewall=False, enable_memory=False,
-            enable_practice=False, enable_swarm=False,
-            enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False)
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
+        )
         rt = Runtime(config=cfg)
         rt.initialize()
         assert rt._swarm is None
@@ -274,10 +298,15 @@ class TestRuntimeInitializeDisabledModules:
     def test_initialize_skill_manager_disabled(self):
         cfg = RuntimeConfig(
             robot_zoo_path="/nonexistent/zoo",
-            enable_firewall=False, enable_memory=False,
-            enable_practice=False, enable_swarm=False,
-            enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False)
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
+        )
         rt = Runtime(config=cfg)
         rt.initialize()
         assert rt._skill_manager is None
@@ -285,10 +314,15 @@ class TestRuntimeInitializeDisabledModules:
     def test_initialize_knowledge_disabled(self):
         cfg = RuntimeConfig(
             robot_zoo_path="/nonexistent/zoo",
-            enable_firewall=False, enable_memory=False,
-            enable_practice=False, enable_swarm=False,
-            enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False)
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
+        )
         rt = Runtime(config=cfg)
         rt.initialize()
         assert rt._knowledge is None
@@ -296,10 +330,15 @@ class TestRuntimeInitializeDisabledModules:
     def test_initialize_how_disabled(self):
         cfg = RuntimeConfig(
             robot_zoo_path="/nonexistent/zoo",
-            enable_firewall=False, enable_memory=False,
-            enable_practice=False, enable_swarm=False,
-            enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False)
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
+        )
         rt = Runtime(config=cfg)
         rt.initialize()
         assert rt._how is None
@@ -307,10 +346,15 @@ class TestRuntimeInitializeDisabledModules:
     def test_initialize_provider_disabled(self):
         cfg = RuntimeConfig(
             robot_zoo_path="/nonexistent/zoo",
-            enable_firewall=False, enable_memory=False,
-            enable_practice=False, enable_swarm=False,
-            enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False)
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
+        )
         rt = Runtime(config=cfg)
         rt.initialize()
         assert rt._provider_registry is None
@@ -322,6 +366,7 @@ class TestRuntimeInitializeDisabledModules:
 # _do_initialize — ImportError fallback paths
 # ---------------------------------------------------------------------------
 
+
 class TestRuntimeInitializeImportErrors:
     @patch("rosclaw.core.runtime.ProviderRegistry", None)
     @patch("rosclaw.core.runtime.CapabilityRouter", None)
@@ -329,9 +374,14 @@ class TestRuntimeInitializeImportErrors:
     def test_provider_import_error_at_module_level(self):
         """ProviderRegistry etc. are None at module level when import fails."""
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=True,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=True,
         )
         rt = Runtime(config=cfg)
         rt.initialize()
@@ -343,9 +393,14 @@ class TestRuntimeInitializeImportErrors:
     def test_provider_registry_raises_on_instantiation(self, _mock_reg):
         """ProviderRegistry class exists but instantiation raises."""
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=True,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=True,
         )
         rt = Runtime(config=cfg)
         rt.initialize()
@@ -357,12 +412,19 @@ class TestRuntimeInitializeImportErrors:
     @patch("rosclaw.core.runtime.GuardPipeline")
     @patch("rosclaw.core.runtime.SchemaGuard")
     @patch("rosclaw.core.runtime.ActionGuard")
-    def test_provider_builtin_registration_raises(self, _mock_ag, _mock_sg, mock_gp, mock_cr, mock_pr):
+    def test_provider_builtin_registration_raises(
+        self, _mock_ag, _mock_sg, mock_gp, mock_cr, mock_pr
+    ):
         """Built-in provider registration raises but is caught."""
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=True,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=True,
         )
         rt = Runtime(config=cfg)
         mock_registry = MagicMock()
@@ -383,11 +445,18 @@ class TestRuntimeInitializeImportErrors:
     @patch("rosclaw.core.runtime.GuardPipeline")
     @patch("rosclaw.core.runtime.SchemaGuard")
     @patch("rosclaw.core.runtime.ActionGuard")
-    def test_provider_robot_capability_registration_raises(self, _mock_ag, _mock_sg, mock_gp, mock_cr, mock_pr):
+    def test_provider_robot_capability_registration_raises(
+        self, _mock_ag, _mock_sg, mock_gp, mock_cr, mock_pr
+    ):
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=True,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=True,
         )
         rt = Runtime(config=cfg)
         mock_registry = MagicMock()
@@ -410,9 +479,14 @@ class TestRuntimeInitializeImportErrors:
     @patch("rosclaw.core.runtime.ActionGuard")
     def test_provider_external_loading_raises(self, _mock_ag, _mock_sg, mock_gp, mock_cr, mock_pr):
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=True,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=True,
         )
         rt = Runtime(config=cfg)
         mock_registry = MagicMock()
@@ -433,9 +507,14 @@ class TestRuntimeInitializeImportErrors:
     @patch("rosclaw.core.runtime.ActionGuard")
     def test_provider_layer_setup_success(self, _mock_ag, _mock_sg, mock_gp, mock_cr, mock_pr):
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=True,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=True,
         )
         rt = Runtime(config=cfg)
         mock_registry = MagicMock()
@@ -455,6 +534,7 @@ class TestRuntimeInitializeImportErrors:
 # ---------------------------------------------------------------------------
 # _do_start / _do_stop lifecycle
 # ---------------------------------------------------------------------------
+
 
 class TestRuntimeLifecycle:
     def test_start_stop_with_no_modules(self, fresh_runtime):
@@ -542,6 +622,7 @@ class TestRuntimeLifecycle:
 # _setup_internal_subscriptions
 # ---------------------------------------------------------------------------
 
+
 class TestInternalSubscriptions:
     def test_subscriptions_are_set_up(self, fresh_runtime):
         rt = fresh_runtime
@@ -563,6 +644,7 @@ class TestInternalSubscriptions:
 # Event handlers
 # ---------------------------------------------------------------------------
 
+
 class TestEventHandlers:
     def test_on_safety_violation_publishes_emergency_stop(self, fresh_runtime):
         rt = fresh_runtime
@@ -582,6 +664,7 @@ class TestEventHandlers:
 
     def test_on_agent_command_logs(self, fresh_runtime, caplog):
         import logging
+
         rt = fresh_runtime
         rt.initialize()
         evt = Event(
@@ -735,6 +818,7 @@ class TestEventHandlers:
 
     def test_on_provider_event(self, fresh_runtime, caplog):
         import logging
+
         rt = fresh_runtime
         rt.initialize()
         evt = Event(
@@ -748,6 +832,7 @@ class TestEventHandlers:
 
     def test_on_provider_health_changed(self, fresh_runtime, caplog):
         import logging
+
         rt = fresh_runtime
         rt.initialize()
         evt = Event(
@@ -762,6 +847,7 @@ class TestEventHandlers:
 
     def test_on_provider_health_changed_unhealthy(self, fresh_runtime, caplog):
         import logging
+
         rt = fresh_runtime
         rt.initialize()
         evt = Event(
@@ -777,6 +863,7 @@ class TestEventHandlers:
 # ---------------------------------------------------------------------------
 # get_status
 # ---------------------------------------------------------------------------
+
 
 class TestGetStatus:
     def test_get_status_basic(self, fresh_runtime):
@@ -806,9 +893,14 @@ class TestGetStatus:
     def test_get_status_with_modules(self):
         cfg = RuntimeConfig(
             robot_id="mod_bot",
-            enable_firewall=False, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
         )
         rt = Runtime(config=cfg)
         rt.initialize()
@@ -832,6 +924,7 @@ class TestGetStatus:
 # _load_e_urdf
 # ---------------------------------------------------------------------------
 
+
 class TestLoadEURDF:
     def test_load_from_model_path(self, tmp_path):
         urdf_file = tmp_path / "robot.urdf"
@@ -839,9 +932,14 @@ class TestLoadEURDF:
 
         cfg = RuntimeConfig(
             robot_model_path=str(urdf_file),
-            enable_firewall=False, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
         )
         rt = Runtime(config=cfg)
         with patch("rosclaw.e_urdf.parser.EURDFParser") as mock_parser:
@@ -868,9 +966,14 @@ class TestLoadEURDF:
         cfg = RuntimeConfig(
             robot_zoo_path=str(zoo),
             default_eurdf_robot="ur5e",
-            enable_firewall=False, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
         )
         rt = Runtime(config=cfg)
         with patch("rosclaw.e_urdf.parser.EURDFParser") as mock_parser:
@@ -898,9 +1001,14 @@ class TestLoadEURDF:
         cfg = RuntimeConfig(
             robot_zoo_path=str(zoo),
             default_eurdf_robot="ur5e",
-            enable_firewall=False, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
         )
         rt = Runtime(config=cfg)
         with patch("rosclaw.e_urdf.parser.EURDFParser") as mock_parser:
@@ -918,9 +1026,14 @@ class TestLoadEURDF:
         cfg = RuntimeConfig(
             robot_zoo_path=str(zoo),
             default_eurdf_robot="nonexistent",
-            enable_firewall=False, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
         )
         rt = Runtime(config=cfg)
         rt.initialize()
@@ -1019,6 +1132,7 @@ class TestModuleProperties:
 # RobotRegistry methods
 # ---------------------------------------------------------------------------
 
+
 class TestRobotRegistry:
     def test_install_and_get(self, tmp_path):
         from rosclaw.runtime.eurdf_loader import RobotRegistry
@@ -1038,6 +1152,7 @@ class TestRobotRegistry:
         reg = RobotRegistry(loader=MagicMock())
         # Patch the loader with a real one using our tmp zoo
         from rosclaw.runtime.eurdf_loader import EURDFLoader
+
         reg.loader = EURDFLoader(str(zoo))
 
         profile = reg.install("ur5e")
@@ -1178,6 +1293,7 @@ class TestRobotRegistry:
 # Driver registration
 # ---------------------------------------------------------------------------
 
+
 class TestDriverRegistration:
     def test_register_and_get_driver(self, fresh_runtime):
         rt = fresh_runtime
@@ -1194,20 +1310,26 @@ class TestDriverRegistration:
 # _run_async
 # ---------------------------------------------------------------------------
 
+
 class TestRunAsync:
     def test_run_async_no_event_loop(self, fresh_runtime):
         rt = fresh_runtime
+
         async def coro():  # noqa: E306
             return 42
+
         result = rt._run_async(coro())
         assert result == 42
 
     def test_run_async_inside_event_loop(self, fresh_runtime):
         rt = fresh_runtime
+
         async def inner():  # noqa: E306
             async def coro():
                 return 42
+
             return rt._run_async(coro())
+
         result = asyncio.run(inner())
         assert result == 42
 
@@ -1215,6 +1337,7 @@ class TestRunAsync:
 # ---------------------------------------------------------------------------
 # _HowProxy
 # ---------------------------------------------------------------------------
+
 
 class TestHowProxy:
     def test_proxy_non_callable(self):
@@ -1234,8 +1357,10 @@ class TestHowProxy:
 
     def test_proxy_callable_async(self):
         engine = MagicMock()
+
         async def async_fn(x):  # noqa: E306
             return x * 2
+
         engine.double = async_fn
         bus = MagicMock()
         proxy = _HowProxy(engine, lambda c: asyncio.run(c), event_bus=bus)
@@ -1244,8 +1369,10 @@ class TestHowProxy:
 
     def test_proxy_exception(self):
         engine = MagicMock()
+
         def fail():  # noqa: E306
             raise RuntimeError("boom")
+
         engine.fail = fail
         bus = MagicMock()
         proxy = _HowProxy(engine, lambda c: c, event_bus=bus)
@@ -1265,6 +1392,7 @@ class TestHowProxy:
 # _MemoryProxy
 # ---------------------------------------------------------------------------
 
+
 class TestMemoryProxy:
     def test_proxy_non_callable(self):
         mem = MagicMock()
@@ -1283,8 +1411,10 @@ class TestMemoryProxy:
 
     def test_proxy_exception(self):
         mem = MagicMock()
+
         def fail():  # noqa: E306
             raise RuntimeError("boom")
+
         mem.fail = fail
         bus = MagicMock()
         proxy = _MemoryProxy(mem, event_bus=bus)
@@ -1302,6 +1432,7 @@ class TestMemoryProxy:
 # ---------------------------------------------------------------------------
 # capability_invoke
 # ---------------------------------------------------------------------------
+
 
 class TestCapabilityInvoke:
     @patch("rosclaw.core.runtime.ProviderRegistry", None)
@@ -1323,9 +1454,11 @@ class TestCapabilityInvoke:
         rt = fresh_runtime
         rt.initialize()
         mock_know = MagicMock()
-        mock_know.query_for_provider_selection = MagicMock(return_value={
-            "has_capability": True,
-        })
+        mock_know.query_for_provider_selection = MagicMock(
+            return_value={
+                "has_capability": True,
+            }
+        )
         rt._knowledge = mock_know
 
         result = rt.capability_invoke("vlm.object_grounding", {})
@@ -1351,6 +1484,7 @@ class TestCapabilityInvoke:
 # plan_action
 # ---------------------------------------------------------------------------
 
+
 class TestPlanAction:
     def test_plan_action_fallback(self, fresh_runtime):
         rt = fresh_runtime
@@ -1375,6 +1509,7 @@ class TestPlanAction:
 # ---------------------------------------------------------------------------
 # sandbox_check
 # ---------------------------------------------------------------------------
+
 
 class TestSandboxCheck:
     def test_sandbox_check_firewall_disabled(self, fresh_runtime):
@@ -1433,6 +1568,7 @@ class TestSandboxCheck:
 # _generate_trajectory
 # ---------------------------------------------------------------------------
 
+
 class TestGenerateTrajectory:
     def test_generate_from_target_pose(self, fresh_runtime):
         rt = fresh_runtime
@@ -1457,6 +1593,7 @@ class TestGenerateTrajectory:
 # ---------------------------------------------------------------------------
 # Physical World APIs
 # ---------------------------------------------------------------------------
+
 
 class TestPhysicalWorldAPIs:
     def test_add_world_object_no_memory(self, fresh_runtime):
@@ -1583,6 +1720,7 @@ class TestPhysicalWorldAPIs:
 # _load_external_providers
 # ---------------------------------------------------------------------------
 
+
 class TestLoadExternalProviders:
     def test_no_providers_dir(self, fresh_runtime):
         rt = fresh_runtime
@@ -1615,6 +1753,7 @@ class TestLoadExternalProviders:
 # execute (full closed loop)
 # ---------------------------------------------------------------------------
 
+
 class TestExecute:
     def test_execute_blocked_by_firewall(self, fresh_runtime):
         rt = fresh_runtime
@@ -1631,11 +1770,13 @@ class TestExecute:
         mock_fw.validate = MagicMock(return_value=mock_response)
         rt._firewall = mock_fw
 
-        result = rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0]],
-        })
+        result = rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0]],
+            }
+        )
         assert result["status"] == "blocked"
         assert result["decision"] == "BLOCK"
         rt.stop()
@@ -1650,11 +1791,13 @@ class TestExecute:
         mock_sandbox._world_id = "test_world"
         rt._sandbox = mock_sandbox
 
-        result = rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0], [0.1, 0, 0, 0, 0, 0]],
-        })
+        result = rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0], [0.1, 0, 0, 0, 0, 0]],
+            }
+        )
         assert result["status"] == "ok"
         assert "trajectory_data" in result
         rt.stop()
@@ -1666,18 +1809,22 @@ class TestExecute:
         mock_sandbox = MagicMock()
         mock_sandbox.has_physics = True
         mock_sandbox.validate_trajectory = MagicMock(return_value={"is_safe": True})
-        mock_sandbox.simulate_step = MagicMock(return_value={
-            "qpos": [0.05, 0, 0, 0, 0, 0],
-            "time": 0.01,
-        })
+        mock_sandbox.simulate_step = MagicMock(
+            return_value={
+                "qpos": [0.05, 0, 0, 0, 0, 0],
+                "time": 0.01,
+            }
+        )
         mock_sandbox._world_id = "test_world"
         rt._sandbox = mock_sandbox
 
-        result = rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0], [0.1, 0, 0, 0, 0, 0]],
-        })
+        result = rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0], [0.1, 0, 0, 0, 0, 0]],
+            }
+        )
         assert result["status"] == "ok"
         rt.stop()
 
@@ -1686,17 +1833,23 @@ class TestExecute:
         rt.initialize()
         rt.start()
         mock_sandbox = MagicMock()
-        mock_sandbox.validate_trajectory = MagicMock(return_value={
-            "is_safe": False, "reason": "collision", "violations": [],
-        })
+        mock_sandbox.validate_trajectory = MagicMock(
+            return_value={
+                "is_safe": False,
+                "reason": "collision",
+                "violations": [],
+            }
+        )
         mock_sandbox._world_id = "test_world"
         rt._sandbox = mock_sandbox
 
-        result = rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0]],
-        })
+        result = rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0]],
+            }
+        )
         assert result["status"] == "blocked"
         rt.stop()
 
@@ -1708,11 +1861,13 @@ class TestExecute:
         mock_sandbox.validate_trajectory = MagicMock(side_effect=RuntimeError("sim crash"))
         rt._sandbox = mock_sandbox
 
-        result = rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0]],
-        })
+        result = rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0]],
+            }
+        )
         assert result["status"] == "error"
         rt.stop()
 
@@ -1720,10 +1875,12 @@ class TestExecute:
         rt = fresh_runtime
         rt.initialize()
         rt.start()
-        result = rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-        })
+        result = rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+            }
+        )
         assert result["status"] == "ok"
         assert "trajectory" in result
         rt.stop()
@@ -1735,11 +1892,13 @@ class TestExecute:
         events = []
         rt.event_bus.subscribe("rosclaw.critic.success.detected", events.append)
 
-        rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0], [0.01, 0, 0, 0, 0, 0]],
-        })
+        rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0], [0.01, 0, 0, 0, 0, 0]],
+            }
+        )
         critic_events = [e for e in events if e.topic == "rosclaw.critic.success.detected"]
         assert len(critic_events) == 1
         assert critic_events[0].payload["reward"] == 1.0
@@ -1760,11 +1919,13 @@ class TestExecute:
         events = []
         rt.event_bus.subscribe("rosclaw.critic.success.detected", events.append)
 
-        rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0]],
-        })
+        rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0]],
+            }
+        )
         critic_events = [e for e in events if e.topic == "rosclaw.critic.success.detected"]
         assert len(critic_events) == 1
         assert critic_events[0].payload["reward"] == -1.0
@@ -1778,11 +1939,13 @@ class TestExecute:
         events = []
         rt.event_bus.subscribe("praxis.completed", events.append)
 
-        rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0]],
-        })
+        rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0]],
+            }
+        )
         assert len(events) == 1
         assert events[0].payload["event_type"] == "success"
         rt.stop()
@@ -1795,11 +1958,13 @@ class TestExecute:
         mock_mem.store_experience = MagicMock()
         rt._memory = mock_mem
 
-        rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0]],
-        })
+        rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0]],
+            }
+        )
         mock_mem.store_experience.assert_called_once()
         rt.stop()
 
@@ -1811,11 +1976,13 @@ class TestExecute:
         mock_know.record_knowledge_usage = MagicMock()
         rt._knowledge = mock_know
 
-        rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0]],
-        })
+        rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0]],
+            }
+        )
         mock_know.record_knowledge_usage.assert_called_once()
         rt.stop()
 
@@ -1828,11 +1995,13 @@ class TestExecute:
         rt._knowledge = mock_know
 
         # Should not raise
-        result = rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0]],
-        })
+        result = rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0]],
+            }
+        )
         assert result["status"] == "ok"
         rt.stop()
 
@@ -1843,11 +2012,13 @@ class TestExecute:
         events = []
         rt.event_bus.subscribe("rosclaw.dashboard.trace.updated", events.append)
 
-        rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0]],
-        })
+        rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0]],
+            }
+        )
         assert len(events) == 1
         assert events[0].payload["skill_name"] == "pick"
         rt.stop()
@@ -1857,12 +2028,14 @@ class TestExecute:
         rt.initialize()
         rt.start()
         # capability_invoke will fallback to mock since no router
-        result = rt.execute({
-            "instruction": "pick cup",
-            "skill_name": "pick",
-            "capability": "skill.pick",
-            "trajectory": [[0, 0, 0, 0, 0, 0]],
-        })
+        result = rt.execute(
+            {
+                "instruction": "pick cup",
+                "skill_name": "pick",
+                "capability": "skill.pick",
+                "trajectory": [[0, 0, 0, 0, 0, 0]],
+            }
+        )
         assert result["status"] == "ok"
         rt.stop()
 
@@ -1870,6 +2043,7 @@ class TestExecute:
 # ---------------------------------------------------------------------------
 # _register_robot_capabilities
 # ---------------------------------------------------------------------------
+
 
 class TestRegisterRobotCapabilities:
     def test_no_robot_profile(self, fresh_runtime):
@@ -1909,12 +2083,15 @@ class TestRegisterRobotCapabilities:
             mock_manifest.from_dict = MagicMock(return_value=MagicMock())
             rt._register_robot_capabilities()
             rt._provider_registry.register.assert_called_once()
-            rt._provider_registry.set_provider_health.assert_called_once_with("robot_capabilities", ok=True)
+            rt._provider_registry.set_provider_health.assert_called_once_with(
+                "robot_capabilities", ok=True
+            )
 
 
 # ---------------------------------------------------------------------------
 # _register_builtin_providers
 # ---------------------------------------------------------------------------
+
 
 class TestRegisterBuiltinProviders:
     def test_register_builtins(self, fresh_runtime):
@@ -1957,11 +2134,17 @@ class TestRegisterBuiltinProviders:
 class TestHowInitialization:
     def test_how_skipped_when_no_seekdb(self, fresh_runtime, caplog):
         import logging
+
         rt = fresh_runtime
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=True, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=True, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=True,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=True,
+            enable_provider=False,
         )
         rt = Runtime(config=cfg)
         # Memory will initialize but we'll mock it to have no seekdb_client
@@ -1979,18 +2162,26 @@ class TestHowInitialization:
 # Knowledge initialization with seed
 # ---------------------------------------------------------------------------
 
+
 class TestKnowledgeInitialization:
     def test_knowledge_seed_called(self, fresh_runtime):
         rt = fresh_runtime
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=True, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=True,
-            enable_how=False, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=True,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=True,
+            enable_how=False,
+            enable_provider=False,
         )
         rt = Runtime(config=cfg)
-        with patch("rosclaw.memory.interface.MemoryInterface") as mock_mem_cls, \
-             patch("rosclaw.know.interface.KnowledgeInterface") as mock_know_cls, \
-             patch("rosclaw.know.storage.seed_knowledge_graph") as mock_seed:
+        with (
+            patch("rosclaw.memory.interface.MemoryInterface") as mock_mem_cls,
+            patch("rosclaw.know.interface.KnowledgeInterface") as mock_know_cls,
+            patch("rosclaw.know.storage.seed_knowledge_graph") as mock_seed,
+        ):
             mock_mem = MagicMock()
             mock_mem.seekdb_client = MagicMock()
             mock_mem_cls.return_value = mock_mem
@@ -2002,14 +2193,21 @@ class TestKnowledgeInitialization:
     def test_knowledge_no_seekdb(self, fresh_runtime):
         rt = fresh_runtime
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=True, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=True,
-            enable_how=False, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=True,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=True,
+            enable_how=False,
+            enable_provider=False,
         )
         rt = Runtime(config=cfg)
-        with patch("rosclaw.memory.interface.MemoryInterface") as mock_mem_cls, \
-             patch("rosclaw.know.interface.KnowledgeInterface") as mock_know_cls, \
-             patch("rosclaw.know.storage.seed_knowledge_graph") as mock_seed:
+        with (
+            patch("rosclaw.memory.interface.MemoryInterface") as mock_mem_cls,
+            patch("rosclaw.know.interface.KnowledgeInterface") as mock_know_cls,
+            patch("rosclaw.know.storage.seed_knowledge_graph") as mock_seed,
+        ):
             mock_mem = MagicMock()
             mock_mem.seekdb_client = None
             mock_mem_cls.return_value = mock_mem
@@ -2022,6 +2220,7 @@ class TestKnowledgeInitialization:
 # ---------------------------------------------------------------------------
 # Sandbox initialization with RobotRegistry lookup
 # ---------------------------------------------------------------------------
+
 
 class TestSandboxInitialization:
     def test_sandbox_canonical_lookup(self, fresh_runtime):
@@ -2049,7 +2248,9 @@ class TestSandboxInitialization:
 
     def test_sandbox_import_error(self, fresh_runtime):
         rt = fresh_runtime
-        with patch("rosclaw.sandbox.runtime_adapter.SandboxRuntimeAdapter", side_effect=ImportError):
+        with patch(
+            "rosclaw.sandbox.runtime_adapter.SandboxRuntimeAdapter", side_effect=ImportError
+        ):
             rt.initialize()
             assert rt._sandbox is None
 
@@ -2058,19 +2259,27 @@ class TestSandboxInitialization:
 # Memory seekdb backend selection
 # ---------------------------------------------------------------------------
 
+
 class TestMemorySeekDB:
     def test_sqlite_backend(self, fresh_runtime):
         rt = fresh_runtime
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=True, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=True,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
             seekdb_backend="sqlite",
             seekdb_path=":memory:",
         )
         rt = Runtime(config=cfg)
-        with patch("rosclaw.memory.interface.MemoryInterface") as mock_mem_cls, \
-             patch("rosclaw.memory.seekdb_client.SeekDBSQLiteClient") as mock_sqlite:
+        with (
+            patch("rosclaw.memory.interface.MemoryInterface") as mock_mem_cls,
+            patch("rosclaw.memory.seekdb_client.SeekDBSQLiteClient") as mock_sqlite,
+        ):
             mock_mem = MagicMock()
             mock_mem_cls.return_value = mock_mem
             mock_sqlite.return_value = MagicMock()
@@ -2080,14 +2289,21 @@ class TestMemorySeekDB:
     def test_memory_backend(self, fresh_runtime):
         rt = fresh_runtime
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=True, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=True,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
             seekdb_backend="memory",
         )
         rt = Runtime(config=cfg)
-        with patch("rosclaw.memory.interface.MemoryInterface") as mock_mem_cls, \
-             patch("rosclaw.memory.seekdb_client.SeekDBMemoryClient") as mock_mem_client:
+        with (
+            patch("rosclaw.memory.interface.MemoryInterface") as mock_mem_cls,
+            patch("rosclaw.memory.seekdb_client.SeekDBMemoryClient") as mock_mem_client,
+        ):
             mock_mem = MagicMock()
             mock_mem_cls.return_value = mock_mem
             mock_mem_client.return_value = MagicMock()
@@ -2099,17 +2315,25 @@ class TestMemorySeekDB:
 # EpisodeRecorder and Critic initialization
 # ---------------------------------------------------------------------------
 
+
 class TestPracticeSubmodules:
     def test_episode_recorder_import_error(self, fresh_runtime):
         rt = fresh_runtime
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=False, enable_practice=True,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=True,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
         )
         rt = Runtime(config=cfg)
-        with patch("rosclaw.practice.timeline.UnifiedTimeline") as mock_tl, \
-             patch("rosclaw.practice.episode_recorder.EpisodeRecorder", side_effect=ImportError):
+        with (
+            patch("rosclaw.practice.timeline.UnifiedTimeline") as mock_tl,
+            patch("rosclaw.practice.episode_recorder.EpisodeRecorder", side_effect=ImportError),
+        ):
             mock_tl.return_value = MagicMock()
             rt.initialize()
             assert rt._episode_recorder is None
@@ -2117,14 +2341,21 @@ class TestPracticeSubmodules:
     def test_critic_import_error(self, fresh_runtime):
         rt = fresh_runtime
         cfg = RuntimeConfig(
-            enable_firewall=False, enable_memory=False, enable_practice=True,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False,
+            enable_firewall=False,
+            enable_memory=False,
+            enable_practice=True,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
         )
         rt = Runtime(config=cfg)
-        with patch("rosclaw.practice.timeline.UnifiedTimeline") as mock_tl, \
-             patch("rosclaw.practice.episode_recorder.EpisodeRecorder") as mock_er, \
-             patch("rosclaw.critic.basic_critic.BasicCritic", side_effect=ImportError):
+        with (
+            patch("rosclaw.practice.timeline.UnifiedTimeline") as mock_tl,
+            patch("rosclaw.practice.episode_recorder.EpisodeRecorder") as mock_er,
+            patch("rosclaw.critic.basic_critic.BasicCritic", side_effect=ImportError),
+        ):
             mock_tl.return_value = MagicMock()
             mock_er.return_value = MagicMock()
             rt.initialize()
@@ -2135,15 +2366,21 @@ class TestPracticeSubmodules:
 # Firewall validator import error
 # ---------------------------------------------------------------------------
 
+
 class TestFirewallImportError:
     def test_firewall_import_error(self, tmp_path):
         urdf_file = tmp_path / "robot.urdf"
         urdf_file.write_text("<robot></robot>")
         cfg = RuntimeConfig(
             robot_model_path=str(urdf_file),
-            enable_firewall=True, enable_memory=False, enable_practice=False,
-            enable_swarm=False, enable_skill_manager=False, enable_knowledge=False,
-            enable_how=False, enable_provider=False,
+            enable_firewall=True,
+            enable_memory=False,
+            enable_practice=False,
+            enable_swarm=False,
+            enable_skill_manager=False,
+            enable_knowledge=False,
+            enable_how=False,
+            enable_provider=False,
         )
         rt = Runtime(config=cfg)
         with patch("rosclaw.firewall.validator.FirewallValidator", side_effect=ImportError):
@@ -2155,20 +2392,24 @@ class TestFirewallImportError:
 # EURDFLoader edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestEURDFLoaderEdgeCases:
     def test_loader_default_zoo_path(self):
         from rosclaw.runtime.eurdf_loader import EURDFLoader
+
         loader = EURDFLoader()
         # Default path should be relative to project
         assert loader.zoo_path is not None
 
     def test_loader_list_robots_empty_zoo(self, tmp_path):
         from rosclaw.runtime.eurdf_loader import EURDFLoader
+
         loader = EURDFLoader(str(tmp_path))
         assert loader.list_robots() == []
 
     def test_loader_list_robots_with_robots(self, tmp_path):
         from rosclaw.runtime.eurdf_loader import EURDFLoader
+
         r1 = tmp_path / "ur5e"
         r1.mkdir()
         (r1 / "robot.eurdf.yaml").write_text("robot_id: r1\nname: R1\n")
@@ -2180,12 +2421,14 @@ class TestEURDFLoaderEdgeCases:
 
     def test_loader_load_missing_robot(self, tmp_path):
         from rosclaw.runtime.eurdf_loader import EURDFLoader
+
         loader = EURDFLoader(str(tmp_path))
         with pytest.raises(FileNotFoundError):
             loader.load("nonexistent")
 
     def test_loader_load_yaml_optional_missing(self, tmp_path):
         from rosclaw.runtime.eurdf_loader import EURDFLoader
+
         robot_dir = tmp_path / "ur5e"
         robot_dir.mkdir()
         (robot_dir / "robot.eurdf.yaml").write_text(
@@ -2199,6 +2442,7 @@ class TestEURDFLoaderEdgeCases:
 
     def test_validate_bad_eurdf_yaml(self, tmp_path):
         from rosclaw.runtime.eurdf_loader import EURDFLoader
+
         robot_dir = tmp_path / "ur5e"
         robot_dir.mkdir()
         (robot_dir / "robot.eurdf.yaml").write_text("not: valid: yaml: [")
@@ -2213,11 +2457,10 @@ class TestEURDFLoaderEdgeCases:
 
     def test_validate_missing_required_fields(self, tmp_path):
         from rosclaw.runtime.eurdf_loader import EURDFLoader
+
         robot_dir = tmp_path / "ur5e"
         robot_dir.mkdir()
-        (robot_dir / "robot.eurdf.yaml").write_text(
-            "robot_id: ur5e\nname: UR5e\n"
-        )
+        (robot_dir / "robot.eurdf.yaml").write_text("robot_id: ur5e\nname: UR5e\n")
         (robot_dir / "safety.yaml").write_text("safety_level: MODERATE\n")
         (robot_dir / "semantic.yaml").write_text("semantic_version: '1.0'\n")
         (robot_dir / "capabilities.yaml").write_text("capabilities: []\n")
@@ -2229,6 +2472,7 @@ class TestEURDFLoaderEdgeCases:
 
     def test_load_yaml_static_method(self, tmp_path):
         from rosclaw.runtime.eurdf_loader import EURDFLoader
+
         yf = tmp_path / "test.yaml"
         yf.write_text("key: value\n")
         result = EURDFLoader._load_yaml(yf)
@@ -2236,5 +2480,6 @@ class TestEURDFLoaderEdgeCases:
 
     def test_load_yaml_missing(self, tmp_path):
         from rosclaw.runtime.eurdf_loader import EURDFLoader
+
         result = EURDFLoader._load_yaml(tmp_path / "missing.yaml")
         assert result is None
