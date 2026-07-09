@@ -22,6 +22,27 @@ from rosclaw.integrations.lerobot.subprocess_runner import run_command, which
 from rosclaw.integrations.registry import IntegrationCapability
 
 
+def _lerobot_capabilities(
+    registry_check: dict[str, bool],
+    subprocess_available: bool,
+    in_process_available: bool,
+) -> list[IntegrationCapability]:
+    """Build the P1 capability list for the doctor report."""
+    from rosclaw.integrations.lerobot.capabilities import get_lerobot_capabilities
+
+    caps = get_lerobot_capabilities()
+    overrides = {
+        "provider_type_lerobot_policy": registry_check.get("provider_type_lerobot_policy", False),
+        "dataset_export_lerobot": registry_check.get("dataset_export_lerobot", False),
+        "worker_subprocess": subprocess_available,
+        "worker_in_process": in_process_available,
+    }
+    for cap in caps:
+        if cap.name in overrides:
+            cap.enabled = overrides[cap.name]
+    return caps
+
+
 class LeRobotDoctor:
     """Diagnose the LeRobot integration environment."""
 
@@ -90,36 +111,11 @@ class LeRobotDoctor:
         if not config_enabled and lerobot_runtime is not None:
             status = "degraded"
 
-        capabilities = [
-            IntegrationCapability(
-                name="provider_type_lerobot_policy",
-                kind="provider",
-                enabled=registry_check.get("provider_type_lerobot_policy", False),
-                experimental=True,
-                description="LeRobot policy provider (dry-run in P0; import smoke in P0.1)",
-            ),
-            IntegrationCapability(
-                name="dataset_export_lerobot",
-                kind="exporter",
-                enabled=registry_check.get("dataset_export_lerobot", False),
-                experimental=True,
-                description="Export ROSClaw practice episodes to LeRobot dataset skeleton",
-            ),
-            IntegrationCapability(
-                name="worker_subprocess",
-                kind="worker",
-                enabled=worker_subprocess_available,
-                experimental=True,
-                description="Run LeRobot tasks in a configured subprocess runtime",
-            ),
-            IntegrationCapability(
-                name="worker_in_process",
-                kind="worker",
-                enabled=worker_in_process_available,
-                experimental=True,
-                description="Run LeRobot tasks in the current ROSClaw interpreter",
-            ),
-        ]
+        capabilities = _lerobot_capabilities(
+            registry_check,
+            worker_subprocess_available,
+            worker_in_process_available,
+        )
 
         message = self._build_message(
             status,

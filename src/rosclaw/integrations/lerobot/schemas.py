@@ -28,6 +28,26 @@ class LeRobotSetupErrorCode(str, Enum):
     PIP_NOT_FOUND = "pip_not_found"
 
 
+class LeRobotWorkerErrorCode(str, Enum):
+    """Structured error codes for LeRobot worker/provider failures."""
+
+    RUNTIME_NOT_CONFIGURED = "runtime_not_configured"
+    RUNTIME_PYTHON_MISSING = "runtime_python_missing"
+    WORKER_SCRIPT_MISSING = "worker_script_missing"
+    WORKER_TIMEOUT = "worker_timeout"
+    WORKER_INVALID_JSON = "worker_invalid_json"
+    WORKER_PROCESS_FAILED = "worker_process_failed"
+    POLICY_CONFIG_NOT_FOUND = "policy_config_not_found"
+    POLICY_METADATA_PARSE_FAILED = "policy_metadata_parse_failed"
+    POLICY_LOAD_FAILED = "policy_load_failed"
+    POLICY_INFER_FAILED = "policy_infer_failed"
+    POLICY_API_UNSUPPORTED = "policy_api_unsupported"
+    OBSERVATION_SCHEMA_MISMATCH = "observation_schema_mismatch"
+    IMAGE_FILE_NOT_FOUND = "image_file_not_found"
+    NETWORK_DISABLED = "network_disabled"
+    NETWORK_DOWNLOAD_REQUIRED = "network_download_required"
+
+
 @dataclass
 class ProfileSpec:
     """A LeRobot installation profile."""
