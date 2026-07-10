@@ -50,7 +50,7 @@ from rosclaw.provider.core.manifest import (
 from rosclaw.provider.core.request import ProviderRequest
 
 DEFAULT_SMOKE_POLICY = "lerobot/act_aloha_sim_transfer_cube_human"
-DEFAULT_OBSERVATION_FILE = Path(__file__).parents[4] / "examples" / "lerobot" / "sample_observation_aloha_act.json"
+DEFAULT_OBSERVATION_FILE = Path(__file__).with_name("resources") / "sample_observation_aloha_act.json"
 
 
 @dataclass
