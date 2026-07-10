@@ -3,7 +3,7 @@
   "observation": {
     "state": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     "images": {
-      "top": "/code/rosclaw/rosclaw_lerobot/rosclaw_repo/examples/lerobot/aloha_top_480x640.png"
+      "top": "aloha_top_480x640.png"
     }
   }
 }
