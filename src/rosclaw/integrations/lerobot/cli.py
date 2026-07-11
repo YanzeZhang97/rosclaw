@@ -905,27 +905,21 @@ _DATASET_COMPATIBILITY_MATRIX = [
     },
     {
         "feature": "Canonical timeline",
-        "status": "planned",
-        "since": "P2.1 Gate B.1",
+        "status": "supported",
+        "since": "P2.1 Gate B.1-1",
         "notes": "Fixed-FPS frame grid from asynchronous source streams.",
     },
     {
         "feature": "Per-feature resampling",
-        "status": "planned",
-        "since": "P2.1 Gate B.1",
-        "notes": "Linear/previous/nearest/interval_mean/interval_any strategies.",
+        "status": "supported",
+        "since": "P2.1 Gate B.1-2",
+        "notes": "Linear/previous/nearest/interval_mean/interval_any strategies with missingness policies.",
     },
     {
         "feature": "Synchronization quality gates",
         "status": "planned",
-        "since": "P2.1 Gate B.1",
+        "since": "P2.1 Gate B.1-3",
         "notes": "Coverage/skew/hold-age thresholds with fail/warn/partial actions.",
-    },
-    {
-        "feature": "Multi-camera / depth",
-        "status": "planned",
-        "since": "P2.1 Gate C",
-        "notes": "Multiple RGB/depth cameras.",
     },
 ]
 
