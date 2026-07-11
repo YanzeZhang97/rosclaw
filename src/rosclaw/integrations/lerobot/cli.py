@@ -886,10 +886,46 @@ _DATASET_COMPATIBILITY_MATRIX = [
         "notes": "Multiple RGB/depth cameras.",
     },
     {
-        "feature": "Physical telemetry (current/force/temp)",
-        "status": "planned",
+        "feature": "Physical telemetry schema",
+        "status": "supported",
         "since": "P2.1 Gate B",
-        "notes": "Motor current, force/torque, temperature.",
+        "notes": "Motor current, force/torque, temperature, velocity, effort, contact.",
+    },
+    {
+        "feature": "Physical telemetry export",
+        "status": "supported",
+        "since": "P2.1 Gate B",
+        "notes": "Aligned-frame export with units/feature-names sidecars.",
+    },
+    {
+        "feature": "Timing metadata and basic synchronization diagnostics",
+        "status": "supported",
+        "since": "P2.1 Gate B",
+        "notes": "source_timestamp_ns, clock_domain, sync_stats.parquet.",
+    },
+    {
+        "feature": "Canonical timeline",
+        "status": "planned",
+        "since": "P2.1 Gate B.1",
+        "notes": "Fixed-FPS frame grid from asynchronous source streams.",
+    },
+    {
+        "feature": "Per-feature resampling",
+        "status": "planned",
+        "since": "P2.1 Gate B.1",
+        "notes": "Linear/previous/nearest/interval_mean/interval_any strategies.",
+    },
+    {
+        "feature": "Synchronization quality gates",
+        "status": "planned",
+        "since": "P2.1 Gate B.1",
+        "notes": "Coverage/skew/hold-age thresholds with fail/warn/partial actions.",
+    },
+    {
+        "feature": "Multi-camera / depth",
+        "status": "planned",
+        "since": "P2.1 Gate C",
+        "notes": "Multiple RGB/depth cameras.",
     },
 ]
 
