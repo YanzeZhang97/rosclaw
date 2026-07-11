@@ -630,6 +630,7 @@ def cmd_lerobot_export_dataset(args: argparse.Namespace) -> int:
     dry_run = bool(getattr(args, "dry_run", False))
     dataloader = bool(getattr(args, "dataloader", False))
     allow_partial = bool(getattr(args, "allow_partial", False))
+    missing_policy = getattr(args, "missing_policy", "nan")
 
     try:
         normalized = normalize_practice_episode(
@@ -706,6 +707,7 @@ def cmd_lerobot_export_dataset(args: argparse.Namespace) -> int:
                 dataloader=dataloader,
                 timeout_sec=timeout_sec,
                 allow_partial=allow_partial,
+                missing_policy=missing_policy,
             )
         except ValueError as exc:
             print(f"[rosclaw-lerobot] {exc}", file=sys.stderr)
