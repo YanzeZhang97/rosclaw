@@ -9,12 +9,14 @@ requires ``rosclaw-practice`` to be installed (``pip install rosclaw[practice]``
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rosclaw.core.types import PraxisEvent as RosclawPraxisEvent
+    from rosclaw.storage.outbox import OutboxStore, OutboxWorker
 
 try:
     from rosclaw_practice.committer import ExperienceCommitter
@@ -32,6 +34,8 @@ except ImportError as exc:  # pragma: no cover - exercised by optional-deps test
         "Install it with: pip install rosclaw[practice]"
     ) from exc
 
+logger = logging.getLogger("rosclaw.practice.seekdb_bridge")
+
 
 class SeekDBBridge:
     """Commits ROSClaw ``PraxisEvent`` records to SeekDB via ``rosclaw_practice``."""
@@ -40,6 +44,8 @@ class SeekDBBridge:
         self,
         seekdb_url: str | None = None,
         fallback_dir: str = "/data/rosclaw/fallback",
+        outbox: OutboxStore | None = None,
+        outbox_worker: OutboxWorker | None = None,
     ) -> None:
         """Initialize the bridge.
 
@@ -48,6 +54,12 @@ class SeekDBBridge:
             http://localhost:2882 to avoid colliding with the SeekDB SQL
             protocol on port 2881.
         :param fallback_dir: Directory for offline JSON fallback files.
+        :param outbox: Optional durable outbox. When provided, ``commit()``
+            writes to the local outbox instead of performing a blocking HTTP
+            request. A background worker must drain the outbox.
+        :param outbox_worker: Optional worker that drains *outbox*. If omitted
+            but *outbox* is provided, the bridge creates and starts its own
+            worker using the internal committer.
         """
         seekdb_url = seekdb_url or os.environ.get(
             "ROSCLAW_PRACTICE_HTTP_ADAPTER_URL", "http://localhost:2882"
@@ -56,20 +68,48 @@ class SeekDBBridge:
             seekdb_url=seekdb_url,
             fallback_dir=fallback_dir,
         )
+        self._outbox = outbox
+        self._owned_worker: OutboxWorker | None = None
+        self._outbox_worker = outbox_worker
+
+        if self._outbox is not None and self._outbox_worker is None:
+            from rosclaw.storage.outbox import OutboxWorker
+
+            self._owned_worker = OutboxWorker(
+                self._outbox,
+                self._committer,
+                interval_sec=5.0,
+                batch_size=100,
+            )
+            self._owned_worker.start()
+            self._outbox_worker = self._owned_worker
 
     def commit(self, event: RosclawPraxisEvent) -> None:
         """Send *event* to SeekDB, falling back to local JSON on failure.
 
-        This method is synchronous because ``ExperienceCommitter`` performs a
-        blocking HTTP request.  Use :meth:`commit_async` from async code to avoid
-        blocking the event loop.
+        When an outbox is configured, this method only writes to the local
+        outbox and returns immediately; the background worker handles the
+        upstream HTTP call.  Without an outbox, ``ExperienceCommitter`` performs
+        a blocking HTTP request.  Use :meth:`commit_async` from async code to
+        avoid blocking the event loop.
         """
         practice_event = self._convert(event)
-        self._committer.save_to_seekdb(practice_event.model_dump())
+        payload = practice_event.model_dump()
+        if self._outbox is not None:
+            self._outbox.enqueue("seekdb_http", payload)
+            return
+        self._committer.save_to_seekdb(payload)
 
     async def commit_async(self, event: RosclawPraxisEvent) -> None:
         """Async wrapper around :meth:`commit`."""
         await asyncio.to_thread(self.commit, event)
+
+    def close(self) -> None:
+        """Stop any outbox worker owned by this bridge."""
+        if self._owned_worker is not None:
+            self._owned_worker.stop()
+            self._owned_worker = None
+            self._outbox_worker = None
 
     def _convert(self, event: RosclawPraxisEvent) -> PracticePraxisEvent:
         """Convert a ROSClaw ``PraxisEvent`` to a ``rosclaw_practice`` event."""

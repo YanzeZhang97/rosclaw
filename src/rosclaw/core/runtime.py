@@ -29,6 +29,7 @@ import logging
 import os
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from rosclaw.core.event_bus import Event, EventBus, EventPriority
@@ -163,6 +164,7 @@ class Runtime(LifecycleMixin):
         self._robot_profile: Any | None = None
         self._sandbox: Any | None = None
         self._episode_recorder: Any | None = None
+        self._seekdb_bridge: Any | None = None
         self._mcp_drivers: dict[str, Any] = {}
 
         # Provider layer
@@ -305,21 +307,47 @@ class Runtime(LifecycleMixin):
                 logger.info(f"UnifiedTimeline not available: {e}")
 
             # Optional SeekDB bridge for practice event persistence
-            seekdb_bridge = None
+            self._seekdb_bridge = None
             http_url = self.config.seekdb_http_url
             if http_url:
                 try:
                     from rosclaw.practice.seekdb_bridge import SeekDBBridge
+                    from rosclaw.storage.outbox import OutboxStore
 
-                    seekdb_bridge = SeekDBBridge(
-                        seekdb_url=http_url,
-                        fallback_dir=self.config.seekdb_fallback_dir,
-                    )
-                    logger.info("SeekDBBridge initialized at %s", http_url)
+                    outbox_enabled = self.config.storage.get("outbox_enabled", False)
+                    if outbox_enabled:
+                        outbox_path = self.config.storage.get(
+                            "outbox_path",
+                            str(Path.home() / ".rosclaw" / "storage" / "outbox.sqlite"),
+                        )
+                        outbox = OutboxStore(
+                            db_path=outbox_path,
+                            max_records=self.config.storage.get("outbox_max_records", 100_000),
+                        )
+                        outbox.connect()
+                        self._seekdb_bridge = SeekDBBridge(
+                            seekdb_url=http_url,
+                            fallback_dir=self.config.seekdb_fallback_dir,
+                            outbox=outbox,
+                        )
+                        # Bridge owns the worker when only outbox is passed.
+                        logger.info(
+                            "SeekDBBridge initialized at %s with outbox (%s)",
+                            http_url,
+                            outbox_path,
+                        )
+                    else:
+                        self._seekdb_bridge = SeekDBBridge(
+                            seekdb_url=http_url,
+                            fallback_dir=self.config.seekdb_fallback_dir,
+                        )
+                        logger.info("SeekDBBridge initialized at %s", http_url)
                 except ImportError as e:
                     logger.info(f"rosclaw_practice not installed, SeekDB integration disabled: {e}")
                 except Exception as e:
                     logger.warning(f"SeekDBBridge initialization failed: {e}")
+
+            seekdb_bridge = self._seekdb_bridge
 
             # Initialize EpisodeRecorder for artifact management
             try:
@@ -587,6 +615,13 @@ class Runtime(LifecycleMixin):
         if self._event_sink is not None:
             self._event_sink.close()
             self._event_sink = None
+        # Close SeekDB bridge (and any owned outbox worker) before stopping modules.
+        if self._seekdb_bridge is not None and hasattr(self._seekdb_bridge, "close"):
+            try:
+                self._seekdb_bridge.close()
+            except Exception as exc:
+                logger.warning("SeekDBBridge close failed (non-fatal): %s", exc)
+            self._seekdb_bridge = None
         self.event_bus.publish(
             Event(
                 topic="runtime.status",
