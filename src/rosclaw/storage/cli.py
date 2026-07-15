@@ -87,9 +87,7 @@ def _sqlite_pragmas(connection: sqlite3.Connection) -> dict[str, Any]:
 
 
 def _sqlite_table_names(connection: sqlite3.Connection) -> list[str]:
-    cursor = connection.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    )
+    cursor = connection.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
     return [row[0] for row in cursor.fetchall()]
 
 
@@ -176,7 +174,11 @@ def cmd_db_doctor(args: argparse.Namespace) -> int:
     if not resolved_ok:
         issues.append(f"Unknown backend '{backend}'.")
 
-    if backend in {"sqlite", "mysql"} and url and str(url).lower().startswith(("http://", "https://")):
+    if (
+        backend in {"sqlite", "mysql"}
+        and url
+        and str(url).lower().startswith(("http://", "https://"))
+    ):
         issues.append(
             f"{backend} backend configured but seekdb_url looks like HTTP ({url}). "
             "Use ROSCLAW_PRACTICE_HTTP_ADAPTER_URL for the HTTP bridge."
@@ -194,7 +196,13 @@ def cmd_db_doctor(args: argparse.Namespace) -> int:
         if client is None:
             issues.append(f"Cannot create storage client: {ping['error']}")
 
-    checks.append(("connect", "ok" if ping.get("connected") else ping.get("error") or "failed", ping.get("connected", False)))
+    checks.append(
+        (
+            "connect",
+            "ok" if ping.get("connected") else ping.get("error") or "failed",
+            ping.get("connected", False),
+        )
+    )
     if not ping.get("connected"):
         issues.append(f"Storage ping failed: {ping.get('error')}")
 
@@ -206,14 +214,26 @@ def cmd_db_doctor(args: argparse.Namespace) -> int:
             connection = client._connection
             pragmas = _sqlite_pragmas(connection)
             tables = _sqlite_table_names(connection)
-            checks.append(("journal_mode", str(pragmas.get("journal_mode")), pragmas.get("journal_mode") == "wal"))
+            checks.append(
+                (
+                    "journal_mode",
+                    str(pragmas.get("journal_mode")),
+                    pragmas.get("journal_mode") == "wal",
+                )
+            )
             if pragmas.get("journal_mode") != "wal":
                 issues.append("SQLite journal_mode is not WAL.")
                 if args.fix:
                     connection.execute("PRAGMA journal_mode=WAL")
                     fixes.append("Set SQLite journal_mode=WAL.")
                     pragmas["journal_mode"] = "wal"
-            checks.append(("busy_timeout", str(pragmas.get("busy_timeout")), bool(pragmas.get("busy_timeout"))))
+            checks.append(
+                (
+                    "busy_timeout",
+                    str(pragmas.get("busy_timeout")),
+                    bool(pragmas.get("busy_timeout")),
+                )
+            )
             if not pragmas.get("busy_timeout"):
                 issues.append("SQLite busy_timeout is not set.")
                 if args.fix:
@@ -249,7 +269,13 @@ def cmd_db_doctor(args: argparse.Namespace) -> int:
             issues.append(f"Migration apply failed: {exc}")
             checks.append(("migrations", "failed", False))
 
-    checks.append(("schema_migrations table", "present" if "schema_migrations" in tables else "missing", "schema_migrations" in tables))
+    checks.append(
+        (
+            "schema_migrations table",
+            "present" if "schema_migrations" in tables else "missing",
+            "schema_migrations" in tables,
+        )
+    )
     if "schema_migrations" not in tables and backend != "memory":
         issues.append("schema_migrations table is missing.")
 

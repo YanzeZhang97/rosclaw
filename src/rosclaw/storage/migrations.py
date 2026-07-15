@@ -46,7 +46,9 @@ class MigrationRunner:
     """Apply versioned SQL migrations and track them in ``schema_migrations``."""
 
     def __init__(self, migrations_dir: Path | str | None = None) -> None:
-        self._migrations_dir = Path(migrations_dir) if migrations_dir else Path(__file__).parent / "migrations"
+        self._migrations_dir = (
+            Path(migrations_dir) if migrations_dir else Path(__file__).parent / "migrations"
+        )
 
     def apply(self, connection: Any, backend: str) -> list[str]:
         """Apply all pending migrations for *backend*.

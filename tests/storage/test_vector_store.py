@@ -68,7 +68,9 @@ def test_sqlite_vector_store_upsert_and_search(tmp_path) -> None:
     )
 
     vector_store.upsert("skills", "s1", "pick red cube", embedder.encode("pick red cube"))
-    vector_store.upsert("skills", "s2", "place red cube on table", embedder.encode("place red cube on table"))
+    vector_store.upsert(
+        "skills", "s2", "place red cube on table", embedder.encode("place red cube on table")
+    )
     vector_store.upsert("skills", "s3", "push blue cylinder", embedder.encode("push blue cylinder"))
 
     query = embedder.encode("grab red cube")
@@ -96,8 +98,12 @@ def test_sqlite_hybrid_search(tmp_path) -> None:
     store._init_vector_store()
 
     store._vector_store.upsert("skills", "s1", "pick red cube", embedder.encode("pick red cube"))
-    store._vector_store.upsert("skills", "s2", "place red cube on table", embedder.encode("place red cube on table"))
-    store._vector_store.upsert("skills", "s3", "push blue cylinder", embedder.encode("push blue cylinder"))
+    store._vector_store.upsert(
+        "skills", "s2", "place red cube on table", embedder.encode("place red cube on table")
+    )
+    store._vector_store.upsert(
+        "skills", "s3", "push blue cylinder", embedder.encode("push blue cylinder")
+    )
 
     results = store.similar("skills", "grab red cube", limit=2)
     ids = [r["id"] for r in results]

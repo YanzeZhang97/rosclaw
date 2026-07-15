@@ -80,9 +80,7 @@ def test_worker_drains_successfully(outbox: OutboxStore) -> None:
 def test_worker_retries_failed_commits(outbox: OutboxStore) -> None:
     committer = MagicMock()
     committer.save_to_seekdb.side_effect = RuntimeError("upstream down")
-    worker = OutboxWorker(
-        outbox, committer, interval_sec=0.05, batch_size=10, max_retries=2
-    )
+    worker = OutboxWorker(outbox, committer, interval_sec=0.05, batch_size=10, max_retries=2)
     outbox.enqueue("seekdb_http", {"event": "a"})
     worker.start()
     # Wait for the worker to exhaust retries.

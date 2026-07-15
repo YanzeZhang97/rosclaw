@@ -23,7 +23,16 @@ class TestDbStatus:
         from rosclaw.cli import main
 
         db_path = tmp_path / "knowledge.sqlite"
-        sys.argv = ["rosclaw", "db", "status", "--backend", "sqlite", "--path", str(db_path), "--json"]
+        sys.argv = [
+            "rosclaw",
+            "db",
+            "status",
+            "--backend",
+            "sqlite",
+            "--path",
+            str(db_path),
+            "--json",
+        ]
         assert main() == 0
         captured = capsys.readouterr()
         data = json.loads(captured.out)

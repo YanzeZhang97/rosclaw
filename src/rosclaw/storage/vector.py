@@ -84,9 +84,9 @@ class TfidfEmbedder(Embedder):
                 doc_freq[tok] = doc_freq.get(tok, 0) + 1
 
         # Keep most frequent terms up to max_features for stable ordering.
-        sorted_terms = sorted(
-            doc_freq.items(), key=lambda kv: (-kv[1], kv[0])
-        )[: self._max_features]
+        sorted_terms = sorted(doc_freq.items(), key=lambda kv: (-kv[1], kv[0]))[
+            : self._max_features
+        ]
         self._vocab = {term: idx for idx, (term, _) in enumerate(sorted_terms)}
         n_docs = len(corpus)
         self._idf = np.array(

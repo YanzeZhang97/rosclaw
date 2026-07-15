@@ -84,8 +84,7 @@ class TestOutboxAndMigrationsTogether:
         assert applied2 == []
 
         tables = {
-            row[0]
-            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
         assert "schema_migrations" in tables
         conn.close()
@@ -126,10 +125,16 @@ class TestVectorSearchEndToEnd:
             embedder = client._embedder
             assert embedder is not None
             client._vector_store.upsert(
-                "experience_graph", id1, "grasp a red cube on the table", embedder.encode("grasp a red cube on the table")
+                "experience_graph",
+                id1,
+                "grasp a red cube on the table",
+                embedder.encode("grasp a red cube on the table"),
             )
             client._vector_store.upsert(
-                "experience_graph", id2, "push the cube off the table", embedder.encode("push the cube off the table")
+                "experience_graph",
+                id2,
+                "push the cube off the table",
+                embedder.encode("push the cube off the table"),
             )
 
             results = client.similar(

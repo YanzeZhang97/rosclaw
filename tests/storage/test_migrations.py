@@ -42,12 +42,8 @@ def test_migration_applies_sqlite(tmp_path: Path) -> None:
 def test_migration_tracks_versions(tmp_path: Path) -> None:
     migrations_dir = tmp_path / "migrations"
     migrations_dir.mkdir()
-    (migrations_dir / "001_first.sql").write_text(
-        "-- backend: all\nSELECT 1;", encoding="utf-8"
-    )
-    (migrations_dir / "002_second.sql").write_text(
-        "-- backend: all\nSELECT 1;", encoding="utf-8"
-    )
+    (migrations_dir / "001_first.sql").write_text("-- backend: all\nSELECT 1;", encoding="utf-8")
+    (migrations_dir / "002_second.sql").write_text("-- backend: all\nSELECT 1;", encoding="utf-8")
 
     conn = sqlite3.connect(":memory:")
     runner = MigrationRunner(migrations_dir)
