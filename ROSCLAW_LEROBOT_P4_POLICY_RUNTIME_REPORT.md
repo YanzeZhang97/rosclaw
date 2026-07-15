@@ -479,12 +479,10 @@ python -m rosclaw.cli practice verify --strict --data-root /tmp/rosclaw_lerobot_
 
 Push status:
 
-- The P4.1 changes are committed on local `main` (`b672542`).
-- Multiple push attempts to `https://github.com/ros-claw/rosclaw.git` failed with
-  `Failed to connect to github.com port 443 ... 连接超时`. DNS resolves and ICMP
-  reaches GitHub, but the HTTPS git connection cannot complete from this environment.
-- Local branch is ahead of `origin/main` by 1 commit and ready to push once network
-  access to GitHub is restored.
+- The P4.1 changes were committed on local `main`, merged with the latest upstream
+  commits, and pushed successfully to `ros-claw/rosclaw` `main` (`bd8adfd`).
+- Full LeRobot unit + integration regression was re-run after the merge and remains
+  green (`284 passed, 3 skipped`).
 
 ---
 
