@@ -543,6 +543,7 @@ class Runtime(LifecycleMixin):
             url=self.config.seekdb_url,
             path=self.config.seekdb_path,
             pool_size=self.config.storage.get("pool_size", 4),
+            vector_enabled=self.config.storage.get("vector_enabled", False),
         )
         capabilities = StorageFactory.capabilities(client)
         logger.info(

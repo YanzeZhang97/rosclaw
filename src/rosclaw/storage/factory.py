@@ -19,6 +19,7 @@ from rosclaw.memory.seekdb_client import (
     SeekDBMySQLClient,
     SQLiteKnowledgeStore,
 )
+from rosclaw.storage.vector import TfidfEmbedder
 
 logger = logging.getLogger("rosclaw.storage.factory")
 
@@ -65,6 +66,8 @@ class StorageFactory:
         url: str | None = None,
         path: str | None = None,
         pool_size: int = 4,
+        vector_enabled: bool = False,
+        embedder: Any | None = None,
     ) -> SeekDBClient:
         """Return a :class:`SeekDBClient` for the chosen backend.
 
@@ -110,7 +113,11 @@ class StorageFactory:
             if not db_path:
                 raise ValueError("seekdb_backend='sqlite' requires seekdb_path or a sqlite:// URL.")
             logger.info("Knowledge store backend: sqlite (%s)", db_path)
-            return SQLiteKnowledgeStore(db_path)
+            return SQLiteKnowledgeStore(
+                db_path,
+                vector_enabled=vector_enabled,
+                embedder=embedder or (TfidfEmbedder() if vector_enabled else None),
+            )
 
         if chosen == "mysql":
             if not url:
@@ -185,10 +192,13 @@ class StorageFactory:
     @staticmethod
     def capabilities(client: SeekDBClient) -> dict[str, bool]:
         """Return capability flags for *client*."""
+        has_vector = False
+        if isinstance(client, SQLiteKnowledgeStore):
+            has_vector = getattr(client, "_vector_enabled", False)
         return {
             "persistent": not isinstance(client, InMemoryKnowledgeStore),
             "sql": isinstance(client, (SQLiteKnowledgeStore, SeekDBMySQLClient)),
             "mysql": isinstance(client, SeekDBMySQLClient),
             "sqlite": isinstance(client, SQLiteKnowledgeStore),
-            "vector": False,  # populated by VectorStore wrapper in Phase 1.3
+            "vector": has_vector,
         }

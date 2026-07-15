@@ -596,10 +596,76 @@ class SQLiteKnowledgeStore(SeekDBClient):
     one store instance.
     """
 
-    def __init__(self, db_path: str = "~/.rosclaw/memory/knowledge.sqlite"):
+    def __init__(
+        self,
+        db_path: str = "~/.rosclaw/memory/knowledge.sqlite",
+        *,
+        vector_enabled: bool = False,
+        embedder: Any | None = None,
+    ):
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
         self._lock = threading.RLock()
+        self._vector_enabled = vector_enabled
+        self._embedder = embedder
+        self._vector_store: Any | None = None
+
+    def _init_vector_store(self) -> None:
+        if not self._vector_enabled:
+            return
+        from rosclaw.storage.vector import SQLiteVectorStore, TfidfEmbedder
+
+        if self._embedder is None:
+            self._embedder = TfidfEmbedder()
+        if self._vector_store is None:
+            self._vector_store = SQLiteVectorStore(self)
+
+    def similar(
+        self,
+        table: str,
+        query_text: str,
+        filters: dict[str, Any] | None = None,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Hybrid keyword + vector search on *table*.
+
+        Requires ``vector_enabled=True`` and an embedder.  If vector support is
+        not configured, falls back to a simple keyword search over text fields.
+        """
+        self._init_vector_store()
+        if self._vector_store is not None and self._embedder is not None:
+            return self._vector_store.hybrid_search(
+                table, query_text, self._embedder, filters=filters, limit=limit
+            )
+        # Fallback: keyword search against string columns of the table.
+        return self._keyword_fallback(table, query_text, filters, limit)
+
+    def _keyword_fallback(
+        self,
+        table: str,
+        query_text: str,
+        filters: dict[str, Any] | None,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        from rosclaw.storage.vector import _tokenize
+
+        query_tokens = set(_tokenize(query_text))
+        results = []
+        rows = self.query(table, filters=filters, limit=limit * 10)
+        for row in rows:
+            text_parts = []
+            for v in row.values():
+                if isinstance(v, str):
+                    text_parts.append(v)
+                elif isinstance(v, (list, dict)):
+                    text_parts.append(json.dumps(v))
+            row_text = " ".join(text_parts)
+            tokens = set(_tokenize(row_text))
+            overlap = len(query_tokens & tokens)
+            if overlap:
+                results.append({**row, "score": overlap / max(len(query_tokens), 1)})
+        results.sort(key=lambda r: -r["score"])
+        return results[:limit]
 
     def connect(self) -> None:
         if self._conn is not None:
