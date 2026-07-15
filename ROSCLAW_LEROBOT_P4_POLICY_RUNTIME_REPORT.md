@@ -344,9 +344,10 @@ Each event includes `event_time`, `task_id`, `session_id`, `step_index`, and evi
 | `test_lerobot_persistent_runtime_smoke.py::test_persistent_runtime_100_inferences` | Python 3.12 worker | present | ✅ pass |
 | `test_lerobot_persistent_runtime_smoke.py::test_persistent_runtime_action_proposal_has_semantics` | Python 3.12 worker | present | ✅ pass |
 | `test_lerobot_rollout_rh56_smoke.py` | Python 3.11 core (mock runtime) | absent | ✅ pass |
-| Unit tests under `tests/unit/integrations/lerobot/` | Python 3.11 core | absent | ✅ 75 pass |
+| Unit tests under `tests/unit/integrations/lerobot/` | Python 3.11 core | absent | ✅ 57 pass |
+| `tests/integrations/test_lerobot_cli.py` | Python 3.11 core | absent | ✅ 220 passed, 3 skipped |
 
-Total integration smoke tests: **23 passed**.
+Total LeRobot integration tests: **220 passed, 3 skipped**.
 
 ---
 
@@ -398,6 +399,40 @@ Total integration smoke tests: **23 passed**.
 ### Report
 
 - `ROSCLAW_LEROBOT_P4_POLICY_RUNTIME_REPORT.md`
+
+---
+
+## 15. Post-Merge Verification (2026-07-15)
+
+After the initial P4-E merge, a deep re-verification pass was run on `main`:
+
+- Fixed a variable-name typo (`mapped_report` → `mapping_report`) in the
+  proposal-only rollout loop that caused a runtime failure when no body was linked.
+- Made `FixtureObservationSource` inject `_base_dir` and accept a single
+  observation dict, so the bundled sample fixture works out of the box.
+- Added `state_names` to `sample_observation_aloha_act.json` to satisfy the
+  fail-closed observation adapter without requiring an external contract.
+- Fixed `rosclaw setup lerobot --json` to emit a single parseable JSON document.
+
+Verification results:
+
+```
+python -m pytest tests/integrations/test_lerobot_*.py -q   # 220 passed, 3 skipped
+python -m pytest tests/unit/integrations/lerobot/ -q       # 57 passed
+rosclaw lerobot rollout proposal-only --steps 100           # completed, 100 proposals
+```
+
+Proposal-only CLI latency (CPU, post-warmup): mean ~84 ms, p95 ~92 ms.
+`hardware_actions_executed` remained `0`.
+
+Two commits are ready on local `main`:
+
+- `203560e` P4-E: fix proposal-only rollout body-agnostic path, fixture state_names, and source base_dir injection
+- `57553a4` P4-E: make rosclaw setup lerobot --json emit a single parseable document
+
+Push to `origin/main` was attempted but blocked by GitHub authentication/network
+issues from this environment (HTTPS token rejected / SSH denied to `yanht-op`).
+The commits should be pushed manually or from an environment with write access.
 
 ---
 
