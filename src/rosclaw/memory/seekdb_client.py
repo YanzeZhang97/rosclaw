@@ -16,6 +16,7 @@ import json
 import logging
 import re
 import sqlite3
+import threading
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -587,27 +588,46 @@ class InMemoryKnowledgeStore(SeekDBClient):
 
 
 class SQLiteKnowledgeStore(SeekDBClient):
-    """SQLite-backed knowledge store for single-machine deployment."""
+    """SQLite-backed knowledge store for single-machine deployment.
+
+    Thread-safe: the connection is opened with ``check_same_thread=False`` and
+    all operations are protected by a recursive lock so that callers from
+    background threads (preloader, event bus handlers, etc.) can safely share
+    one store instance.
+    """
 
     def __init__(self, db_path: str = "~/.rosclaw/memory/knowledge.sqlite"):
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
+        self._lock = threading.RLock()
 
     def connect(self) -> None:
         if self._conn is not None:
             return
-        Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(self._db_path)
+        path = Path(self._db_path).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self._conn = sqlite3.connect(str(path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
-        self._create_tables()
+        with self._lock:
+            self._connection.executescript(
+                """
+                PRAGMA journal_mode=WAL;
+                PRAGMA synchronous=NORMAL;
+                PRAGMA foreign_keys=ON;
+                PRAGMA busy_timeout=5000;
+                PRAGMA temp_store=MEMORY;
+                """
+            )
+            self._create_tables()
 
     def is_connected(self) -> bool:
         return self._conn is not None
 
     def disconnect(self) -> None:
-        if self._conn:
-            self._conn.close()
-            self._conn = None
+        with self._lock:
+            if self._conn:
+                self._conn.close()
+                self._conn = None
 
     @property
     def _connection(self) -> Any:
@@ -635,50 +655,55 @@ class SQLiteKnowledgeStore(SeekDBClient):
     ]
 
     def _create_tables(self) -> None:
-        for table_name, schema in SEEKDB_SCHEMAS.items():
-            cols = ", ".join(f"{k} {v}" for k, v in schema["columns"].items())
-            self._connection.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({cols})")
-        self._connection.commit()
-        # Add any columns that were added to SEEKDB_SCHEMAS after the table
-        # was first created before creating indexes that may reference them.
-        self._migrate_missing_columns()
-        # Create single-column and composite indexes
-        for table_name, schema in SEEKDB_SCHEMAS.items():
-            for idx_col in schema.get("indices", []):
-                idx_name = f"idx_{table_name}_{idx_col}"
+        with self._lock:
+            for table_name, schema in SEEKDB_SCHEMAS.items():
+                cols = ", ".join(f"{k} {v}" for k, v in schema["columns"].items())
+                self._connection.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({cols})")
+            self._connection.commit()
+            # Add any columns that were added to SEEKDB_SCHEMAS after the table
+            # was first created before creating indexes that may reference them.
+            self._migrate_missing_columns()
+            # Create single-column and composite indexes
+            for table_name, schema in SEEKDB_SCHEMAS.items():
+                for idx_col in schema.get("indices", []):
+                    idx_name = f"idx_{table_name}_{idx_col}"
+                    self._connection.execute(
+                        f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table_name}({idx_col})"
+                    )
+            for table_name, idx_name, columns in self._COMPOSITE_INDICES:
                 self._connection.execute(
-                    f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table_name}({idx_col})"
+                    f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table_name}({columns})"
                 )
-        for table_name, idx_name, columns in self._COMPOSITE_INDICES:
-            self._connection.execute(
-                f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table_name}({columns})"
-            )
-        self._connection.commit()
+            self._connection.commit()
 
     def _migrate_missing_columns(self) -> None:
         """Add columns that were added to SEEKDB_SCHEMAS after table creation.
 
-        SQLite does not allow adding a PRIMARY KEY column to an existing table,
-        so the constraint is dropped for the migration; the column presence is
-        enough for inserts/upserts to succeed.
+        SQLite ``ALTER TABLE ADD COLUMN`` rejects adding a ``NOT NULL`` column
+        without a default value. We therefore strip ``NOT NULL`` and add a safe
+        default when migrating older databases.
         """
-        for table_name, schema in SEEKDB_SCHEMAS.items():
-            cursor = self._connection.execute(f"PRAGMA table_info({table_name})")
-            existing = {row["name"] for row in cursor.fetchall()}
-            if not existing:
-                continue
-            for col_name, col_type in schema["columns"].items():
-                if col_name in existing:
+        with self._lock:
+            for table_name, schema in SEEKDB_SCHEMAS.items():
+                cursor = self._connection.execute(f"PRAGMA table_info({table_name})")
+                existing = {row["name"] for row in cursor.fetchall()}
+                if not existing:
                     continue
-                # Strip PRIMARY KEY because ALTER TABLE ADD COLUMN rejects it.
-                safe_type = col_type.replace(" PRIMARY KEY", "").strip()
-                try:
-                    self._connection.execute(
-                        f"ALTER TABLE {table_name} ADD COLUMN {col_name} {safe_type}"
-                    )
-                except Exception as exc:
-                    logger.warning("Failed to add column %s to %s: %s", col_name, table_name, exc)
-        self._connection.commit()
+                for col_name, col_type in schema["columns"].items():
+                    if col_name in existing:
+                        continue
+                    # Strip PRIMARY KEY because ALTER TABLE ADD COLUMN rejects it.
+                    safe_type = col_type.replace(" PRIMARY KEY", "").strip()
+                    if "NOT NULL" in safe_type.upper() and "DEFAULT" not in safe_type.upper():
+                        safe_type = safe_type.replace("NOT NULL", "").strip()
+                        safe_type += " DEFAULT ''"
+                    try:
+                        self._connection.execute(
+                            f"ALTER TABLE {table_name} ADD COLUMN {col_name} {safe_type}"
+                        )
+                    except sqlite3.Error as exc:
+                        logger.warning("Failed to add column %s to %s: %s", col_name, table_name, exc)
+            self._connection.commit()
 
     def insert(self, table: str, record: dict) -> str:
         if table not in SEEKDB_SCHEMAS:
@@ -693,18 +718,14 @@ class SQLiteKnowledgeStore(SeekDBClient):
         cols = ", ".join(serialized.keys())
         placeholders = ", ".join("?" for _ in serialized)
         values = list(serialized.values())
-        try:
+        set_clause = ", ".join(f"{k}=excluded.{k}" for k in serialized)
+        with self._lock:
             self._connection.execute(
-                f"INSERT INTO {table} ({cols}) VALUES ({placeholders})",
+                f"INSERT INTO {table} ({cols}) VALUES ({placeholders}) "
+                f"ON CONFLICT(id) DO UPDATE SET {set_clause}",
                 values,
             )
-        except Exception:
-            # Conflict on id — update existing record (explicit upsert)
-            self._connection.execute(
-                f"REPLACE INTO {table} ({cols}) VALUES ({placeholders})",
-                values,
-            )
-        self._connection.commit()
+            self._connection.commit()
         return serialized["id"]
 
     def query(
@@ -727,8 +748,9 @@ class SQLiteKnowledgeStore(SeekDBClient):
             key = order_by.lstrip("-")
             sql += f" ORDER BY {key} {direction}"
         sql += f" LIMIT {limit}"
-        cursor = self._connection.execute(sql, params)
-        rows = cursor.fetchall()
+        with self._lock:
+            cursor = self._connection.execute(sql, params)
+            rows = cursor.fetchall()
         results = []
         for row in rows:
             record = dict(row)
@@ -747,11 +769,12 @@ class SQLiteKnowledgeStore(SeekDBClient):
             serialized[k] = json.dumps(v) if isinstance(v, (list, dict)) else v
         set_clause = ", ".join(f"{k} = ?" for k in serialized)
         values = list(serialized.values()) + [record_id]
-        cursor = self._connection.execute(
-            f"UPDATE {table} SET {set_clause} WHERE id = ?",
-            values,
-        )
-        self._connection.commit()
+        with self._lock:
+            cursor = self._connection.execute(
+                f"UPDATE {table} SET {set_clause} WHERE id = ?",
+                values,
+            )
+            self._connection.commit()
         return cursor.rowcount > 0
 
     def count(self, table: str, filters: dict | None = None) -> int:
@@ -763,15 +786,17 @@ class SQLiteKnowledgeStore(SeekDBClient):
                 conditions.append(f"{k} = ?")
                 params.append(v)
             sql += " WHERE " + " AND ".join(conditions)
-        cursor = self._connection.execute(sql, params)
-        return cursor.fetchone()[0]
+        with self._lock:
+            cursor = self._connection.execute(sql, params)
+            return cursor.fetchone()[0]
 
     def delete(self, table: str, record_id: str) -> bool:
-        cursor = self._connection.execute(
-            f"DELETE FROM {table} WHERE id = ?",
-            (record_id,),
-        )
-        self._connection.commit()
+        with self._lock:
+            cursor = self._connection.execute(
+                f"DELETE FROM {table} WHERE id = ?",
+                (record_id,),
+            )
+            self._connection.commit()
         return cursor.rowcount > 0
 
     def delete_where(self, table: str, filters: dict) -> int:
@@ -783,8 +808,9 @@ class SQLiteKnowledgeStore(SeekDBClient):
             conditions.append(f"{k} = ?")
             params.append(v)
         sql = f"DELETE FROM {table} WHERE " + " AND ".join(conditions)
-        cursor = self._connection.execute(sql, params)
-        self._connection.commit()
+        with self._lock:
+            cursor = self._connection.execute(sql, params)
+            self._connection.commit()
         return cursor.rowcount
 
 
