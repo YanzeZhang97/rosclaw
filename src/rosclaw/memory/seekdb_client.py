@@ -14,6 +14,7 @@ Sprint 5 of DESIGN_SPRINT3_5.
 import contextlib
 import json
 import logging
+import queue
 import re
 import sqlite3
 import threading
@@ -741,6 +742,9 @@ class SQLiteKnowledgeStore(SeekDBClient):
                     f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table_name}({columns})"
                 )
             self._connection.commit()
+            from rosclaw.storage.migrations import MigrationRunner
+
+            MigrationRunner().apply(self._connection, "sqlite")
 
     def _migrate_missing_columns(self) -> None:
         """Add columns that were added to SEEKDB_SCHEMAS after table creation.
@@ -882,6 +886,86 @@ class SQLiteKnowledgeStore(SeekDBClient):
         return cursor.rowcount
 
 
+class _PooledConnection:
+    """Context manager that returns a connection to its pool on exit."""
+
+    def __init__(self, pool: "_ConnectionPool", conn: Any) -> None:
+        self._pool = pool
+        self._conn = conn
+        self._broken = False
+
+    def __enter__(self) -> Any:
+        return self._conn
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        if exc_type is not None:
+            self._broken = True
+        self._pool._release(self._conn, self._broken)
+
+
+class _ConnectionPool:
+    """Simple blocking connection pool for PyMySQL connections."""
+
+    def __init__(
+        self,
+        creator: Any,
+        pool_size: int = 4,
+        timeout: float = 10.0,
+    ) -> None:
+        self._creator = creator
+        self._max_size = max(1, pool_size)
+        self._timeout = timeout
+        self._pool: queue.Queue[Any] = queue.Queue(maxsize=self._max_size)
+        self._lock = threading.Lock()
+        self._created = 0
+        self._closed = False
+
+    def acquire(self) -> _PooledConnection:
+        if self._closed:
+            raise RuntimeError("Connection pool is closed")
+        conn: Any | None = None
+        try:
+            conn = self._pool.get_nowait()
+        except queue.Empty:
+            with self._lock:
+                if self._created < self._max_size:
+                    self._created += 1
+                    conn = self._creator()
+            if conn is None:
+                conn = self._pool.get(timeout=self._timeout)
+        return _PooledConnection(self, conn)
+
+    def _release(self, conn: Any, is_broken: bool) -> None:
+        if self._closed or is_broken or conn is None:
+            self._close_conn(conn)
+            with self._lock:
+                self._created = max(0, self._created - 1)
+            return
+        try:
+            self._pool.put_nowait(conn)
+        except queue.Full:
+            self._close_conn(conn)
+            with self._lock:
+                self._created = max(0, self._created - 1)
+
+    def _close_conn(self, conn: Any) -> None:
+        if conn is None:
+            return
+        with contextlib.suppress(Exception):
+            conn.close()
+
+    def close(self) -> None:
+        self._closed = True
+        while True:
+            try:
+                conn = self._pool.get_nowait()
+                self._close_conn(conn)
+            except queue.Empty:
+                break
+        with self._lock:
+            self._created = 0
+
+
 class SeekDBMySQLClient(SeekDBClient):
     """Experimental MySQL-compatible backend (SeekDB/OceanBase SQL port).
 
@@ -892,7 +976,15 @@ class SeekDBMySQLClient(SeekDBClient):
 
     _SUPPORTED_SCHEMES = {"mysql", "mysql+pymysql", "seekdb"}
 
-    def __init__(self, url: str = "mysql://root@127.0.0.1:2881/rosclaw"):
+    def __init__(
+        self,
+        url: str = "mysql://root@127.0.0.1:2881/rosclaw",
+        *,
+        pool_size: int = 4,
+        connect_timeout: float = 5.0,
+        read_timeout: float = 10.0,
+        write_timeout: float = 10.0,
+    ):
         parsed = urlparse(url)
         if parsed.scheme not in self._SUPPORTED_SCHEMES:
             raise ValueError(
@@ -910,7 +1002,38 @@ class SeekDBMySQLClient(SeekDBClient):
         self._user = unquote(parsed.username or "root")
         self._password = unquote(parsed.password or "")
         self._database = database
-        self._conn: Any | None = None
+        self._connect_timeout = connect_timeout
+        self._read_timeout = read_timeout
+        self._write_timeout = write_timeout
+        self._initialized = False
+        self._pool = _ConnectionPool(
+            creator=self._create_raw_connection,
+            pool_size=pool_size,
+            timeout=max(connect_timeout, 10.0),
+        )
+
+    def _create_raw_connection(self) -> Any:
+        """Create a new PyMySQL connection (without selecting the database)."""
+        try:
+            import pymysql
+        except ImportError as exc:
+            raise RuntimeError(
+                "PyMySQL is required for SeekDB server connections; install rosclaw again "
+                "with current dependencies"
+            ) from exc
+
+        return pymysql.connect(
+            host=self._host,
+            port=self._port,
+            user=self._user,
+            password=self._password,
+            charset="utf8mb4",
+            autocommit=False,
+            connect_timeout=int(self._connect_timeout),
+            read_timeout=int(self._read_timeout),
+            write_timeout=int(self._write_timeout),
+            cursorclass=pymysql.cursors.DictCursor,
+        )
 
     @staticmethod
     def _validate_identifier(identifier: str) -> str:
@@ -923,56 +1046,44 @@ class SeekDBMySQLClient(SeekDBClient):
         return f"`{cls._validate_identifier(identifier)}`"
 
     def connect(self) -> None:
-        if self._conn is not None:
+        if self._initialized:
             return
 
         try:
-            import pymysql
+            import pymysql  # noqa: F401
         except ImportError as exc:
             raise RuntimeError(
                 "PyMySQL is required for SeekDB server connections; install rosclaw again "
                 "with current dependencies"
             ) from exc
 
-        connection = pymysql.connect(
-            host=self._host,
-            port=self._port,
-            user=self._user,
-            password=self._password,
-            charset="utf8mb4",
-            autocommit=False,
-            connect_timeout=5,
-            read_timeout=10,
-            write_timeout=10,
-            cursorclass=pymysql.cursors.DictCursor,
-        )
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    f"CREATE DATABASE IF NOT EXISTS {self._quoted(self._database)} "
-                    "DEFAULT CHARACTER SET utf8mb4"
-                )
-                cursor.execute(f"USE {self._quoted(self._database)}")
-            self._conn = connection
-            self._create_tables()
-        except Exception:
-            connection.close()
-            raise
+        with self._pool.acquire() as connection:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        f"CREATE DATABASE IF NOT EXISTS {self._quoted(self._database)} "
+                        "DEFAULT CHARACTER SET utf8mb4"
+                    )
+                    cursor.execute(f"USE {self._quoted(self._database)}")
+                self._create_tables(connection)
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+        self._initialized = True
 
     def is_connected(self) -> bool:
-        return self._conn is not None and bool(getattr(self._conn, "open", True))
+        return self._initialized and not self._pool._closed
 
     def disconnect(self) -> None:
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None
+        self._pool.close()
+        self._initialized = False
 
     @property
-    def _connection(self) -> Any:
-        if self._conn is None:
+    def _connection(self) -> _PooledConnection:
+        if not self._initialized:
             self.connect()
-        assert self._conn is not None
-        return self._conn
+        return self._pool.acquire()
 
     @staticmethod
     def _mysql_column_type(
@@ -1019,8 +1130,8 @@ class SeekDBMySQLClient(SeekDBClient):
                 raise ValueError(f"Unknown columns for {table}: {sorted(unknown)}")
         return schema
 
-    def _create_tables(self) -> None:
-        with self._connection.cursor() as cursor:
+    def _create_tables(self, connection: Any) -> None:
+        with connection.cursor() as cursor:
             for table_name, schema in SEEKDB_SCHEMAS.items():
                 indexed = set(schema.get("indices", []))
                 column_sql = ", ".join(
@@ -1059,7 +1170,9 @@ class SeekDBMySQLClient(SeekDBClient):
                         f"CREATE INDEX {self._quoted(index_name)} "
                         f"ON {self._quoted(table_name)} ({self._quoted(column_name)})"
                     )
-        self._connection.commit()
+            from rosclaw.storage.migrations import MigrationRunner
+
+            MigrationRunner().apply(connection, "mysql")
 
     @staticmethod
     def _serialize(value: Any) -> Any:
@@ -1089,14 +1202,15 @@ class SeekDBMySQLClient(SeekDBClient):
         if not update_clause:
             update_clause = f"{self._quoted('id')} = {self._quoted('id')}"
 
-        with self._connection.cursor() as cursor:
-            cursor.execute(
-                f"INSERT INTO {self._quoted(table)} "
-                f"({', '.join(self._quoted(column) for column in columns)}) "
-                f"VALUES ({placeholders}) ON DUPLICATE KEY UPDATE {update_clause}",
-                list(serialized.values()),
-            )
-        self._connection.commit()
+        with self._connection as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    f"INSERT INTO {self._quoted(table)} "
+                    f"({', '.join(self._quoted(column) for column in columns)}) "
+                    f"VALUES ({placeholders}) ON DUPLICATE KEY UPDATE {update_clause}",
+                    list(serialized.values()),
+                )
+            conn.commit()
         assert "id" in schema["columns"]
         return str(serialized["id"])
 
@@ -1124,7 +1238,7 @@ class SeekDBMySQLClient(SeekDBClient):
         sql += " LIMIT %s"
         params.append(max(0, int(limit)))
 
-        with self._connection.cursor() as cursor:
+        with self._connection as conn, conn.cursor() as cursor:
             cursor.execute(sql, params)
             rows = cursor.fetchall()
         return [self._deserialize_record(dict(row)) for row in rows]
@@ -1135,13 +1249,14 @@ class SeekDBMySQLClient(SeekDBClient):
         self._validate_table_and_columns(table, list(updates))
         serialized = {key: self._serialize(value) for key, value in updates.items()}
         set_clause = ", ".join(f"{self._quoted(key)} = %s" for key in serialized)
-        with self._connection.cursor() as cursor:
-            cursor.execute(
-                f"UPDATE {self._quoted(table)} SET {set_clause} WHERE {self._quoted('id')} = %s",
-                [*serialized.values(), record_id],
-            )
-            changed = cursor.rowcount > 0
-        self._connection.commit()
+        with self._connection as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    f"UPDATE {self._quoted(table)} SET {set_clause} WHERE {self._quoted('id')} = %s",
+                    [*serialized.values(), record_id],
+                )
+                changed = cursor.rowcount > 0
+            conn.commit()
         return changed
 
     def count(self, table: str, filters: dict | None = None) -> int:
@@ -1154,7 +1269,7 @@ class SeekDBMySQLClient(SeekDBClient):
                 conditions.append(f"{self._quoted(key)} = %s")
                 params.append(value)
             sql += " WHERE " + " AND ".join(conditions)
-        with self._connection.cursor() as cursor:
+        with self._connection as conn, conn.cursor() as cursor:
             cursor.execute(sql, params)
             row = cursor.fetchone()
         if isinstance(row, dict):
@@ -1163,13 +1278,14 @@ class SeekDBMySQLClient(SeekDBClient):
 
     def delete(self, table: str, record_id: str) -> bool:
         self._validate_table_and_columns(table)
-        with self._connection.cursor() as cursor:
-            cursor.execute(
-                f"DELETE FROM {self._quoted(table)} WHERE {self._quoted('id')} = %s",
-                (record_id,),
-            )
-            deleted = cursor.rowcount > 0
-        self._connection.commit()
+        with self._connection as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    f"DELETE FROM {self._quoted(table)} WHERE {self._quoted('id')} = %s",
+                    (record_id,),
+                )
+                deleted = cursor.rowcount > 0
+            conn.commit()
         return deleted
 
     def delete_where(self, table: str, filters: dict) -> int:
@@ -1181,13 +1297,14 @@ class SeekDBMySQLClient(SeekDBClient):
         for key, value in filters.items():
             conditions.append(f"{self._quoted(key)} = %s")
             params.append(value)
-        with self._connection.cursor() as cursor:
-            cursor.execute(
-                f"DELETE FROM {self._quoted(table)} WHERE " + " AND ".join(conditions),
-                params,
-            )
-            deleted = cursor.rowcount
-        self._connection.commit()
+        with self._connection as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    f"DELETE FROM {self._quoted(table)} WHERE " + " AND ".join(conditions),
+                    params,
+                )
+                deleted = cursor.rowcount
+            conn.commit()
         return int(deleted)
 
 

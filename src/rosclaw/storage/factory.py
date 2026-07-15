@@ -133,7 +133,13 @@ class StorageFactory:
                     f"ROSCLAW_PRACTICE_HTTP_ADAPTER_URL; for SQL use mysql:// or seekdb://."
                 )
             logger.info("Knowledge store backend: mysql (%s)", _sanitize_url(str(url)))
-            return SeekDBMySQLClient(str(url))
+            return SeekDBMySQLClient(
+                str(url),
+                pool_size=pool_size,
+                connect_timeout=5.0,
+                read_timeout=10.0,
+                write_timeout=10.0,
+            )
 
         raise ValueError(
             f"Unknown knowledge-store backend '{chosen}'. Supported: memory, sqlite, mysql."
