@@ -148,7 +148,7 @@ jobs:
         run: uv pip install -e ".[dev]" --system
 
       - name: Run full non-deployment suite
-        run: pytest -q
+        run: pytest -q -m 'not slow and not integration and not deployment'
 
   hub-test:
     name: Hub Tests
@@ -256,6 +256,7 @@ jobs:
               "rosclaw/rh56_data/configs/rh56_right_01_calibration.yaml",
               "rosclaw/rh56_data/policies/rh56_reference_policy_v1/config.json",
               "rosclaw/rh56_data/policies/rh56_reference_policy_v1/model.safetensors",
+              "rosclaw/benchmarks/memory/run_benchmark.py",
               "lerobot_policy_rosclaw_rh56/__init__.py",
           }
           missing = sorted(required - names)

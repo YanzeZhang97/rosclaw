@@ -84,6 +84,26 @@ def test_cross_robot_isolation(repo: MemoryRepository) -> None:
     assert all(r.memory.robot_id == "rh56_rps_robot" for r in results)
 
 
+def test_cross_tenant_isolation(repo: MemoryRepository) -> None:
+    for tenant in ("alpha", "beta"):
+        repo.store(
+            MemoryItem(
+                memory_type="failure",
+                tenant_id=tenant,
+                robot_id="shared_robot",
+                title=f"{tenant} motor failure",
+                document="motor overcurrent",
+                evidence_refs=[f"evt_{tenant}"],
+            )
+        )
+    retriever = MemoryRetriever(repo)
+    results = retriever.retrieve(
+        MemoryQuery(text="motor overcurrent", tenant_id="alpha", robot_id="shared_robot")
+    )
+    assert results
+    assert {result.memory.tenant_id for result in results} == {"alpha"}
+
+
 def test_lexical_chinese_english_recall(repo: MemoryRepository) -> None:
     ids = _store_samples(repo)
     retriever = MemoryRetriever(repo)
@@ -161,7 +181,7 @@ def sqlite_stack(tmp_path):
     return client, vector, repo, manager
 
 
-def test_index_build_and_atomic_switch(sqlite_stack) -> None:
+def test_index_build_and_generation_switch(sqlite_stack) -> None:
     client, vector, repo, manager = sqlite_stack
     _store_samples(repo)
     embedder = TfidfEmbedder()
@@ -177,6 +197,46 @@ def test_index_build_and_atomic_switch(sqlite_stack) -> None:
     assert second["status"] == "READY"
     registry = client.query("memory_index_registry", filters={"id": first["id"]}, limit=1)
     assert registry[0]["status"] == "OLD"
+
+
+def test_index_rebuild_replaces_stale_corpus(sqlite_stack) -> None:
+    _, vector, repo, manager = sqlite_stack
+    _store_samples(repo)
+    memories = repo.query(limit=100)
+    manager.build(memories, TfidfEmbedder())
+    kept = memories[:1]
+    second = manager.build(kept, TfidfEmbedder())
+    assert second["record_count"] == 1
+    assert vector.count("memory_items") == 1
+    assert {row["record_id"] for row in vector._all_rows("memory_items")} == {
+        kept[0].memory_id
+    }
+
+
+def test_index_manager_fits_tfidf_over_full_corpus(sqlite_stack) -> None:
+    _, vector, repo, manager = sqlite_stack
+    repo.store(
+        MemoryItem(
+            memory_type="episodic",
+            robot_id="r1",
+            title="alpha",
+            document="firsttoken",
+            evidence_refs=["e1"],
+        )
+    )
+    repo.store(
+        MemoryItem(
+            memory_type="episodic",
+            robot_id="r1",
+            title="beta",
+            document="secondtoken",
+            evidence_refs=["e2"],
+        )
+    )
+    embedder = TfidfEmbedder()
+    manager.build(repo.query(limit=10), embedder)
+    assert embedder.dim is not None and embedder.dim >= 4
+    assert vector.search("memory_items", embedder.encode("secondtoken"), limit=1)
 
 
 def test_index_restart_consistency(sqlite_stack, tmp_path) -> None:
@@ -210,6 +270,22 @@ def test_model_change_requires_rebuild(sqlite_stack) -> None:
     assert "model changed" in reason
     with pytest.raises(IndexModelMismatchError):
         manager.check_query_embedder(_OtherEmbedder())
+
+
+def test_tfidf_vocabulary_change_requires_rebuild(sqlite_stack) -> None:
+    _, _, repo, manager = sqlite_stack
+    _store_samples(repo)
+    embedder = TfidfEmbedder()
+    manager.build(repo.query(limit=100), embedder)
+
+    different_vocabulary = TfidfEmbedder()
+    dimension = embedder.dim
+    assert dimension is not None
+    different_vocabulary.fit([" ".join(f"replacement{index}" for index in range(dimension))])
+    assert different_vocabulary.dim == dimension
+    rebuild, reason = manager.needs_rebuild(different_vocabulary)
+    assert rebuild
+    assert "model revision changed" in reason
 
 
 def test_delete_syncs_vector_index(sqlite_stack) -> None:

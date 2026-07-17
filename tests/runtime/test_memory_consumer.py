@@ -98,6 +98,29 @@ def test_memory_consumer_stores_practice_stop_experience(tmp_path):
     assert experiences[0]["outcome"] == "success"
 
 
+def test_practice_stop_without_trace_uses_event_id(tmp_path):
+    event_bus = EventBus(normalize_topics=False)
+    bus = RuntimeBus(event_bus=event_bus)
+    client = InMemoryKnowledgeStore()
+    client.connect()
+    consumer = MemoryConsumer(bus, robot_id="r1", seekdb_client=client)
+    consumer.initialize()
+    consumer.start()
+
+    event = RuntimeEvent(
+        type="practice.stop",
+        source="practice_coordinator",
+        robot="r1",
+        payload={"outcome": "SUCCESS", "task": {}},
+    )
+    bus.publish(event)
+    consumer.stop()
+
+    experiences = client.query("experience_graph", filters={"id": event.id})
+    assert len(experiences) == 1
+    assert experiences[0]["event_type"] == "practice_episode"
+
+
 def test_memory_consumer_indexes_artifact_uri(tmp_path):
     event_bus = EventBus(normalize_topics=False)
     bus = RuntimeBus(event_bus=event_bus)

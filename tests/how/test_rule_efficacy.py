@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import socket
+
+import pytest
+
 from rosclaw.how.rule_efficacy import (
     PatchProof,
     RecoveryRule,
@@ -10,7 +14,11 @@ from rosclaw.how.rule_efficacy import (
     wilson_interval,
     wilson_lower_bound,
 )
-from rosclaw.memory.seekdb_client import InMemoryKnowledgeStore, SQLiteKnowledgeStore
+from rosclaw.memory.seekdb_client import (
+    InMemoryKnowledgeStore,
+    SeekDBMySQLClient,
+    SQLiteKnowledgeStore,
+)
 
 
 def test_wilson_bound_prevents_tiny_sample_outranking() -> None:
@@ -26,6 +34,14 @@ def test_wilson_interval_structure() -> None:
     assert interval["lower"] < 0.9 < interval["upper"]
     empty = wilson_interval(0, 0)
     assert empty == {"lower": 0.0, "upper": 1.0, "z": 1.96}
+
+
+@pytest.mark.parametrize("successes,total", [(-1, 1), (1, -1), (2, 1)])
+def test_wilson_rejects_invalid_counts(successes: int, total: int) -> None:
+    with pytest.raises(ValueError, match="invalid binomial counts"):
+        wilson_interval(successes, total)
+    with pytest.raises(ValueError, match="invalid binomial counts"):
+        wilson_lower_bound(successes, total)
 
 
 def test_recovery_rule_schema_roundtrip() -> None:
@@ -79,6 +95,29 @@ def test_record_outcome_atomic_inmemory() -> None:
     assert record_outcome_atomic(client, "r2", True)
     row = client.query("heuristic_rules", {"id": "r2"}, limit=1)[0]
     assert row["success_count"] == 1
+
+
+def _seekdb_server_reachable() -> bool:
+    try:
+        with socket.create_connection(("127.0.0.1", 2881), timeout=1.0):
+            return True
+    except OSError:
+        return False
+
+
+@pytest.mark.skipif(not _seekdb_server_reachable(), reason="SeekDB server not reachable")
+def test_record_outcome_atomic_mysql() -> None:
+    client = SeekDBMySQLClient("mysql://root@127.0.0.1:2881/rosclaw_rule_efficacy_test")
+    client.connect()
+    try:
+        client.insert("heuristic_rules", RecoveryRule("mysql_r1", "sig", {}).to_record())
+        assert record_outcome_atomic(client, "mysql_r1", True, evidence_ref="evt_mysql")
+        row = client.query("heuristic_rules", {"id": "mysql_r1"}, limit=1)[0]
+        assert row["success_count"] == 1
+        assert row["evidence_count"] == 1
+    finally:
+        client.delete("heuristic_rules", "mysql_r1")
+        client.disconnect()
 
 
 def test_patch_proof_lifecycle() -> None:

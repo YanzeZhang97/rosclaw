@@ -176,7 +176,7 @@ class MemoryConsumer(RuntimeConsumer):
 
     def _handle_practice_stop(self, event: RuntimeEvent) -> None:
         payload = event.payload or {}
-        episode_id = payload.get("practice_id") or self._episode_id(event)
+        episode_id = str(payload.get("practice_id") or self._episode_id(event) or event.id)
         task = payload.get("task", {})
         task_label = (
             task.get("skill_id") or task.get("task_name") or task.get("task_id") or "unknown"

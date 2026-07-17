@@ -14,7 +14,10 @@ from __future__ import annotations
 
 import logging
 import math
+import re
+import sqlite3
 import time
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -121,7 +124,8 @@ def wilson_lower_bound(successes: int, total: int, z: float = 1.96) -> float:
     A rule with few samples is penalized: ``1/1`` scores ≈0.21, ``90/100``
     scores ≈0.82, so tiny-sample rules never outrank well-evidenced ones.
     """
-    if total <= 0:
+    _validate_binomial_counts(successes, total)
+    if total == 0:
         return 0.0
     phat = successes / total
     z2 = z * z
@@ -132,7 +136,8 @@ def wilson_lower_bound(successes: int, total: int, z: float = 1.96) -> float:
 
 def wilson_interval(successes: int, total: int, z: float = 1.96) -> dict[str, float]:
     """Wilson score confidence interval [lower, upper]."""
-    if total <= 0:
+    _validate_binomial_counts(successes, total)
+    if total == 0:
         return {"lower": 0.0, "upper": 1.0, "z": z}
     phat = successes / total
     z2 = z * z
@@ -144,6 +149,11 @@ def wilson_interval(successes: int, total: int, z: float = 1.96) -> dict[str, fl
         "upper": min(1.0, (center + margin) / denom),
         "z": z,
     }
+
+
+def _validate_binomial_counts(successes: int, total: int) -> None:
+    if successes < 0 or total < 0 or successes > total:
+        raise ValueError(f"invalid binomial counts: successes={successes}, total={total}")
 
 
 def rule_rank_score(rule: RecoveryRule) -> float:
@@ -168,32 +178,53 @@ def record_outcome_atomic(
     an outcome whose patch was not actually applied — callers must only
     invoke this with a completed :class:`PatchProof`.
     """
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table):
+        raise ValueError(f"invalid rule table: {table!r}")
     column = "success_count" if success else "failure_count"
     now = time.time()
     conn = getattr(client, "_connection", None)
-    if conn is not None:
+    if isinstance(conn, sqlite3.Connection):
         try:
             with client._lock:  # type: ignore[attr-defined]
-                conn.execute(
+                cursor = conn.execute(
                     f"UPDATE {table} SET {column} = {column} + 1, "
                     f"evidence_count = evidence_count + ?, last_validated_at = ? WHERE id = ?",
                     (1 if evidence_ref else 0, now, rule_id),
                 )
                 conn.commit()
-            return True
+            return cursor.rowcount > 0
         except Exception as exc:  # noqa: BLE001
-            logger.debug("atomic outcome via SQL failed, falling back: %s", exc)
-    try:
-        rows = client.query(table, filters={"id": rule_id}, limit=1)
-        if not rows:
+            logger.warning("atomic SQLite outcome update failed for %s: %s", rule_id, exc)
             return False
-        row = rows[0]
-        updates = {
-            column: int(row.get(column) or 0) + 1,
-            "evidence_count": int(row.get("evidence_count") or 0) + (1 if evidence_ref else 0),
-            "last_validated_at": now,
-        }
-        return bool(client.update(table, rule_id, updates))
+    if conn is not None and hasattr(conn, "__enter__"):
+        try:
+            with conn as sql_conn, sql_conn.cursor() as cursor:
+                cursor.execute(
+                    f"UPDATE `{table}` SET `{column}` = `{column}` + 1, "
+                    "`evidence_count` = `evidence_count` + %s, "
+                    "`last_validated_at` = %s WHERE `id` = %s",
+                    (1 if evidence_ref else 0, now, rule_id),
+                )
+                updated = cursor.rowcount > 0
+                sql_conn.commit()
+            return updated
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("atomic MySQL outcome update failed for %s: %s", rule_id, exc)
+            return False
+    try:
+        lock = getattr(client, "_lock", None)
+        with lock if lock is not None else nullcontext():
+            rows = client.query(table, filters={"id": rule_id}, limit=1)
+            if not rows:
+                return False
+            row = rows[0]
+            updates = {
+                column: int(row.get(column) or 0) + 1,
+                "evidence_count": int(row.get("evidence_count") or 0)
+                + (1 if evidence_ref else 0),
+                "last_validated_at": now,
+            }
+            return bool(client.update(table, rule_id, updates))
     except Exception as exc:  # noqa: BLE001
         logger.warning("record_outcome_atomic(%s) failed: %s", rule_id, exc)
         return False

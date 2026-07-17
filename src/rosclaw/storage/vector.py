@@ -17,6 +17,7 @@ existing keyword/BM25 paths.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import math
@@ -78,6 +79,19 @@ class TfidfEmbedder(Embedder):
     def dim(self) -> int | None:
         return len(self._vocab) if self._vocab else None
 
+    @property
+    def revision(self) -> str:
+        """Deterministic identity of the fitted vocabulary and IDF weights."""
+        if self._vocab is None or self._idf is None:
+            return "unfitted"
+        digest = hashlib.sha256()
+        for term, index in sorted(self._vocab.items(), key=lambda item: item[1]):
+            digest.update(term.encode("utf-8"))
+            digest.update(b"\x00")
+            digest.update(np.float32(self._idf[index]).tobytes())
+            digest.update(b"\x1f")
+        return f"tfidf-v1-{digest.hexdigest()[:16]}"
+
     def fit(self, corpus: list[str]) -> TfidfEmbedder:
         """Build vocabulary and IDF weights from *corpus*."""
         if not corpus:
@@ -113,7 +127,7 @@ class TfidfEmbedder(Embedder):
         tf: dict[str, int] = {}
         for tok in tokens:
             tf[tok] = tf.get(tok, 0) + 1
-        vec = np.zeros(len(self._vocab), dtype=np.float32)
+        vec: np.ndarray[Any, Any] = np.zeros(len(self._vocab), dtype=np.float32)
         for tok, count in tf.items():
             idx = self._vocab.get(tok)
             if idx is not None:
@@ -237,7 +251,9 @@ class SQLiteVectorStore(VectorStore):
             _validate_identifier(key, "column name")
             if key not in columns:
                 raise ValueError(f"Filter column {key!r} not found in table {table!r}")
-            if isinstance(value, (list, tuple, set)):
+            if value is None:
+                conditions.append(f"{key} IS NULL")
+            elif isinstance(value, (list, tuple, set)):
                 value = list(value)
                 if not value:
                     continue
@@ -321,6 +337,35 @@ class SQLiteVectorStore(VectorStore):
                 params,
             )
             self._store._connection.commit()
+
+    def replace_all(
+        self,
+        table: str,
+        records: list[tuple[str, str, list[float] | None]],
+    ) -> None:
+        """Atomically replace the complete vector corpus for *table*."""
+        self._ensure_table(table)
+        now = time.time()
+        params = [
+            (record_id, text, json.dumps(embedding or []), now)
+            for record_id, text, embedding in records
+        ]
+        with self._store._lock:
+            try:
+                self._store._connection.execute(f"DELETE FROM {self._table_name(table)}")
+                if params:
+                    self._store._connection.executemany(
+                        f"""
+                        INSERT INTO {self._table_name(table)}
+                            (record_id, text, embedding_json, updated_at)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        params,
+                    )
+                self._store._connection.commit()
+            except Exception:
+                self._store._connection.rollback()
+                raise
 
     def delete(self, table: str, record_id: str) -> bool:
         """Remove *record_id* from the vector index (delete sync, §6.6)."""

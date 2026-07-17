@@ -98,73 +98,6 @@ SEEKDB_SCHEMAS: dict[str, Any] = {
         },
         "indices": ["priority", "failure_signature", "status", "safety_level"],
     },
-    # Memory 2.0 (PR-MEM-1) — typed embodied memory with evidence rows
-    "memory_items": {
-        "columns": {
-            "id": "TEXT PRIMARY KEY",
-            "memory_type": "TEXT NOT NULL",
-            "robot_id": "TEXT NOT NULL",
-            "tenant_id": "TEXT",
-            "project_id": "TEXT",
-            "site_id": "TEXT",
-            "body_id": "TEXT",
-            "practice_id": "TEXT",
-            "session_id": "TEXT",
-            "episode_id": "TEXT",
-            "task_id": "TEXT",
-            "skill_id": "TEXT",
-            "policy_id": "TEXT",
-            "title": "TEXT",
-            "document": "TEXT",
-            "summary": "TEXT",
-            "outcome": "TEXT",
-            "reward": "REAL",
-            "confidence": "REAL DEFAULT 1.0",
-            "importance": "REAL DEFAULT 0.5",
-            "novelty": "REAL DEFAULT 0.5",
-            "quality_score": "REAL DEFAULT 0.5",
-            "evidence_refs": "TEXT",
-            "artifact_refs": "TEXT",
-            "tags": "TEXT",
-            "metadata": "TEXT",
-            "embedding_model": "TEXT",
-            "embedding_version": "TEXT",
-            "content_hash": "TEXT",
-            "event_time": "REAL",
-            "created_at": "REAL",
-            "updated_at": "REAL",
-            "expires_at": "REAL",
-            "schema_version": "TEXT",
-            "status": "TEXT DEFAULT 'active'",
-            "pinned": "INTEGER DEFAULT 0",
-        },
-        "indices": [
-            "robot_id",
-            "memory_type",
-            "body_id",
-            "task_id",
-            "skill_id",
-            "outcome",
-            "event_time",
-            "content_hash",
-            "status",
-            "practice_id",
-        ],
-    },
-    "memory_evidence": {
-        "columns": {
-            "id": "TEXT PRIMARY KEY",
-            "memory_id": "TEXT NOT NULL",
-            "evidence_type": "TEXT NOT NULL",
-            "source_event_id": "TEXT",
-            "artifact_uri": "TEXT",
-            "byte_offset": "INTEGER",
-            "sha256": "TEXT",
-            "confidence": "REAL DEFAULT 1.0",
-            "created_at": "REAL",
-        },
-        "indices": ["memory_id", "evidence_type", "source_event_id"],
-    },
     # Memory 2.0 (PR-MEM-2) — embedding index lifecycle registry
     "memory_index_registry": {
         "columns": {
@@ -225,6 +158,9 @@ SEEKDB_SCHEMAS: dict[str, Any] = {
             "pinned": "INTEGER DEFAULT 0",
         },
         "indices": [
+            "tenant_id",
+            "project_id",
+            "site_id",
             "robot_id",
             "memory_type",
             "body_id",
@@ -662,7 +598,7 @@ class InMemoryKnowledgeStore(SeekDBClient):
             remaining_filters = {}
             if filters and table in self._indices:
                 for k, v in filters.items():
-                    if k in self._indices[table]:
+                    if k in self._indices[table] and v is not None:
                         idx = self._indices[table][k]
                         matched_ids = idx.get(v, set())
                         if candidate_ids is None:
@@ -1185,8 +1121,11 @@ class SQLiteKnowledgeStore(SeekDBClient):
         if filters:
             conditions = []
             for k, v in filters.items():
-                conditions.append(f"{k} = ?")
-                params.append(v)
+                if v is None:
+                    conditions.append(f"{k} IS NULL")
+                else:
+                    conditions.append(f"{k} = ?")
+                    params.append(v)
             sql += " WHERE " + " AND ".join(conditions)
         if order_by:
             direction = "DESC" if order_by.startswith("-") else "ASC"
@@ -1239,8 +1178,11 @@ class SQLiteKnowledgeStore(SeekDBClient):
         if filters:
             conditions = []
             for k, v in filters.items():
-                conditions.append(f"{k} = ?")
-                params.append(v)
+                if v is None:
+                    conditions.append(f"{k} IS NULL")
+                else:
+                    conditions.append(f"{k} = ?")
+                    params.append(v)
             sql += " WHERE " + " AND ".join(conditions)
         with self._lock:
             cursor = self._connection.execute(sql, params)
@@ -1319,7 +1261,7 @@ class _ConnectionPool:
                 try:
                     ping = getattr(candidate, "ping", None)
                     if ping is not None:
-                        ping(reconnect=True)
+                        ping()
                     conn = candidate
                 except Exception:
                     self._close_conn(candidate)
@@ -1350,7 +1292,7 @@ class _ConnectionPool:
                 try:
                     ping = getattr(conn, "ping", None)
                     if ping is not None:
-                        ping(reconnect=True)
+                        ping()
                 except Exception:
                     self._close_conn(conn)
                     with self._lock:
@@ -1662,8 +1604,11 @@ class SeekDBMySQLClient(SeekDBClient):
         if filters:
             conditions = []
             for key, value in filters.items():
-                conditions.append(f"{self._quoted(key)} = %s")
-                params.append(value)
+                if value is None:
+                    conditions.append(f"{self._quoted(key)} IS NULL")
+                else:
+                    conditions.append(f"{self._quoted(key)} = %s")
+                    params.append(value)
             sql += " WHERE " + " AND ".join(conditions)
         if order_by:
             descending = order_by.startswith("-")
@@ -1701,8 +1646,11 @@ class SeekDBMySQLClient(SeekDBClient):
         if filters:
             conditions = []
             for key, value in filters.items():
-                conditions.append(f"{self._quoted(key)} = %s")
-                params.append(value)
+                if value is None:
+                    conditions.append(f"{self._quoted(key)} IS NULL")
+                else:
+                    conditions.append(f"{self._quoted(key)} = %s")
+                    params.append(value)
             sql += " WHERE " + " AND ".join(conditions)
         with self._connection as conn, conn.cursor() as cursor:
             cursor.execute(sql, params)

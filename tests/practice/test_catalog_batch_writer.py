@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
+import threading
 import time
 from pathlib import Path
 
 import pytest
 
-from rosclaw.practice.storage.catalog import PracticeCatalog
+from rosclaw.practice.storage.catalog import PracticeCatalog, _BatchWriter
 
 
 def _event_record(i: int, practice_id: str = "p1") -> dict:
@@ -123,3 +124,24 @@ def test_batch_writer_queue_full_falls_back_without_data_loss(tmp_path: Path) ->
     cat.flush()
     assert cat.count_events("p1") == 5
     cat.close()
+
+
+def test_batch_writer_close_retries_live_thread() -> None:
+    entered = threading.Event()
+    release = threading.Event()
+
+    def blocked_flush(_batch: list[dict]) -> None:
+        entered.set()
+        release.wait(timeout=2.0)
+
+    writer = _BatchWriter(
+        "blocked",
+        blocked_flush,
+        batch_size=2,
+        flush_interval_ms=1.0,
+    )
+    writer.put({"_wm": 1})
+    assert entered.wait(timeout=1.0)
+    assert not writer.close(timeout=0.01)
+    release.set()
+    assert writer.close(timeout=1.0)

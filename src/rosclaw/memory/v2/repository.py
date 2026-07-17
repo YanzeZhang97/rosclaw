@@ -16,6 +16,7 @@ logger = logging.getLogger("rosclaw.memory.v2.repository")
 
 ITEMS_TABLE = "memory_items"
 EVIDENCE_TABLE = "memory_evidence"
+_SCOPE_UNSET = object()
 
 
 class MemoryRepository:
@@ -48,7 +49,7 @@ class MemoryRepository:
         * Same ``content_hash`` already active — no new row; the existing
           memory_id is returned so re-distillation stays a no-op.
         """
-        existing = self.find_by_content_hash(item.content_hash, robot_id=item.robot_id)
+        existing = self.find_duplicate(item)
         if existing is not None and existing.memory_id != item.memory_id:
             logger.debug(
                 "Dedup by content_hash: %s already stored as %s",
@@ -57,9 +58,14 @@ class MemoryRepository:
             )
             return existing.memory_id
 
+        rows = evidence if evidence is not None else self._evidence_from_refs(item)
+        if item.status == MemoryStatus.ACTIVE.value and not rows:
+            raise ValueError(
+                f"active memory {item.memory_id} has no evidence; "
+                "provide evidence_refs, artifact_refs, or MemoryEvidence rows"
+            )
         item.updated_at = time.time()
         self._client.insert(ITEMS_TABLE, item.to_record())
-        rows = evidence if evidence is not None else self._evidence_from_refs(item)
         for ev in rows:
             ev.memory_id = item.memory_id
             self._client.insert(EVIDENCE_TABLE, ev.to_record())
@@ -94,6 +100,7 @@ class MemoryRepository:
         for ev in self._evidence_from_refs(item):
             ev.memory_id = target_id
             self._client.insert(EVIDENCE_TABLE, ev.to_record())
+        self._project_current(target_id)
         return True
 
     def supersede(self, old_id: str, new_item: MemoryItem) -> str:
@@ -133,15 +140,22 @@ class MemoryRepository:
         except Exception as exc:  # noqa: BLE001
             logger.warning("SeekDB projection failed for %s: %s", record.get("id"), exc)
 
+    def _project_current(self, memory_id: str) -> None:
+        item = self.get(memory_id)
+        if item is not None:
+            self._project(item.to_record())
+
+    def update_fields(self, memory_id: str, updates: dict[str, Any]) -> bool:
+        """Update one memory and keep the optional retrieval projection current."""
+        payload = {**updates, "updated_at": time.time()}
+        updated = bool(self._client.update(ITEMS_TABLE, memory_id, payload))
+        if updated:
+            self._project_current(memory_id)
+        return updated
+
     def pin(self, memory_id: str, pinned: bool = True) -> bool:
         """Safety/human-approved pinning: pinned memories never decay or expire."""
-        return bool(
-            self._client.update(
-                ITEMS_TABLE,
-                memory_id,
-                {"pinned": 1 if pinned else 0, "updated_at": time.time()},
-            )
-        )
+        return self.update_fields(memory_id, {"pinned": 1 if pinned else 0})
 
     # ------------------------------------------------------------------
     # Read path
@@ -152,16 +166,45 @@ class MemoryRepository:
         return MemoryItem.from_record(rows[0]) if rows else None
 
     def find_by_content_hash(
-        self, content_hash: str, *, robot_id: str | None = None
+        self,
+        content_hash: str,
+        *,
+        robot_id: str | None = None,
+        tenant_id: str | None | object = _SCOPE_UNSET,
+        project_id: str | None | object = _SCOPE_UNSET,
+        site_id: str | None | object = _SCOPE_UNSET,
+        status: str = MemoryStatus.ACTIVE.value,
     ) -> MemoryItem | None:
         filters: dict[str, Any] = {
             "content_hash": content_hash,
-            "status": MemoryStatus.ACTIVE.value,
+            "status": status,
         }
         if robot_id is not None:
             filters["robot_id"] = robot_id
+        if tenant_id is not _SCOPE_UNSET:
+            filters["tenant_id"] = tenant_id
+        if project_id is not _SCOPE_UNSET:
+            filters["project_id"] = project_id
+        if site_id is not _SCOPE_UNSET:
+            filters["site_id"] = site_id
         rows = self._client.query(ITEMS_TABLE, filters=filters, limit=1)
         return MemoryItem.from_record(rows[0]) if rows else None
+
+    def find_duplicate(self, item: MemoryItem) -> MemoryItem | None:
+        """Find an item by current or pre-tenant hash within the same scope."""
+        hashes = (item.content_hash, item.compute_legacy_content_hash())
+        for content_hash in dict.fromkeys(hashes):
+            existing = self.find_by_content_hash(
+                content_hash,
+                robot_id=item.robot_id,
+                tenant_id=item.tenant_id,
+                project_id=item.project_id,
+                site_id=item.site_id,
+                status=item.status,
+            )
+            if existing is not None:
+                return existing
+        return None
 
     def query(
         self,
@@ -235,7 +278,7 @@ class MemoryRepository:
                     tags=["migrated", "experience_graph"],
                     metadata={"legacy_id": row.get("id"), "event_type": row.get("event_type")},
                 )
-                existing = self.find_by_content_hash(item.content_hash, robot_id=item.robot_id)
+                existing = self.find_duplicate(item)
                 if existing is not None:
                     stats["deduplicated"] += 1
                     continue

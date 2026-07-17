@@ -52,16 +52,18 @@ class MemoryConsolidator:
         result.scanned = len(items)
 
         now = time.time()
-        by_hash: dict[str, list[MemoryItem]] = {}
+        by_hash: dict[tuple[str | None, str | None, str | None, str], list[MemoryItem]] = {}
         for item in items:
             # 1. TTL expiry (pinned memories are exempt).
             if item.expires_at and item.expires_at <= now and not item.pinned:
                 self._repo.mark_status(item.memory_id, MemoryStatus.EXPIRED.value)
+                item.status = MemoryStatus.EXPIRED.value
                 result.expired += 1
                 continue
             if item.pinned:
                 result.pinned_kept += 1
-            by_hash.setdefault(item.content_hash, []).append(item)
+            scope = (item.tenant_id, item.project_id, item.site_id, item.content_hash)
+            by_hash.setdefault(scope, []).append(item)
 
         # 2. Supersession within exact content-hash groups.
         for group in by_hash.values():
@@ -70,6 +72,7 @@ class MemoryConsolidator:
             group.sort(key=lambda item: item.event_time, reverse=True)
             for stale in group[1:]:
                 self._repo.mark_status(stale.memory_id, MemoryStatus.SUPERSEDED.value)
+                stale.status = MemoryStatus.SUPERSEDED.value
                 result.superseded += 1
                 result.duplicates_marked.append(stale.memory_id)
 
@@ -80,16 +83,26 @@ class MemoryConsolidator:
                     continue
                 if item.metadata.get("safety") or "safety" in item.tags:
                     continue
-                age_s = max(now - item.event_time, 0.0)
+                metadata = dict(item.metadata)
+                base_importance = float(metadata.get("_decay_base_importance", item.importance))
+                base_time = float(metadata.get("_decay_base_time", item.event_time))
+                age_s = max(now - base_time, 0.0)
                 if age_s < self._half_life_s:
                     continue
                 decay = 0.5 ** (age_s / self._half_life_s)
-                new_importance = max(self._min_importance, item.importance * decay)
+                new_importance = max(self._min_importance, base_importance * decay)
                 if new_importance < item.importance - 1e-6:
-                    self._repo._client.update(
-                        "memory_items",
+                    metadata["_decay_base_importance"] = base_importance
+                    metadata["_decay_base_time"] = base_time
+                    self._repo.update_fields(
                         item.memory_id,
-                        {"importance": new_importance, "updated_at": now},
+                        {"importance": new_importance, "metadata": _json_dict(metadata)},
                     )
                     result.decayed += 1
         return result
+
+
+def _json_dict(value: dict[str, Any]) -> str:
+    import json
+
+    return json.dumps(value, ensure_ascii=False)

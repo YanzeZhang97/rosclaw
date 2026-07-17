@@ -75,6 +75,11 @@ def _content_hash(*parts: str) -> str:
     return digest.hexdigest()
 
 
+def _float_or_default(value: Any, default: float) -> float:
+    """Convert a stored number while preserving legitimate zero values."""
+    return default if value is None else float(value)
+
+
 @dataclass
 class MemoryItem:
     """Unified embodied memory record (数据库优化v2.md §5.3)."""
@@ -125,7 +130,20 @@ class MemoryItem:
     pinned: bool = False
 
     def compute_content_hash(self) -> str:
-        """Semantic identity: type + robot/body + title + document."""
+        """Tenant-scoped semantic identity for idempotent distillation."""
+        return _content_hash(
+            self.tenant_id or "",
+            self.project_id or "",
+            self.site_id or "",
+            self.memory_type,
+            self.robot_id or "",
+            self.body_id or "",
+            self.title.strip().lower(),
+            self.document.strip(),
+        )
+
+    def compute_legacy_content_hash(self) -> str:
+        """Pre-tenant hash used to deduplicate records written before this upgrade."""
         return _content_hash(
             self.memory_type,
             self.robot_id or "",
@@ -224,10 +242,10 @@ class MemoryItem:
             summary=record.get("summary", ""),
             outcome=record.get("outcome"),
             reward=record.get("reward"),
-            confidence=float(record.get("confidence") or 1.0),
-            importance=float(record.get("importance") or 0.5),
-            novelty=float(record.get("novelty") or 0.5),
-            quality_score=float(record.get("quality_score") or 0.5),
+            confidence=_float_or_default(record.get("confidence"), 1.0),
+            importance=_float_or_default(record.get("importance"), 0.5),
+            novelty=_float_or_default(record.get("novelty"), 0.5),
+            quality_score=_float_or_default(record.get("quality_score"), 0.5),
             evidence_refs=_json_list(record.get("evidence_refs")),
             artifact_refs=_json_list(record.get("artifact_refs")),
             tags=_json_list(record.get("tags")),
@@ -235,9 +253,9 @@ class MemoryItem:
             embedding_model=record.get("embedding_model"),
             embedding_version=record.get("embedding_version"),
             content_hash=record.get("content_hash", ""),
-            event_time=float(record.get("event_time") or time.time()),
-            created_at=float(record.get("created_at") or time.time()),
-            updated_at=float(record.get("updated_at") or time.time()),
+            event_time=_float_or_default(record.get("event_time"), time.time()),
+            created_at=_float_or_default(record.get("created_at"), time.time()),
+            updated_at=_float_or_default(record.get("updated_at"), time.time()),
             expires_at=record.get("expires_at"),
             schema_version=record.get("schema_version", SCHEMA_VERSION),
             status=record.get("status", MemoryStatus.ACTIVE.value),
@@ -282,6 +300,6 @@ class MemoryEvidence:
             artifact_uri=record.get("artifact_uri"),
             byte_offset=record.get("byte_offset"),
             sha256=record.get("sha256"),
-            confidence=float(record.get("confidence") or 1.0),
-            created_at=float(record.get("created_at") or time.time()),
+            confidence=_float_or_default(record.get("confidence"), 1.0),
+            created_at=_float_or_default(record.get("created_at"), time.time()),
         )

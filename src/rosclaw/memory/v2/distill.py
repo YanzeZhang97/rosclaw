@@ -297,6 +297,7 @@ def extract_intervention_memories(
         payload = event.get("payload") or {}
         event_id = event.get("event_id")
         success = payload.get("success", payload.get("command_success"))
+        outcome = "unknown" if success is None else ("success" if success else "failure")
         memories.append(
             MemoryItem(
                 memory_type=MemoryType.INTERVENTION.value,
@@ -306,15 +307,15 @@ def extract_intervention_memories(
                 session_id=context.session_id,
                 episode_id=context.episode_id,
                 task_id=context.task_id,
-                title=f"{event_type} ({'success' if success else 'failed'})",
+                title=f"{event_type} ({outcome})",
                 document=(
                     f"Intervention {event_type} executed with outcome "
-                    f"{'success' if success else 'failure'}: "
+                    f"{outcome}: "
                     f"{json.dumps(payload, default=str)[:300]}"
                 ),
-                outcome="success" if success else "failure",
+                outcome=outcome,
                 confidence=0.85,
-                importance=0.8 if success else 0.9,
+                importance=0.8 if success is not False else 0.9,
                 evidence_refs=[event_id] if event_id else [],
                 tags=["intervention", event_type],
                 event_time=_event_time(event),

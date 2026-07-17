@@ -59,6 +59,12 @@ def test_memory_is_traceable_to_evidence(repo: MemoryRepository) -> None:
     assert source_ids == {"evt_a", "evt_b"}
 
 
+def test_active_memory_without_evidence_is_rejected(repo: MemoryRepository) -> None:
+    with pytest.raises(ValueError, match="has no evidence"):
+        repo.store(_item("semantic", evidence_refs=[], artifact_refs=[]))
+    assert repo.count() == 0
+
+
 def test_store_is_idempotent_on_content_hash(repo: MemoryRepository) -> None:
     first = repo.store(_item("episodic"))
     second = repo.store(_item("episodic"))  # same content → same hash
@@ -116,6 +122,59 @@ def test_evidence_model_roundtrip() -> None:
     assert restored.memory_id == "mem_1"
     assert restored.evidence_type == "telemetry_window"
     assert restored.sha256 == "abc"
+
+
+def test_numeric_zero_values_survive_roundtrip() -> None:
+    item = _item(
+        "episodic",
+        confidence=0.0,
+        importance=0.0,
+        novelty=0.0,
+        quality_score=0.0,
+        event_time=0.0,
+        created_at=0.0,
+        updated_at=0.0,
+    )
+    restored = MemoryItem.from_record(item.to_record())
+    assert restored.confidence == 0.0
+    assert restored.importance == 0.0
+    assert restored.novelty == 0.0
+    assert restored.quality_score == 0.0
+    assert restored.event_time == 0.0
+    assert restored.created_at == 0.0
+    assert restored.updated_at == 0.0
+
+    evidence = MemoryEvidence(
+        memory_id=item.memory_id,
+        evidence_type="practice_event",
+        confidence=0.0,
+        created_at=0.0,
+    )
+    evidence_restored = MemoryEvidence.from_record(evidence.to_record())
+    assert evidence_restored.confidence == 0.0
+    assert evidence_restored.created_at == 0.0
+
+
+def test_content_dedup_is_tenant_scoped(repo: MemoryRepository) -> None:
+    alpha = _item("episodic", tenant_id="alpha")
+    beta = _item("episodic", tenant_id="beta")
+    assert alpha.content_hash != beta.content_hash
+    alpha_id = repo.store(alpha)
+    beta_id = repo.store(beta)
+    assert alpha_id != beta_id
+    assert repo.count() == 2
+
+
+def test_store_deduplicates_pre_tenant_hash_within_scope(repo: MemoryRepository) -> None:
+    old = _item("episodic", tenant_id="alpha")
+    old.content_hash = old.compute_legacy_content_hash()
+    repo._client.insert("memory_items", old.to_record())
+
+    duplicate = _item("episodic", tenant_id="alpha")
+    assert repo.store(duplicate) == old.memory_id
+
+    other_tenant = _item("episodic", tenant_id="beta")
+    assert repo.store(other_tenant) != old.memory_id
 
 
 def test_sqlite_backend_stores_memory_items(tmp_path) -> None:

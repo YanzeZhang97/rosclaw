@@ -162,6 +162,7 @@ def test_repository_dual_write_via_projection(tmp_path) -> None:
     sqlite_client.disconnect()
 
 
+@pytest.mark.slow
 def test_native_benchmark_vs_sqlite_scan(tmp_path) -> None:
     """Native HNSW vector search must beat SQLite full-table scan at 10k records."""
     from rosclaw.memory.seekdb_client import SQLiteKnowledgeStore

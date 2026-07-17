@@ -179,12 +179,13 @@ class OutboxStore:
             self._connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_outbox_status_retry ON outbox(status, next_retry_at)"
             )
-            # Partial unique index: NULL keys (legacy rows) are ignored, every
-            # real idempotency key is claimable exactly once.
+            # Idempotency is target-scoped: separate upstreams may legitimately
+            # use the same logical key without suppressing each other.
+            self._connection.execute("DROP INDEX IF EXISTS idx_outbox_idempotency")
             self._connection.execute(
                 """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_outbox_idempotency
-                ON outbox(idempotency_key) WHERE idempotency_key IS NOT NULL
+                ON outbox(target, idempotency_key) WHERE idempotency_key IS NOT NULL
                 """
             )
             self._connection.execute(
@@ -251,6 +252,18 @@ class OutboxStore:
                 f"{entity_type or 'record'}:{entity_id or record_id}:{payload_sha[:16]}"
             )
         with self._lock:
+            existing = self._connection.execute(
+                "SELECT id FROM outbox WHERE target = ? AND idempotency_key = ?",
+                (target, idempotency_key),
+            ).fetchone()
+            if existing is not None:
+                logger.info(
+                    "Outbox enqueue deduplicated by target/key %s/%s (existing %s)",
+                    target,
+                    idempotency_key,
+                    existing["id"],
+                )
+                return str(existing["id"])
             count = self._connection.execute(
                 f"SELECT COUNT(*) FROM outbox WHERE status IN ({_ACTIVE_PLACEHOLDERS})",
                 _ACTIVE_STATUSES,
@@ -287,8 +300,8 @@ class OutboxStore:
             except sqlite3.IntegrityError:
                 self._connection.rollback()
                 existing = self._connection.execute(
-                    "SELECT id FROM outbox WHERE idempotency_key = ?",
-                    (idempotency_key,),
+                    "SELECT id FROM outbox WHERE target = ? AND idempotency_key = ?",
+                    (target, idempotency_key),
                 ).fetchone()
                 if existing is not None:
                     logger.info(
@@ -311,6 +324,7 @@ class OutboxStore:
         owner: str,
         lease_sec: float = 30.0,
         max_retries: int = 10,
+        target: str | None = None,
     ) -> list[OutboxRecord]:
         """Atomically claim up to *limit* ready records under a lease.
 
@@ -324,20 +338,23 @@ class OutboxStore:
         """
         now = time.time()
         lease_expires = now + lease_sec
+        target_clause = " AND target = ?" if target is not None else ""
+        target_params: tuple[str, ...] = (target,) if target is not None else ()
         with self._lock:
             candidates = self._connection.execute(
-                """
+                f"""
                 SELECT id FROM outbox
-                WHERE (
+                WHERE ((
                         (status IN ('pending', 'retry'))
                         AND (next_retry_at IS NULL OR next_retry_at <= ?)
                         AND retry_count < ?
                       )
-                   OR (status = 'inflight' AND lease_expires_at IS NOT NULL AND lease_expires_at < ?)
+                   OR (status = 'inflight' AND lease_expires_at IS NOT NULL AND lease_expires_at < ?))
+                  {target_clause}
                 ORDER BY created_at ASC
                 LIMIT ?
                 """,
-                (now, max_retries, now, limit),
+                (now, max_retries, now, *target_params, limit),
             ).fetchall()
             candidate_ids = [row["id"] for row in candidates]
             if not candidate_ids:
@@ -403,31 +420,32 @@ class OutboxStore:
     def _move_to_dead_letters(
         self, row: sqlite3.Row, *, retry_count: int, error: str | None
     ) -> None:
-        now = time.time()
-        keys = row.keys()
-        self._connection.execute(
-            """
-            INSERT OR REPLACE INTO outbox_dead_letters
-                (id, target, payload_json, created_at, retry_count, failed_at, error_log,
-                 idempotency_key, entity_type, entity_id, payload_sha256)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                row["id"],
-                row["target"],
-                row["payload_json"],
-                row["created_at"],
-                retry_count,
-                now,
-                error,
-                row["idempotency_key"] if "idempotency_key" in keys else None,
-                row["entity_type"] if "entity_type" in keys else None,
-                row["entity_id"] if "entity_id" in keys else None,
-                row["payload_sha256"] if "payload_sha256" in keys else None,
-            ),
-        )
-        self._connection.execute("DELETE FROM outbox WHERE id = ?", (row["id"],))
-        self._connection.commit()
+        with self._lock:
+            now = time.time()
+            keys = row.keys()
+            self._connection.execute(
+                """
+                INSERT OR REPLACE INTO outbox_dead_letters
+                    (id, target, payload_json, created_at, retry_count, failed_at, error_log,
+                     idempotency_key, entity_type, entity_id, payload_sha256)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    row["id"],
+                    row["target"],
+                    row["payload_json"],
+                    row["created_at"],
+                    retry_count,
+                    now,
+                    error,
+                    row["idempotency_key"] if "idempotency_key" in keys else None,
+                    row["entity_type"] if "entity_type" in keys else None,
+                    row["entity_id"] if "entity_id" in keys else None,
+                    row["payload_sha256"] if "payload_sha256" in keys else None,
+                ),
+            )
+            self._connection.execute("DELETE FROM outbox WHERE id = ?", (row["id"],))
+            self._connection.commit()
 
     def pending(self, limit: int = 100, max_retries: int = 10) -> list[OutboxRecord]:
         """Return records that are ready for retry (read-only, no lease).
@@ -520,7 +538,7 @@ class OutboxStore:
             ).fetchone()
             if row is None:
                 return
-            if owner is not None and row["lease_owner"] not in (None, owner):
+            if owner is not None and row["lease_owner"] != owner:
                 logger.warning(
                     "mark_failed(%s) ignored: lease owned by %s, not %s",
                     record_id,
@@ -730,6 +748,7 @@ class OutboxWorker:
         name: str = "outbox-worker",
         owner_id: str | None = None,
         lease_sec: float = 30.0,
+        target: str | None = None,
     ):
         self._outbox = outbox
         self._committer = committer
@@ -742,6 +761,7 @@ class OutboxWorker:
         self._drain_lock = threading.Lock()
         self._owner_id = owner_id or f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:8]}"
         self._lease_sec = lease_sec
+        self._target = target
 
     @property
     def owner_id(self) -> str:
@@ -804,6 +824,7 @@ class OutboxWorker:
             owner=self._owner_id,
             lease_sec=self._lease_sec,
             max_retries=self._max_retries,
+            target=self._target,
         )
         try:
             self._outbox.purge_delivered()

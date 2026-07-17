@@ -242,13 +242,18 @@ class StorageFactory:
     @staticmethod
     def capabilities(client: SeekDBClient) -> dict[str, bool]:
         """Return capability flags for *client*."""
+        from rosclaw.storage.seekdb_native import SeekDBNativeStore
+
         has_vector = False
         if isinstance(client, SQLiteKnowledgeStore):
             has_vector = getattr(client, "_vector_enabled", False)
+        elif isinstance(client, SeekDBNativeStore):
+            has_vector = True
         return {
             "persistent": not isinstance(client, InMemoryKnowledgeStore),
             "sql": isinstance(client, (SQLiteKnowledgeStore, SeekDBMySQLClient)),
             "mysql": isinstance(client, SeekDBMySQLClient),
             "sqlite": isinstance(client, SQLiteKnowledgeStore),
             "vector": has_vector,
+            "native_seekdb": isinstance(client, SeekDBNativeStore),
         }

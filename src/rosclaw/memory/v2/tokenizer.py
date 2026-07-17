@@ -146,9 +146,9 @@ def tokenize(text: str) -> list[str]:
 
     # 3. Protected device/error tokens that remain.
     for word in _WORD_RE.findall(text):
-        canonical = _PROTECTED_TOKENS.get(_protect(word))
-        if canonical is not None:
-            tokens.append(canonical)
+        protected = _PROTECTED_TOKENS.get(_protect(word))
+        if protected is not None:
+            tokens.append(protected)
 
     # 4. Chinese segmentation.
     for cjk_run in _CJK_RE.findall(text):

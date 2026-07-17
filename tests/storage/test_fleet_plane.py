@@ -55,6 +55,7 @@ def planes():
             "fleet_interventions",
             "fleet_skill_evidence",
             "fleet_sync_watermarks",
+            "fleet_sync_receipts",
             "fleet_memory_search",
         ):
             cursor.execute(f"DELETE FROM {table}")
@@ -136,6 +137,20 @@ def test_idempotent_sync_no_duplicates(planes) -> None:
     assert len(rows) == 1
 
 
+def test_ingest_rejects_cross_tenant_payload(planes) -> None:
+    plane_a, _, _ = planes
+    record = _mem(
+        "rh56_left",
+        "rh56_left_body",
+        "failure",
+        "spoofed tenant",
+        memory_id="tenant_spoof",
+        tenant_id=TENANT_B,
+    )
+    with pytest.raises(ValueError, match="does not match authenticated fleet tenant"):
+        plane_a.upsert_memory(record)
+
+
 def test_cross_robot_skill_pattern(planes) -> None:
     plane_a, _, _ = planes
     plane_a.upsert_skill_evidence(
@@ -177,12 +192,30 @@ def test_sync_watermark_progress(planes) -> None:
     assert wm["records_synced"] >= 15
 
 
+def test_delivery_receipt_prevents_watermark_double_count(planes) -> None:
+    plane_a, _, _ = planes
+    committer = FleetIngestCommitter(plane_a, "receipt_robot")
+    payload = _mem(
+        "receipt_robot",
+        "receipt_body",
+        "failure",
+        "idempotent delivery",
+        memory_id="receipt_mem_1",
+    )
+    payload["idempotency_key"] = "memory:receipt_mem_1:v1"
+    committer.save_to_seekdb(payload)
+    committer.save_to_seekdb(payload)
+    watermark = plane_a.watermark("receipt_robot", "memory")
+    assert watermark is not None
+    assert watermark["records_synced"] == 1
+
+
 def test_outbox_to_fleet_delivery(planes, tmp_path) -> None:
     plane_a, _, _ = planes
     outbox = OutboxStore(db_path=str(tmp_path / "outbox.sqlite"))
     outbox.connect()
     committer = FleetIngestCommitter(plane_a, "mobile_base_01")
-    worker = OutboxWorker(outbox, committer, interval_sec=0.05)
+    worker = OutboxWorker(outbox, committer, interval_sec=0.05, target="fleet")
     outbox.enqueue(
         "fleet",
         _mem("mobile_base_01", "base", "failure", "base motor overcurrent", memory_id="fleet_ob_1"),
@@ -196,6 +229,28 @@ def test_outbox_to_fleet_delivery(planes, tmp_path) -> None:
     ]
     assert len(rows) == 1
     assert outbox.stats()["total"] == 0  # v1 outbox deletes on delivery
+    with planes[2].cursor() as cursor:
+        cursor.execute(
+            "SELECT memory_id FROM fleet_memory_search "
+            "WHERE tenant_id = %s AND memory_id = 'fleet_ob_1'",
+            (TENANT_A,),
+        )
+        assert cursor.fetchone() == ("fleet_ob_1",)
+
+
+def test_fleet_committer_rejects_cross_robot_payload(planes) -> None:
+    plane_a, _, _ = planes
+    committer = FleetIngestCommitter(plane_a, "rh56_left")
+    with pytest.raises(ValueError, match="does not match fleet committer robot"):
+        committer.save_to_seekdb(
+            _mem(
+                "rh56_right",
+                "rh56_right_body",
+                "failure",
+                "spoofed robot",
+                memory_id="robot_spoof",
+            )
+        )
 
 
 def test_native_vector_and_fulltext_and_hybrid(planes) -> None:
@@ -223,7 +278,7 @@ def test_native_vector_and_fulltext_and_hybrid(planes) -> None:
         # Native vector distance query (l2 distance against the same vector)
         cursor.execute(
             "SELECT memory_id, l2_distance(embedding, %s) AS dist FROM fleet_memory_search "
-            "WHERE tenant_id = %s ORDER BY dist ASC LIMIT 3",
+            "WHERE tenant_id = %s AND embedding IS NOT NULL ORDER BY dist ASC LIMIT 3",
             (vec, TENANT_A),
         )
         vec_hits = cursor.fetchall()
@@ -232,7 +287,7 @@ def test_native_vector_and_fulltext_and_hybrid(planes) -> None:
         cursor.execute(
             "SELECT memory_id FROM fleet_memory_search "
             "WHERE tenant_id = %s AND MATCH(document) AGAINST ('剪刀' IN NATURAL LANGUAGE MODE) "
-            "ORDER BY l2_distance(embedding, %s) ASC LIMIT 3",
+            "AND embedding IS NOT NULL ORDER BY l2_distance(embedding, %s) ASC LIMIT 3",
             (TENANT_A, vec),
         )
         hybrid_hits = [row[0] for row in cursor.fetchall()]

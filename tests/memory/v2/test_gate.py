@@ -59,8 +59,13 @@ def test_secrets_are_rejected(gate: MemoryWriteGate, secret: str) -> None:
 
 
 def test_failure_memory_without_evidence_is_quarantined(gate: MemoryWriteGate) -> None:
-    candidate = _candidate(memory_type="failure", evidence_refs=[])
-    assert gate.evaluate(candidate).decision == GateDecision.QUARANTINE.value
+    candidate = _candidate(
+        memory_type="failure", evidence_refs=[], metadata={"cot_trace": ["private"]}
+    )
+    decision = gate.evaluate(candidate)
+    assert decision.decision == GateDecision.QUARANTINE.value
+    assert decision.target_memory_id is None
+    assert decision.redacted_fields == ["cot_trace"]
 
 
 def test_safety_content_without_evidence_is_quarantined(gate: MemoryWriteGate) -> None:

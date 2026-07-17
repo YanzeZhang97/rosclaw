@@ -137,6 +137,8 @@ class PracticeRecorder(RuntimeConsumer):
         # is delegated to PracticeCatalog.flush_until.
         self._jsonl_watermark = 0
         self._mcap_watermark = 0
+        self._jsonl_completed: set[int] = set()
+        self._mcap_completed: set[int] = set()
         self._last_flush_barrier: dict[str, Any] | None = None
         # Sequences that failed to persist on a given path.  The flush
         # barrier treats any failed sequence <= target as not-ok even when
@@ -327,6 +329,8 @@ class PracticeRecorder(RuntimeConsumer):
         self._summary = None
         self._jsonl_watermark = 0
         self._mcap_watermark = 0
+        self._jsonl_completed.clear()
+        self._mcap_completed.clear()
         self._last_flush_barrier = None
         for failed_set in self._failed_persist_sequences.values():
             failed_set.clear()
@@ -432,6 +436,7 @@ class PracticeRecorder(RuntimeConsumer):
         # not be blocked) but is logged CRITICAL so ``db reconcile`` and the
         # operator see the discrepancy.
         barrier = self.flush_barrier(event_count)
+        self._session.metadata["flush_barrier"] = barrier
         if not barrier["ok"]:
             logger.critical(
                 "Flush barrier not satisfied before finalizing session %s: %s",
@@ -607,6 +612,25 @@ class PracticeRecorder(RuntimeConsumer):
         except Exception as e:
             logger.error("Failed to insert episode into catalog v2: %s", e)
 
+    def _advance_path_watermark(self, path: str, sequence_id: int) -> None:
+        """Advance a synchronous writer watermark only across contiguous IDs."""
+        with self._lock:
+            if path == "jsonl":
+                completed = self._jsonl_completed
+                watermark_name = "_jsonl_watermark"
+            elif path == "mcap":
+                completed = self._mcap_completed
+                watermark_name = "_mcap_watermark"
+            else:
+                raise ValueError(f"unknown persistence path: {path}")
+            watermark = int(getattr(self, watermark_name))
+            if sequence_id > watermark:
+                completed.add(sequence_id)
+            while watermark + 1 in completed:
+                watermark += 1
+                completed.remove(watermark)
+            setattr(self, watermark_name, watermark)
+
     def _record_event(self, event: RuntimeEvent) -> None:
         envelope = self._runtime_to_envelope(event)
 
@@ -627,23 +651,23 @@ class PracticeRecorder(RuntimeConsumer):
             try:
                 byte_offset = self._writer.bytes_written
                 self._writer.write(envelope.model_dump(mode="json"))
-                with self._lock:
-                    self._jsonl_watermark = sequence_id
+                self._advance_path_watermark("jsonl", sequence_id)
             except Exception as e:
                 logger.error("Failed to write event to JSONL: %s", e)
                 byte_offset = None
                 with self._lock:
                     self._failed_persist_sequences["jsonl"].add(sequence_id)
+                self._advance_path_watermark("jsonl", sequence_id)
 
         if self._mcap_writer is not None:
             try:
                 self._mcap_writer.write(envelope.model_dump(mode="json"))
-                with self._lock:
-                    self._mcap_watermark = sequence_id
+                self._advance_path_watermark("mcap", sequence_id)
             except Exception as e:
                 logger.error("Failed to write event to MCAP: %s", e)
                 with self._lock:
                     self._failed_persist_sequences["mcap"].add(sequence_id)
+                self._advance_path_watermark("mcap", sequence_id)
 
         if self._catalog is not None:
             try:
@@ -814,8 +838,9 @@ class PracticeRecorder(RuntimeConsumer):
                 for path, seqs in self._failed_persist_sequences.items()
             }
         jsonl_ok = jsonl_watermark >= target or self._writer is None or target == 0
+        mcap_ok = mcap_watermark >= target or self._mcap_writer is None or target == 0
         gaps = {path: seqs for path, seqs in failed_below_target.items() if seqs}
-        ok = bool(jsonl_ok and catalog_report.get("ok", False) and not gaps)
+        ok = bool(jsonl_ok and mcap_ok and catalog_report.get("ok", False) and not gaps)
         report = {
             "ok": ok,
             "target": target,

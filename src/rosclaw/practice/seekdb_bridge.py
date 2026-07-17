@@ -89,6 +89,7 @@ class SeekDBBridge:
                 self._committer,
                 interval_sec=outbox_interval_sec,
                 batch_size=outbox_batch_size,
+                target="seekdb_http",
             )
             self._owned_worker.start()
             self._outbox_worker = self._owned_worker

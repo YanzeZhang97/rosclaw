@@ -419,7 +419,10 @@ class MemoryInterface(LifecycleMixin):
         """Upsert experience text into the vector side table when vector is enabled."""
         if not getattr(self._client, "_vector_enabled", False):
             return
-        self._client._ensure_vector_store()
+        ensure_vector_store = getattr(self._client, "_ensure_vector_store", None)
+        if not callable(ensure_vector_store):
+            return
+        ensure_vector_store()
         vector_store = getattr(self._client, "_vector_store", None)
         embedder = getattr(self._client, "_embedder", None)
         if vector_store is None or embedder is None:
@@ -601,9 +604,11 @@ class MemoryInterface(LifecycleMixin):
         vector_results: list[dict[str, Any]] = []
         if self._vector_search_available():
             try:
-                vector_results = self._client.similar(
-                    "experience_graph", instruction, filters=filters, limit=limit
-                )
+                similar = getattr(self._client, "similar", None)
+                if callable(similar):
+                    vector_results = similar(
+                        "experience_graph", instruction, filters=filters, limit=limit
+                    )
             except Exception as exc:  # noqa: BLE001
                 logger.debug("Vector search failed for %r: %s", instruction, exc)
 

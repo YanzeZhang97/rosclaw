@@ -19,9 +19,6 @@ from rosclaw.memory.types import ArtifactRef, FailureMemory, PraxisEvent
 # Backward-compatible aliases for documentation
 SQLiteSeekDB = SQLiteKnowledgeStore
 MemorySeekDB = InMemoryKnowledgeStore
-# Legacy aliases kept for compatibility (emit DeprecationWarning on instantiation)
-_ = SeekDBMemoryClient
-_ = SeekDBSQLiteClient
 
 __all__ = [
     "MemoryInterface",

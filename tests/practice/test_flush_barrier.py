@@ -93,12 +93,40 @@ def test_watermark_key_is_not_persisted() -> None:
             Path(tmp) / "catalog.sqlite",
             event_batch_size=1,  # synchronous flush path
         )
-        catalog.insert_event({"event_id": "e1", "practice_id": "p1", "_wm": 7})
+        catalog.insert_event({"event_id": "e1", "practice_id": "p1", "_wm": 1})
         row = catalog._conn.execute("SELECT * FROM events WHERE event_id = 'e1'").fetchone()
         assert row is not None
         assert "_wm" not in row.keys()  # noqa: SIM118 - sqlite3.Row lacks __contains__
-        assert catalog.watermarks()["events"] >= 7
+        assert catalog.watermarks()["events"] >= 1
         catalog.close()
+
+
+def test_watermark_only_advances_across_contiguous_commits() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        catalog = PracticeCatalog(
+            Path(tmp) / "catalog.sqlite",
+            event_batch_size=1,
+        )
+        catalog.insert_event({"event_id": "e2", "practice_id": "p1", "_wm": 2})
+        assert not catalog.flush_until(2, timeout_sec=0.01)["ok"]
+        catalog.insert_event({"event_id": "e1", "practice_id": "p1", "_wm": 1})
+        catalog.advance_event_index_watermark(1)
+        catalog.advance_event_index_watermark(2)
+        assert catalog.flush_until(2, timeout_sec=1.0)["ok"]
+        catalog.close()
+
+
+def test_synchronous_path_watermark_is_contiguous() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        recorder = PracticeRecorder(
+            RuntimeBus(),
+            data_root=tmp,
+            publish_to_event_bus=False,
+        )
+        recorder._advance_path_watermark("jsonl", 2)
+        assert recorder._jsonl_watermark == 0
+        recorder._advance_path_watermark("jsonl", 1)
+        assert recorder._jsonl_watermark == 2
 
 
 def test_flush_barrier_satisfied_after_events() -> None:

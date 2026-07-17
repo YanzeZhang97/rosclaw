@@ -8,7 +8,7 @@ Every index records::
 
 Lifecycle::
 
-    BUILDING new_index → 全量校验 → READY → 原子切换 active_index → OLD → 延迟清理
+    BUILDING new_index → 全量校验 → 事务替换向量语料 → READY → OLD
 
 Mixing embeddings from different models/dimensions/vocabularies in one query
 is forbidden: the manager refuses to serve a query embedder whose identity
@@ -37,6 +37,11 @@ SQLITE_SCAN_WARN_RECORDS = 10_000
 SQLITE_HARD_MAX_RECORDS = 200_000
 
 
+def memory_embedding_text(item: MemoryItem) -> str:
+    """Canonical text used to fit and populate the Memory 2.0 vector index."""
+    return f"{item.title}\n{item.document}\n{' '.join(item.tags)}"
+
+
 class IndexModelMismatchError(RuntimeError):
     """Raised when a query embedder does not match the active index."""
 
@@ -56,9 +61,10 @@ class EmbeddingIndexManager:
         rows = self._client.query(
             REGISTRY_TABLE,
             filters={"table_or_collection": table, "status": "READY"},
-            limit=1,
+            order_by="-index_version",
+            limit=100_000,
         )
-        return rows[0] if rows else None
+        return max(rows, key=lambda row: int(row.get("index_version") or 0)) if rows else None
 
     def _insert_index_record(self, record: dict[str, Any]) -> None:
         self._client.insert(REGISTRY_TABLE, record)
@@ -67,7 +73,7 @@ class EmbeddingIndexManager:
         self._client.update(REGISTRY_TABLE, index_id, updates)
 
     # ------------------------------------------------------------------
-    # Build + atomic switch
+    # Build + generation switch
     # ------------------------------------------------------------------
 
     def build(
@@ -78,13 +84,9 @@ class EmbeddingIndexManager:
         table: str = VECTOR_TABLE,
         embedder_type: str | None = None,
     ) -> dict[str, Any]:
-        """Build a fresh index over *memories* and atomically make it active."""
+        """Build a fresh index over *memories* and publish a READY generation."""
         model_name = getattr(embedder, "model_name", None) or type(embedder).__name__
         model_revision = str(getattr(embedder, "revision", None) or "v1")
-        dimension = getattr(embedder, "dim", None)
-        if callable(dimension):
-            dimension = dimension()
-
         index_id = f"idx_{uuid.uuid4().hex[:12]}"
         corpus_hash = self._corpus_hash(memories)
         previous = self.active_index(table)
@@ -94,7 +96,7 @@ class EmbeddingIndexManager:
             "embedder_type": embedder_type or type(embedder).__name__,
             "model_name": model_name,
             "model_revision": model_revision,
-            "dimension": dimension,
+            "dimension": None,
             "distance_metric": "cosine",
             "corpus_hash": corpus_hash,
             "index_version": (previous or {}).get("index_version", 0) + 1,
@@ -119,35 +121,60 @@ class EmbeddingIndexManager:
                 SQLITE_SCAN_WARN_RECORDS,
             )
 
-        texts = [self._memory_text(item) for item in memories]
+        texts = [memory_embedding_text(item) for item in memories]
         try:
-            embeddings = embedder.encode_batch(texts)
-        except AttributeError:
-            embeddings = [embedder.encode(text) for text in texts]
-        if embeddings and dimension is not None:
-            bad = [len(vec) for vec in embeddings if len(vec) != dimension]
-            if bad:
+            fit = getattr(embedder, "fit", None)
+            if callable(fit):
+                fit(texts)
+            model_revision = str(getattr(embedder, "revision", None) or "v1")
+            dimension = getattr(embedder, "dim", None)
+            if callable(dimension):
+                dimension = dimension()
+            encode_batch = getattr(embedder, "encode_batch", None)
+            embeddings = (
+                encode_batch(texts)
+                if callable(encode_batch)
+                else [embedder.encode(text) for text in texts]
+            )
+        except Exception:
+            self._update_index_record(index_id, {"status": "FAILED"})
+            raise
+        if embeddings:
+            actual_dimensions = {len(vec) for vec in embeddings}
+            if len(actual_dimensions) != 1 or (
+                dimension is not None and actual_dimensions != {dimension}
+            ):
                 self._update_index_record(index_id, {"status": "FAILED"})
                 raise IndexModelMismatchError(
-                    f"Embedder returned dimensions {set(bad)} but declared {dimension}"
+                    f"Embedder returned dimensions {actual_dimensions} but declared {dimension}"
                 )
+            dimension = next(iter(actual_dimensions))
 
-        self._vector.upsert_many(
-            table,
-            [
-                (item.memory_id, text, embedding)
-                for item, text, embedding in zip(memories, texts, embeddings, strict=True)
-            ],
-        )
+        records = [
+            (item.memory_id, text, embedding)
+            for item, text, embedding in zip(memories, texts, embeddings, strict=True)
+        ]
+        replace_all = getattr(self._vector, "replace_all", None)
+        if not callable(replace_all):
+            self._update_index_record(index_id, {"status": "FAILED"})
+            raise TypeError("Full index rebuild requires a vector store with replace_all()")
+        try:
+            replace_all(table, records)
+        except Exception:
+            self._update_index_record(index_id, {"status": "FAILED"})
+            raise
         self._update_index_record(
             index_id,
             {
                 "status": "READY",
+                "dimension": dimension,
+                "model_revision": model_revision,
                 "record_count": len(memories),
                 "completed_at": time.time(),
             },
         )
-        # Atomic switch: previous active index becomes OLD (kept for forensics).
+        # The newest READY generation wins even if a crash leaves the previous
+        # READY row behind; the old row is retained for forensic history.
         if previous is not None:
             self._update_index_record(previous["id"], {"status": "OLD"})
         logger.info(
@@ -167,11 +194,17 @@ class EmbeddingIndexManager:
         if active is None:
             return True, "no active index"
         model_name = getattr(embedder, "model_name", None) or type(embedder).__name__
+        model_revision = str(getattr(embedder, "revision", None) or "v1")
         dimension = getattr(embedder, "dim", None)
         if callable(dimension):
             dimension = dimension()
         if active.get("model_name") != model_name:
             return True, f"model changed: {active.get('model_name')} -> {model_name}"
+        if active.get("model_revision") != model_revision:
+            return (
+                True,
+                f"model revision changed: {active.get('model_revision')} -> {model_revision}",
+            )
         if dimension is not None and active.get("dimension") != dimension:
             return True, f"dimension changed: {active.get('dimension')} -> {dimension}"
         return False, "up to date"
@@ -195,9 +228,10 @@ class EmbeddingIndexManager:
         if active is None:
             return
         self.check_query_embedder(embedder)
+        text = memory_embedding_text(item)
         self._vector.upsert_many(
             VECTOR_TABLE,
-            [(item.memory_id, self._memory_text(item), embedder.encode(self._memory_text(item)))],
+            [(item.memory_id, text, embedder.encode(text))],
         )
         self._update_index_record(active["id"], {"record_count": self._vector.count(VECTOR_TABLE)})
 
@@ -214,10 +248,6 @@ class EmbeddingIndexManager:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-
-    @staticmethod
-    def _memory_text(item: MemoryItem) -> str:
-        return f"{item.title}\n{item.document}\n{' '.join(item.tags)}"
 
     @staticmethod
     def _corpus_hash(memories: list[MemoryItem]) -> str:

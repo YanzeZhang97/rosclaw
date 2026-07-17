@@ -83,6 +83,17 @@ def test_capabilities():
     assert caps["mysql"] is False
 
 
+def test_native_seekdb_capabilities(tmp_path: Path):
+    native = StorageFactory.create_knowledge_store(
+        backend="seekdb_embedded", path=str(tmp_path / "seekdb")
+    )
+    caps = StorageFactory.capabilities(native)
+    assert caps["persistent"] is True
+    assert caps["vector"] is True
+    assert caps["native_seekdb"] is True
+    assert caps["sql"] is False
+
+
 def test_ping_memory():
     mem = StorageFactory.create_knowledge_store()
     result = StorageFactory.ping(mem)

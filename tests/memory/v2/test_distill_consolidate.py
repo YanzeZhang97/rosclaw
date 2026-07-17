@@ -14,6 +14,7 @@ from rosclaw.memory.v2.distill import (
     build_candidates,
     distill_events,
     distill_session_dir,
+    extract_intervention_memories,
 )
 from rosclaw.memory.v2.gate import MemoryWriteGate
 from rosclaw.memory.v2.models import MemoryStatus
@@ -144,6 +145,22 @@ def test_distilled_memories_all_traceable(repo: MemoryRepository, gate: MemoryWr
         assert trace["traceable"], f"memory {item.memory_id} has no evidence"
 
 
+def test_intervention_without_outcome_is_not_recorded_as_failure() -> None:
+    memories = extract_intervention_memories(
+        _context(),
+        [
+            {
+                "event_id": "evt_recovery",
+                "event_type": "how.recovery.selected",
+                "payload": {"rule": "retry"},
+            }
+        ],
+    )
+    assert len(memories) == 1
+    assert memories[0].outcome == "unknown"
+    assert "(unknown)" in memories[0].title
+
+
 def test_distill_real_7x24_session(repo: MemoryRepository, gate: MemoryWriteGate) -> None:
     """Distill the final 7x24 session from disk (real data, not a mock)."""
     session_dir = Path(
@@ -248,3 +265,24 @@ def test_consolidator_decays_unpinned(repo: MemoryRepository) -> None:
     result = MemoryConsolidator(repo, decay_half_life_days=30).consolidate()
     assert result.decayed == 1
     assert repo.get(ancient.memory_id).importance < 0.9  # type: ignore[union-attr]
+
+
+def test_consolidator_decay_is_not_compounded(repo: MemoryRepository) -> None:
+    from rosclaw.memory.v2.models import MemoryItem
+
+    ancient = MemoryItem(
+        memory_type="body",
+        robot_id="r1",
+        title="stable decay",
+        document="doc",
+        evidence_refs=["e1"],
+        event_time=time.time() - 60 * 86400,
+        importance=0.8,
+    )
+    repo.store(ancient)
+    consolidator = MemoryConsolidator(repo, decay_half_life_days=30)
+    assert consolidator.consolidate().decayed == 1
+    first = repo.get(ancient.memory_id).importance  # type: ignore[union-attr]
+    consolidator.consolidate()
+    second = repo.get(ancient.memory_id).importance  # type: ignore[union-attr]
+    assert second == pytest.approx(first, rel=1e-5)

@@ -26,6 +26,22 @@ def test_enqueue_is_idempotent_on_key(outbox: OutboxStore) -> None:
     assert outbox.stats()["total"] == 1
 
 
+def test_idempotent_enqueue_succeeds_at_capacity(tmp_path: Path) -> None:
+    store = OutboxStore(db_path=str(tmp_path / "outbox.sqlite"), max_records=1)
+    store.connect()
+    first = store.enqueue("fleet", {"a": 1}, idempotency_key="memory:m1")
+    assert store.enqueue("fleet", {"a": 1}, idempotency_key="memory:m1") == first
+    with pytest.raises(OverflowError):
+        store.enqueue("fleet", {"a": 2}, idempotency_key="memory:m2")
+
+
+def test_idempotency_keys_are_target_scoped(outbox: OutboxStore) -> None:
+    first = outbox.enqueue("fleet", {"a": 1}, idempotency_key="memory:m1")
+    second = outbox.enqueue("seekdb_projection", {"a": 1}, idempotency_key="memory:m1")
+    assert first != second
+    assert outbox.stats()["total"] == 2
+
+
 def test_enqueue_derives_key_and_stores_hash(outbox: OutboxStore) -> None:
     outbox.enqueue("t", {"a": 1}, entity_type="memory", entity_id="m1")
     record = outbox.pending(limit=1)[0]
@@ -83,6 +99,14 @@ def test_mark_delivered_requires_owner(outbox: OutboxStore) -> None:
     assert record.remote_revision == "rev-7"
 
 
+def test_mark_failed_requires_exact_lease_owner(outbox: OutboxStore) -> None:
+    record_id = outbox.enqueue("t", {"a": 1})
+    outbox.mark_failed(record_id, "stale worker", owner="w1")
+    record = outbox.records()[0]
+    assert record.status == "pending"
+    assert record.retry_count == 0
+
+
 def test_purge_delivered_respects_retention(outbox: OutboxStore) -> None:
     outbox.enqueue("t", {"a": 1})
     claimed = outbox.claim(10, owner="w1")
@@ -131,6 +155,20 @@ def test_worker_injects_idempotency_key(outbox: OutboxStore) -> None:
     assert payload["a"] == 1
     # Original stored payload is not mutated.
     assert outbox.records()[0].payload == {"a": 1}
+
+
+def test_worker_only_claims_its_target(outbox: OutboxStore) -> None:
+    committer = MagicMock()
+    committer.save_to_seekdb_batch = None
+    worker = OutboxWorker(outbox, committer, interval_sec=60.0, target="fleet")
+    outbox.enqueue("fleet", {"kind": "fleet"})
+    outbox.enqueue("seekdb_http", {"kind": "http"})
+    assert worker._drain_once() == 1
+    committer.save_to_seekdb.assert_called_once()
+    assert committer.save_to_seekdb.call_args[0][0]["kind"] == "fleet"
+    remaining = outbox.pending(limit=10)
+    assert len(remaining) == 1
+    assert remaining[0].target == "seekdb_http"
 
 
 def test_worker_restart_resumes_unfinished_records(tmp_path: Path) -> None:

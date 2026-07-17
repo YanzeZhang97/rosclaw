@@ -21,7 +21,12 @@ from rosclaw.memory.seekdb_client import SQLiteKnowledgeStore
 from rosclaw.memory.v2.consolidate import MemoryConsolidator
 from rosclaw.memory.v2.distill import distill_session_dir
 from rosclaw.memory.v2.gate import MemoryWriteGate
-from rosclaw.memory.v2.index import EmbeddingIndexManager
+from rosclaw.memory.v2.index import (
+    SQLITE_HARD_MAX_RECORDS,
+    EmbeddingIndexManager,
+    IndexModelMismatchError,
+    memory_embedding_text,
+)
 from rosclaw.memory.v2.repository import MemoryRepository
 from rosclaw.memory.v2.retrieval import MemoryQuery, MemoryRetriever, SafetyRetrievalPolicy
 from rosclaw.storage.vector import SQLiteVectorStore, TfidfEmbedder
@@ -45,9 +50,11 @@ def _open_stack(args: argparse.Namespace, *, with_vector: bool = False):
     embedder = None
     if with_vector:
         embedder = TfidfEmbedder()
-        corpus = [f"{i.title}\n{i.document}" for i in repo.query(limit=1000)]
-        if corpus:
-            embedder.fit(corpus)
+        corpus = [
+            memory_embedding_text(item)
+            for item in repo.query(limit=SQLITE_HARD_MAX_RECORDS)
+        ]
+        embedder.fit(corpus)
     return client, repo, vector, embedder
 
 
@@ -80,10 +87,17 @@ def cmd_memory_v2_status(args: argparse.Namespace) -> int:
 def cmd_memory_v2_query(args: argparse.Namespace) -> int:
     client, repo, vector, embedder = _open_stack(args, with_vector=not args.no_vector)
     try:
+        if vector is not None:
+            manager = EmbeddingIndexManager(client, vector)
+            if manager.active_index() is not None:
+                manager.check_query_embedder(embedder)
         retriever = MemoryRetriever(repo, vector_store=vector, embedder=embedder)
         query = MemoryQuery(
             text=args.query,
             memory_types=getattr(args, "type", None) or [],
+            tenant_id=getattr(args, "tenant_id", None),
+            project_id=getattr(args, "project_id", None),
+            site_id=getattr(args, "site_id", None),
             robot_id=getattr(args, "robot_id", None),
             body_id=getattr(args, "body_id", None),
             task_id=getattr(args, "task_id", None),
@@ -93,6 +107,9 @@ def cmd_memory_v2_query(args: argparse.Namespace) -> int:
         if getattr(args, "safety_filter", False):
             results = SafetyRetrievalPolicy().filter(results, query)
         output = [r.to_dict() for r in results]
+    except IndexModelMismatchError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     finally:
         _close(client)
     print(json.dumps(output, indent=2, ensure_ascii=False))
@@ -100,15 +117,28 @@ def cmd_memory_v2_query(args: argparse.Namespace) -> int:
 
 
 def cmd_memory_v2_explain(args: argparse.Namespace) -> int:
+    if not getattr(args, "memory_id", None):
+        print("memory explain --v2 requires --memory-id", file=sys.stderr)
+        return 2
     client, repo, vector, embedder = _open_stack(args, with_vector=not args.no_vector)
     try:
+        if vector is not None:
+            manager = EmbeddingIndexManager(client, vector)
+            if manager.active_index() is not None:
+                manager.check_query_embedder(embedder)
         retriever = MemoryRetriever(repo, vector_store=vector, embedder=embedder)
         query = MemoryQuery(
             text=getattr(args, "text", "") or "",
+            tenant_id=getattr(args, "tenant_id", None),
+            project_id=getattr(args, "project_id", None),
+            site_id=getattr(args, "site_id", None),
             robot_id=getattr(args, "robot_id", None),
         )
         output = retriever.explain(args.memory_id, query)
         output["trace"] = repo.trace(args.memory_id)
+    except IndexModelMismatchError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     finally:
         _close(client)
     print(json.dumps(output, indent=2, ensure_ascii=False))
@@ -199,7 +229,6 @@ def cmd_memory_v2_index_rebuild(args: argparse.Namespace) -> int:
     try:
         embedder = TfidfEmbedder()
         items = repo.query(limit=200000)
-        embedder.fit([f"{i.title}\n{i.document}" for i in items])
         manager = EmbeddingIndexManager(client, vector)
         record = manager.build(items, embedder)
         output = {"rebuilt": True, "index": record}
@@ -212,9 +241,15 @@ def cmd_memory_v2_index_rebuild(args: argparse.Namespace) -> int:
 def cmd_memory_v2_benchmark(args: argparse.Namespace) -> int:
     import subprocess
 
-    script = Path(__file__).resolve().parents[3] / "benchmarks" / "memory" / "run_benchmark.py"
-    if not script.exists():
-        print(f"benchmark harness not found at {script}", file=sys.stderr)
+    module_path = Path(__file__).resolve()
+    candidates = [
+        module_path.parents[2] / "benchmarks" / "memory" / "run_benchmark.py",
+        module_path.parents[4] / "benchmarks" / "memory" / "run_benchmark.py",
+    ]
+    script = next((candidate for candidate in candidates if candidate.is_file()), None)
+    if script is None:
+        searched = ", ".join(str(candidate) for candidate in candidates)
+        print(f"benchmark harness not found (searched: {searched})", file=sys.stderr)
         return 1
     return subprocess.call([sys.executable, str(script)])
 
@@ -264,6 +299,9 @@ def extend_legacy_memory_parsers(
     query_parser.add_argument("--v2", action="store_true", help="Use Memory 2.0 hybrid retrieval")
     query_parser.add_argument("--v2-path", default=None)
     query_parser.add_argument("--type", action="append", help="Memory type filter (v2)")
+    query_parser.add_argument("--tenant-id", default=None)
+    query_parser.add_argument("--project-id", default=None)
+    query_parser.add_argument("--site-id", default=None)
     query_parser.add_argument("--robot-id", default=None)
     query_parser.add_argument("--body-id", default=None)
     query_parser.add_argument("--task-id", default=None)
@@ -275,6 +313,9 @@ def extend_legacy_memory_parsers(
     explain_parser.add_argument("--v2-path", default=None)
     explain_parser.add_argument("--memory-id", default=None, help="Memory id (v2)")
     explain_parser.add_argument("--text", default="", help="Query text (v2)")
+    explain_parser.add_argument("--tenant-id", default=None)
+    explain_parser.add_argument("--project-id", default=None)
+    explain_parser.add_argument("--site-id", default=None)
     explain_parser.add_argument("--robot-id", default=None)
     explain_parser.add_argument("--no-vector", action="store_true")
     explain_parser.set_defaults(v2_handler=cmd_memory_v2_explain)

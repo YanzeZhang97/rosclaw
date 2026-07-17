@@ -61,14 +61,17 @@ class _BatchWriter:
         self._queue: queue.Queue = queue.Queue(maxsize=max(1, int(max_queue_size)))
         self._lock = threading.Lock()
         self._closed = False
+        self._close_complete = False
+        self._poisoned = False
         self._overflow_fallbacks = 0
         self._failed_records: list[dict[str, Any]] = []
         self._flush_error: Exception | None = None
         # Transient flush failures (e.g. ``database is locked``) are retried
         # with backoff before the writer gives up and fails loudly.
         self._max_flush_retries = max(0, int(max_flush_retries))
-        # ``on_watermark`` is called with the max ``_wm`` sequence of every
-        # successfully flushed batch so callers can track durable progress.
+        # ``on_watermark`` receives every committed ``_wm`` sequence. Callers
+        # can therefore advance a contiguous durability watermark even when a
+        # queue-overflow fallback commits a later sequence first.
         self._on_watermark = on_watermark
         self._thread = threading.Thread(
             target=self._worker, name=f"catalog-batch-{name}", daemon=True
@@ -103,15 +106,22 @@ class _BatchWriter:
         connection underneath the live writer.
         """
         with self._lock:
-            if self._closed:
+            if self._close_complete:
                 return True
             self._closed = True
-        poisoned = True
-        try:
-            self._queue.put(self._POISON, block=True, timeout=timeout)
-        except queue.Full:
-            poisoned = False
-            logger.warning("Batch writer %s queue full on close; draining inline", self.name)
+            needs_poison = not self._poisoned
+        if needs_poison and self._thread.is_alive():
+            try:
+                self._queue.put(self._POISON, block=True, timeout=timeout)
+                with self._lock:
+                    self._poisoned = True
+            except queue.Full:
+                logger.critical(
+                    "Batch writer %s queue stayed full during close; retry close after "
+                    "the worker makes progress",
+                    self.name,
+                )
+                return False
         self._thread.join(timeout=timeout)
         if self._thread.is_alive():
             logger.critical(
@@ -122,14 +132,13 @@ class _BatchWriter:
             )
             return False
         final = list(self._failed_records)
-        if not poisoned:
-            while not self._queue.empty():
-                try:
-                    item = self._queue.get_nowait()
-                    if item is not self._POISON:
-                        final.append(item)
-                except queue.Empty:
-                    break
+        while not self._queue.empty():
+            try:
+                item = self._queue.get_nowait()
+                if item is not self._POISON:
+                    final.append(item)
+            except queue.Empty:
+                break
         if final:
             try:
                 self._flush_with_retry(final)
@@ -140,6 +149,10 @@ class _BatchWriter:
                     len(final),
                 )
                 return False
+        with self._lock:
+            self._failed_records.clear()
+            self._flush_error = None
+            self._close_complete = True
         if self._overflow_fallbacks:
             logger.info(
                 "Batch writer %s used synchronous overflow fallback %s times",
@@ -222,17 +235,19 @@ class _BatchWriter:
         self._report_watermark(batch)
 
     def _report_watermark(self, batch: list[dict[str, Any]]) -> None:
-        """Forward the max ``_wm`` sequence of a flushed batch to the catalog."""
+        """Forward committed ``_wm`` sequences to the catalog."""
         if self._on_watermark is None:
             return
-        watermark = 0
-        for record in batch:
-            value = record.get("_wm")
-            if isinstance(value, int) and value > watermark:
-                watermark = value
-        if watermark:
+        sequences = sorted(
+            {
+                value
+                for record in batch
+                if isinstance((value := record.get("_wm")), int) and value > 0
+            }
+        )
+        if sequences:
             try:
-                self._on_watermark(watermark)
+                self._on_watermark(sequences)
             except Exception:  # noqa: BLE001
                 logger.exception("Batch writer %s watermark callback failed", self.name)
 
@@ -454,6 +469,8 @@ class PracticeCatalog:
         # so ``flush_until`` never confuses "dequeued" with "persisted".
         self._events_watermark = 0
         self._event_index_watermark = 0
+        self._events_completed: set[int] = set()
+        self._event_index_completed: set[int] = set()
         self._watermark_cond = threading.Condition()
         self._event_writer: _BatchWriter | None = self._new_event_writer()
         self._event_index_writer: _BatchWriter | None = self._new_event_index_writer()
@@ -479,16 +496,32 @@ class PracticeCatalog:
             on_watermark=self._on_event_index_watermark,
         )
 
-    def _on_events_watermark(self, watermark: int) -> None:
+    @staticmethod
+    def _sequences(value: int | list[int]) -> list[int]:
+        return [value] if isinstance(value, int) else value
+
+    def _on_events_watermark(self, sequences: int | list[int]) -> None:
         with self._watermark_cond:
-            if watermark > self._events_watermark:
-                self._events_watermark = watermark
+            self._events_completed.update(
+                sequence
+                for sequence in self._sequences(sequences)
+                if sequence > self._events_watermark
+            )
+            while self._events_watermark + 1 in self._events_completed:
+                self._events_watermark += 1
+                self._events_completed.remove(self._events_watermark)
             self._watermark_cond.notify_all()
 
-    def _on_event_index_watermark(self, watermark: int) -> None:
+    def _on_event_index_watermark(self, sequences: int | list[int]) -> None:
         with self._watermark_cond:
-            if watermark > self._event_index_watermark:
-                self._event_index_watermark = watermark
+            self._event_index_completed.update(
+                sequence
+                for sequence in self._sequences(sequences)
+                if sequence > self._event_index_watermark
+            )
+            while self._event_index_watermark + 1 in self._event_index_completed:
+                self._event_index_watermark += 1
+                self._event_index_completed.remove(self._event_index_watermark)
             self._watermark_cond.notify_all()
 
     def _init_schema(self) -> None:
@@ -526,11 +559,15 @@ class PracticeCatalog:
         # use-after-close flush is silent data loss.
         writers_ok = True
         if self._event_writer is not None:
-            writers_ok = self._event_writer.close() and writers_ok
-            self._event_writer = None
+            event_ok = self._event_writer.close()
+            writers_ok = event_ok and writers_ok
+            if event_ok:
+                self._event_writer = None
         if self._event_index_writer is not None:
-            writers_ok = self._event_index_writer.close() and writers_ok
-            self._event_index_writer = None
+            event_index_ok = self._event_index_writer.close()
+            writers_ok = event_index_ok and writers_ok
+            if event_index_ok:
+                self._event_index_writer = None
         with self._lock:
             if writers_ok:
                 self._conn.close()
@@ -543,12 +580,12 @@ class PracticeCatalog:
 
     def flush(self) -> None:
         """Flush any pending batched writes before reading."""
-        if self._event_writer is not None:
-            self._event_writer.close()
-            self._event_writer = self._new_event_writer()
-        if self._event_index_writer is not None:
-            self._event_index_writer.close()
-            self._event_index_writer = self._new_event_index_writer()
+        event_ok = self._event_writer is None or self._event_writer.close()
+        event_index_ok = self._event_index_writer is None or self._event_index_writer.close()
+        if not event_ok or not event_index_ok:
+            raise RuntimeError("PracticeCatalog batch writer did not flush before timeout")
+        self._event_writer = self._new_event_writer()
+        self._event_index_writer = self._new_event_index_writer()
 
     # ------------------------------------------------------------------
     # Durability watermarks

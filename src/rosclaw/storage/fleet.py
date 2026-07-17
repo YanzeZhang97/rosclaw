@@ -144,6 +144,17 @@ FLEET_DDL: dict[str, str] = {
             PRIMARY KEY (tenant_id, robot_id, entity_type)
         )
     """,
+    "fleet_sync_receipts": """
+        CREATE TABLE IF NOT EXISTS fleet_sync_receipts (
+            tenant_id VARCHAR(128) NOT NULL,
+            robot_id VARCHAR(128) NOT NULL,
+            entity_type VARCHAR(64) NOT NULL,
+            idempotency_key VARCHAR(255) NOT NULL,
+            entity_id VARCHAR(128),
+            synced_at DOUBLE,
+            PRIMARY KEY (tenant_id, robot_id, entity_type, idempotency_key)
+        )
+    """,
 }
 
 # §8.3 retrieval projection — heap table with vector + fulltext for HYBRID_SEARCH.
@@ -185,6 +196,15 @@ class FleetPlane:
         self._conn = connection
         self._tenant = tenant_id
 
+    def _tenant_for(self, record: dict[str, Any]) -> str:
+        supplied = record.get("tenant_id")
+        if supplied is not None and supplied != self._tenant:
+            raise ValueError(
+                f"tenant_id {supplied!r} does not match authenticated fleet tenant "
+                f"{self._tenant!r}"
+            )
+        return self._tenant
+
     # ------------------------------------------------------------------
     # Schema
     # ------------------------------------------------------------------
@@ -220,7 +240,7 @@ class FleetPlane:
                 """,
                 (
                     robot["robot_id"],
-                    robot.get("tenant_id", self._tenant),
+                    self._tenant_for(robot),
                     robot.get("project_id"),
                     robot.get("site_id"),
                     robot.get("robot_type"),
@@ -234,6 +254,7 @@ class FleetPlane:
 
     def upsert_memory(self, memory: dict[str, Any]) -> None:
         """Idempotent fleet memory upsert keyed by (tenant_id, memory_id)."""
+        tenant_id = self._tenant_for(memory)
         with self._conn.cursor() as cursor:
             cursor.execute(
                 """
@@ -245,7 +266,7 @@ class FleetPlane:
                 """,
                 (
                     memory["memory_id"],
-                    memory.get("tenant_id", self._tenant),
+                    tenant_id,
                     memory.get("project_id"),
                     memory.get("site_id"),
                     memory["robot_id"],
@@ -264,6 +285,31 @@ class FleetPlane:
                     _now(),
                 ),
             )
+            try:
+                embedding = memory.get("embedding")
+                if isinstance(embedding, (list, tuple)):
+                    embedding = "[" + ",".join(str(float(value)) for value in embedding) + "]"
+                cursor.execute(
+                    """
+                    REPLACE INTO fleet_memory_search
+                        (memory_id, tenant_id, robot_id, body_id, memory_type,
+                         document, metadata, embedding, event_time)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        memory["memory_id"],
+                        tenant_id,
+                        memory["robot_id"],
+                        memory.get("body_id"),
+                        memory["memory_type"],
+                        memory.get("document"),
+                        json.dumps(memory.get("metadata", {})),
+                        embedding,
+                        memory.get("event_time", _now()),
+                    ),
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("fleet memory search projection failed for %s: %s", memory["memory_id"], exc)
         self._conn.commit()
 
     def upsert_episode(self, episode: dict[str, Any]) -> None:
@@ -277,7 +323,7 @@ class FleetPlane:
                 """,
                 (
                     episode["episode_id"],
-                    episode.get("tenant_id", self._tenant),
+                    self._tenant_for(episode),
                     episode.get("project_id"),
                     episode.get("site_id"),
                     episode["robot_id"],
@@ -305,7 +351,7 @@ class FleetPlane:
                 """,
                 (
                     evidence["evidence_id"],
-                    evidence.get("tenant_id", self._tenant),
+                    self._tenant_for(evidence),
                     evidence["robot_id"],
                     evidence.get("body_id"),
                     evidence["skill_id"],
@@ -335,6 +381,48 @@ class FleetPlane:
                 (robot_id, self._tenant, entity_type, last_entity_id, _now(), count),
             )
         self._conn.commit()
+
+    def record_delivery(
+        self,
+        robot_id: str,
+        entity_type: str,
+        entity_id: str,
+        idempotency_key: str,
+    ) -> bool:
+        """Record one idempotent delivery and advance its watermark once."""
+        with self._conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT IGNORE INTO fleet_sync_receipts
+                    (tenant_id, robot_id, entity_type, idempotency_key, entity_id, synced_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    self._tenant,
+                    robot_id,
+                    entity_type,
+                    idempotency_key,
+                    entity_id,
+                    _now(),
+                ),
+            )
+            inserted = cursor.rowcount > 0
+            if inserted:
+                cursor.execute(
+                    """
+                    INSERT INTO fleet_sync_watermarks
+                        (robot_id, tenant_id, entity_type, last_entity_id,
+                         last_synced_at, records_synced)
+                    VALUES (%s, %s, %s, %s, %s, 1)
+                    ON DUPLICATE KEY UPDATE
+                        last_entity_id = VALUES(last_entity_id),
+                        last_synced_at = VALUES(last_synced_at),
+                        records_synced = records_synced + 1
+                    """,
+                    (robot_id, self._tenant, entity_type, entity_id, _now()),
+                )
+        self._conn.commit()
+        return inserted
 
     def watermark(self, robot_id: str, entity_type: str) -> dict[str, Any] | None:
         with self._conn.cursor() as cursor:
@@ -425,24 +513,38 @@ class FleetIngestCommitter:
 
     def save_to_seekdb(self, payload: dict[str, Any]) -> None:
         memory = dict(payload)
-        memory.pop("idempotency_key", None)
-        memory.setdefault("robot_id", self._robot_id)
+        idempotency_key = memory.pop("idempotency_key", None)
+        self._bind_robot(memory)
         memory.setdefault("memory_id", memory.get("id"))
         self._plane.upsert_memory(memory)
-        self._plane.bump_watermark(self._robot_id, "memory", str(memory["memory_id"]), 1)
+        memory_id = str(memory["memory_id"])
+        self._plane.record_delivery(
+            self._robot_id,
+            "memory",
+            memory_id,
+            str(idempotency_key or f"memory:{memory_id}"),
+        )
 
     def save_to_seekdb_batch(self, payloads: list[dict[str, Any]]) -> None:
         for payload in payloads:
             memory = dict(payload)
-            memory.pop("idempotency_key", None)
-            memory.setdefault("robot_id", self._robot_id)
+            idempotency_key = memory.pop("idempotency_key", None)
+            self._bind_robot(memory)
             memory.setdefault("memory_id", memory.get("id"))
             self._plane.upsert_memory(memory)
-        if payloads:
-            last = payloads[-1]
-            self._plane.bump_watermark(
+            memory_id = str(memory["memory_id"])
+            self._plane.record_delivery(
                 self._robot_id,
                 "memory",
-                str(last.get("memory_id") or last.get("id")),
-                len(payloads),
+                memory_id,
+                str(idempotency_key or f"memory:{memory_id}"),
             )
+
+    def _bind_robot(self, memory: dict[str, Any]) -> None:
+        supplied = memory.get("robot_id")
+        if supplied is not None and supplied != self._robot_id:
+            raise ValueError(
+                f"robot_id {supplied!r} does not match fleet committer robot "
+                f"{self._robot_id!r}"
+            )
+        memory["robot_id"] = self._robot_id

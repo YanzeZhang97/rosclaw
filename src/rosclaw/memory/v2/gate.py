@@ -112,12 +112,12 @@ class MemoryWriteGate:
                 return MemoryDecision(
                     GateDecision.QUARANTINE.value,
                     f"{candidate.memory_type} memory without evidence",
-                    redacted,
+                    redacted_fields=redacted,
                 )
             return MemoryDecision(
                 GateDecision.IGNORE.value,
                 f"{candidate.memory_type} memory requires evidence_refs",
-                redacted,
+                redacted_fields=redacted,
             )
 
         # 5. Safety content must carry evidence; otherwise quarantine for review.
@@ -125,15 +125,13 @@ class MemoryWriteGate:
             return MemoryDecision(
                 GateDecision.QUARANTINE.value,
                 "safety-related content without evidence",
-                redacted,
+                redacted_fields=redacted,
             )
 
         # 6. Dedup: exact content hash → UPDATE only when new evidence arrives,
         #    otherwise IGNORE; near-dup → MERGE.
         if self._repo is not None:
-            existing = self._repo.find_by_content_hash(
-                candidate.content_hash, robot_id=candidate.robot_id
-            )
+            existing = self._repo.find_duplicate(candidate)
             if existing is not None:
                 new_evidence = set(candidate.evidence_refs) - set(existing.evidence_refs)
                 if new_evidence:
@@ -197,6 +195,9 @@ class MemoryWriteGate:
                 {
                     "robot_id": candidate.robot_id,
                     "memory_type": candidate.memory_type,
+                    "tenant_id": candidate.tenant_id,
+                    "project_id": candidate.project_id,
+                    "site_id": candidate.site_id,
                 },
                 limit=200,
             )

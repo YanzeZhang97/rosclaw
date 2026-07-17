@@ -51,6 +51,9 @@ class MemoryQuery:
 
     text: str = ""
     memory_types: list[str] = field(default_factory=list)
+    tenant_id: str | None = None
+    project_id: str | None = None
+    site_id: str | None = None
     robot_id: str | None = None
     body_id: str | None = None
     task_id: str | None = None
@@ -180,6 +183,12 @@ class MemoryRetriever:
 
     def _metadata_prefilter(self, query: MemoryQuery) -> list[MemoryItem]:
         filters: dict[str, Any] = {}
+        if query.tenant_id:
+            filters["tenant_id"] = query.tenant_id
+        if query.project_id:
+            filters["project_id"] = query.project_id
+        if query.site_id:
+            filters["site_id"] = query.site_id
         if query.robot_id:
             filters["robot_id"] = query.robot_id  # hard cross-robot isolation
         if query.body_id:
@@ -304,6 +313,9 @@ class MemoryRetriever:
             "matched_filters": {
                 key: value
                 for key, value in (
+                    ("tenant_id", query.tenant_id),
+                    ("project_id", query.project_id),
+                    ("site_id", query.site_id),
                     ("robot_id", query.robot_id),
                     ("body_id", query.body_id),
                     ("task_id", query.task_id),
